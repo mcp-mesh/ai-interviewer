@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-interviewer-interview-agent
+  namespace: ai-interviewer
+  labels:
+    app.kubernetes.io/name: ai-interviewer-interview-agent
+    app.kubernetes.io/component: agent
+spec:
+  selector:
+    app.kubernetes.io/name: ai-interviewer-interview-agent
+    app.kubernetes.io/component: agent
+  ports:
+  - port: 8090
+    targetPort: 8090
+    name: http
+  type: ClusterIP

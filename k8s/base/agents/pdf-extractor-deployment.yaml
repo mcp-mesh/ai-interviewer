@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-interviewer-pdf-extractor
+  namespace: ai-interviewer
+  labels:
+    app.kubernetes.io/name: ai-interviewer-pdf-extractor
+    app.kubernetes.io/component: agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ai-interviewer-pdf-extractor
+      app.kubernetes.io/component: agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ai-interviewer-pdf-extractor
+        app.kubernetes.io/component: agent
+    spec:
+      containers:
+      - name: pdf-extractor
+        image: ai-interviewer/pdf-extractor:latest
+        imagePullPolicy: Never  # Use local minikube images
+        ports:
+        - containerPort: 8090
+          name: http
+        env:
+        - name: MCP_MESH_REGISTRY_URL
+          value: "http://ai-interviewer-registry:8000"
+        - name: MCP_MESH_HTTP_PORT
+          value: "8090"
+        - name: MCP_MESH_ENV
+          value: "production"
+        - name: MCP_MESH_LOG_LEVEL
+          value: "info"
+        - name: MCP_MESH_AGENT_NAME
+          value: "pdf-extractor"
+        - name: REDIS_URL
+          value: "redis://ai-interviewer-redis:6379"
+        - name: S3_ENDPOINT
+          value: "http://ai-interviewer-minio:9000"
+        - name: S3_ACCESS_KEY
+          value: "minioadmin"
+        - name: S3_SECRET_KEY
+          value: "minioadmin123"
+        - name: S3_BUCKET_NAME
+          value: "ai-interviewer-uploads"
+        - name: S3_REGION
+          value: "us-east-1"
+        # Enable distributed tracing for MCP agent
+        - name: MCP_MESH_DISTRIBUTED_TRACING_ENABLED
+          value: "true"
+        - name: MCP_MESH_TELEMETRY_ENABLED
+          value: "true"
+        - name: MCP_MESH_REDIS_TRACE_PUBLISHING
+          value: "true"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8090
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8090
+          initialDelaySeconds: 10
+          periodSeconds: 5

@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-interviewer-postgres
+  namespace: ai-interviewer
+  labels:
+    app.kubernetes.io/name: ai-interviewer-postgres
+    app.kubernetes.io/component: database
+spec:
+  selector:
+    app.kubernetes.io/name: ai-interviewer-postgres
+    app.kubernetes.io/component: database
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+    protocol: TCP
+  type: ClusterIP

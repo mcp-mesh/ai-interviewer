@@ -1,0 +1,129 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-interviewer-ingress
+  namespace: ai-interviewer
+  labels:
+    app.kubernetes.io/name: ai-interviewer
+    app.kubernetes.io/component: ingress
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+spec:
+  ingressClassName: nginx
+  rules:
+    # Main AI Interviewer Application
+    - host: ai-interviewer.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-interviewer-nginx-gateway
+                port:
+                  number: 80
+
+    # MCP Mesh Registry Service (for development and debugging)
+    - host: registry.ai-interviewer.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-interviewer-registry
+                port:
+                  number: 8000
+
+    # Direct API Access (alternative to going through nginx gateway)
+    - host: api.ai-interviewer.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-interviewer-backend
+                port:
+                  number: 8080
+
+    # Individual Agent Access (for development and testing)
+    - host: pdf-extractor.ai-interviewer.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-interviewer-pdf-extractor
+                port:
+                  number: 8090
+
+    - host: interview-agent.ai-interviewer.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-interviewer-interview-agent
+                port:
+                  number: 8090
+
+    - host: llm-agent.ai-interviewer.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-interviewer-llm-agent
+                port:
+                  number: 8090
+
+    - host: openai-llm-agent.ai-interviewer.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-interviewer-openai-llm-agent
+                port:
+                  number: 8090
+
+    # MinIO Storage Services
+    - host: minio.ai-interviewer.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-interviewer-minio
+                port:
+                  number: 9001
+
+    - host: minio-api.ai-interviewer.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-interviewer-minio
+                port:
+                  number: 9000
+
+    # Observability Services
+    - host: grafana.ai-interviewer.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-interviewer-grafana
+                port:
+                  number: 3000

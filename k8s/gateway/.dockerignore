@@ -1,0 +1,64 @@
+# Gateway-specific dockerignore
+# We need frontend/out for the UI assets
+
+# Python cache and build artifacts
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.pytest_cache
+**/venv
+**/env
+**/.venv
+**/.env
+**/dist
+**/build
+**/*.egg-info
+
+# IDE and editor files
+**/.vscode
+**/.idea
+**/*.swp
+**/*.swo
+*~
+.DS_Store
+
+# Logs and temporary files
+**/logs
+**/*.log
+**/temp
+**/tmp
+**/.tmp
+
+# Git and version control
+**/.git
+**/.gitignore
+.github
+
+# Docker and container files
+**/Dockerfile*
+**/docker-compose*
+**/.dockerignore
+
+# Documentation
+**/README.md
+**/docs
+**/DEVELOPMENT_GUIDE.md
+
+# Test files
+**/test_*
+**/tests
+
+# Node.js (for frontend) - BUT KEEP OUT DIRECTORY
+**/node_modules
+**/package-lock.json
+# Do NOT exclude frontend/out - we need it for the gateway
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

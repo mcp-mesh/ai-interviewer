@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-interviewer-redis
+  namespace: ai-interviewer
+  labels:
+    app.kubernetes.io/name: ai-interviewer-redis
+    app.kubernetes.io/component: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ai-interviewer-redis
+      app.kubernetes.io/component: database
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ai-interviewer-redis
+        app.kubernetes.io/component: database
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+          name: redis
+        args:
+        - redis-server
+        - --appendonly yes
+        - --maxmemory 256mb
+        - --maxmemory-policy allkeys-lru
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          tcpSocket:
+            port: 6379
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 6379
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: redis-data
+        persistentVolumeClaim:
+          claimName: ai-interviewer-redis-pvc

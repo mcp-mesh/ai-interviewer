@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-interviewer-minio
+  namespace: ai-interviewer
+  labels:
+    app.kubernetes.io/name: ai-interviewer-minio
+    app.kubernetes.io/component: storage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ai-interviewer-minio
+      app.kubernetes.io/component: storage
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ai-interviewer-minio
+        app.kubernetes.io/component: storage
+    spec:
+      containers:
+      - name: minio
+        image: minio/minio:latest
+        command:
+        - /bin/bash
+        - -ce
+        - minio server /data --console-address :9001
+        ports:
+        - containerPort: 9000
+          name: api
+        - containerPort: 9001
+          name: console
+        env:
+        - name: MINIO_ROOT_USER
+          value: "minioadmin"
+        - name: MINIO_ROOT_PASSWORD
+          value: "minioadmin123"
+        - name: MINIO_API_CORS_ALLOW_ORIGIN
+          value: "*"
+        - name: MINIO_BROWSER_LOGIN_ANIMATION
+          value: "off"
+        volumeMounts:
+        - name: minio-data
+          mountPath: /data
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /minio/health/live
+            port: 9000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /minio/health/ready
+            port: 9000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: minio-data
+        persistentVolumeClaim:
+          claimName: ai-interviewer-minio-pvc

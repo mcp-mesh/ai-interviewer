@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-interviewer-nginx-gateway
+  namespace: ai-interviewer
+  labels:
+    app.kubernetes.io/name: ai-interviewer-nginx-gateway
+    app.kubernetes.io/component: gateway
+  annotations:
+    # MetalLB specific annotations
+    metallb.universe.tf/address-pool: default
+spec:
+  type: LoadBalancer  # MetalLB will assign the host IP
+  selector:
+    app.kubernetes.io/name: ai-interviewer-nginx-gateway
+    app.kubernetes.io/component: gateway
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+    protocol: TCP
+  - name: https
+    port: 443
+    targetPort: 443
+    protocol: TCP
+  # Request specific IP from MetalLB pool (minikube network)
+  loadBalancerIP: 192.168.49.100

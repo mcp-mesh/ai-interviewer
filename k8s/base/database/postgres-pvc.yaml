@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ai-interviewer-postgres-pvc
+  namespace: ai-interviewer
+  labels:
+    app.kubernetes.io/name: ai-interviewer-postgres
+    app.kubernetes.io/component: database
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: standard

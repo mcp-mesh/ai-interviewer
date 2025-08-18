@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-interviewer-registry
+  namespace: ai-interviewer
+  labels:
+    app.kubernetes.io/name: ai-interviewer-registry
+    app.kubernetes.io/component: registry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ai-interviewer-registry
+      app.kubernetes.io/component: registry
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ai-interviewer-registry
+        app.kubernetes.io/component: registry
+    spec:
+      containers:
+      - name: registry
+        image: mcpmesh/registry:0.5
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        # Registry configuration
+        - name: HOST
+          value: "0.0.0.0"
+        - name: PORT
+          value: "8000"
+        - name: MCP_MESH_LOG_LEVEL
+          value: "INFO"
+        - name: MCP_MESH_DEBUG_MODE
+          value: "false"
+        # PostgreSQL connection
+        - name: DATABASE_URL
+          value: "postgres://mcpmesh:mcpmesh123@ai-interviewer-postgres:5432/mcpmesh?sslmode=disable"
+        # Redis connection for session storage and coordination
+        - name: REDIS_URL
+          value: "redis://ai-interviewer-redis:6379"
+        # Enable telemetry and tracing
+        - name: MCP_MESH_DISTRIBUTED_TRACING_ENABLED
+          value: "true"
+        - name: MCP_MESH_TELEMETRY_ENABLED
+          value: "true"
+        - name: MCP_MESH_REDIS_TRACE_PUBLISHING
+          value: "true"
+        # OTLP tracing to Tempo
+        - name: TRACE_EXPORTER_TYPE
+          value: "otlp"
+        - name: TELEMETRY_ENDPOINT
+          value: "ai-interviewer-tempo:4317"
+        - name: TELEMETRY_PROTOCOL
+          value: "grpc"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5

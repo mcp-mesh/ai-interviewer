@@ -1,0 +1,212 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-interviewer-nginx-config
+  namespace: ai-interviewer
+data:
+  nginx.conf: |
+    worker_processes auto;
+    error_log /var/log/nginx/error.log warn;
+    pid /tmp/nginx.pid;
+
+    events {
+        worker_connections 1024;
+    }
+
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+
+        # Temporary directories for non-root user
+        client_body_temp_path /tmp/nginx/client_body_temp;
+        proxy_temp_path /tmp/nginx/proxy_temp;
+        fastcgi_temp_path /tmp/nginx/fastcgi_temp;
+        uwsgi_temp_path /tmp/nginx/uwsgi_temp;
+        scgi_temp_path /tmp/nginx/scgi_temp;
+
+        # HTTP server - redirect to HTTPS
+        server {
+            listen 80;
+            server_name _;
+            return 301 https://$server_name$request_uri;
+        }
+
+        # HTTPS server
+        server {
+            listen 443 ssl;
+            server_name _;
+            root /usr/share/nginx/html;
+            index index.html;
+
+            # SSL configuration
+            ssl_certificate /etc/ssl/certs/server.crt;
+            ssl_certificate_key /etc/ssl/private/server.key;
+            ssl_protocols TLSv1.2 TLSv1.3;
+            ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384;
+            ssl_prefer_server_ciphers on;
+
+            # Hide nginx version
+            server_tokens off;
+
+            # Health check endpoint
+            location /health {
+                access_log off;
+                return 200 "AI Interviewer HTTPS - OK\n";
+                add_header Content-Type text/plain;
+            }
+
+            # Default location
+            location / {
+                try_files $uri $uri/ /index.html;
+            }
+        }
+    }
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>🔒 AI Interviewer HTTPS Test</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+            .container { max-width: 800px; margin: 0 auto; background: rgba(255,255,255,0.1); padding: 30px; border-radius: 15px; backdrop-filter: blur(10px); }
+            h1 { color: #fff; text-align: center; font-size: 2.5em; margin-bottom: 30px; }
+            .status { background: rgba(76, 175, 80, 0.3); border: 2px solid #4CAF50; color: #fff; padding: 20px; border-radius: 10px; margin: 20px 0; text-align: center; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🔒 AI Interviewer HTTPS Working!</h1>
+            <div class="status">
+                <div>✅ SUCCESS! AI Interviewer HTTPS via LoadBalancer!</div>
+                <p>AI Interviewer HTTPS test successful on LoadBalancer IP 10.211.55.3</p>
+            </div>
+        </div>
+    </body>
+    </html>
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-interviewer-nginx-test
+  namespace: ai-interviewer
+  labels:
+    app.kubernetes.io/name: ai-interviewer-nginx-test
+    app.kubernetes.io/component: gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ai-interviewer-nginx-test
+      app.kubernetes.io/component: gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ai-interviewer-nginx-test
+        app.kubernetes.io/component: gateway
+    spec:
+      # NO hostNetwork: true - using proper K8s networking
+      initContainers:
+      - name: setup-dirs
+        image: busybox:1.35
+        command: ['sh', '-c', 'mkdir -p /tmp/nginx/client_body_temp /tmp/nginx/proxy_temp /tmp/nginx/fastcgi_temp /tmp/nginx/uwsgi_temp /tmp/nginx/scgi_temp && chmod 755 /tmp/nginx && chmod 755 /tmp/nginx/*']
+        volumeMounts:
+        - name: tmp-volume
+          mountPath: /tmp
+      containers:
+      - name: nginx
+        image: nginx:1.25-alpine
+        ports:
+        - containerPort: 80
+          name: http
+        - containerPort: 443
+          name: https
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        - name: nginx-config
+          mountPath: /usr/share/nginx/html/index.html
+          subPath: index.html
+        - name: ssl-certs
+          mountPath: /etc/ssl/certs/server.crt
+          subPath: tls.crt
+        - name: ssl-certs
+          mountPath: /etc/ssl/private/server.key
+          subPath: tls.key
+        - name: tmp-volume
+          mountPath: /tmp
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 443
+            scheme: HTTPS
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 443
+            scheme: HTTPS
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 101  # nginx user
+          runAsGroup: 101
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: ai-interviewer-nginx-config
+      - name: ssl-certs
+        secret:
+          secretName: nginx-ssl-certs
+      - name: tmp-volume
+        emptyDir: {}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-interviewer-test-service
+  namespace: ai-interviewer
+  labels:
+    app.kubernetes.io/name: ai-interviewer-nginx-test
+    app.kubernetes.io/component: gateway
+  annotations:
+    # MetalLB specific annotations
+    metallb.universe.tf/address-pool: default
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: ai-interviewer-nginx-test
+    app.kubernetes.io/component: gateway
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+    protocol: TCP
+  - name: https
+    port: 443
+    targetPort: 443
+    protocol: TCP
+  # Request the working IP that was confirmed working from both Mac and Linux
+  loadBalancerIP: 10.211.55.3

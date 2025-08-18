@@ -1,0 +1,93 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-interviewer-ingress-ip
+  namespace: ai-interviewer
+  labels:
+    app.kubernetes.io/name: ai-interviewer
+    app.kubernetes.io/component: ingress-ip
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    # Use default backend for IP-based access
+    nginx.ingress.kubernetes.io/default-backend: ai-interviewer-nginx-gateway
+spec:
+  ingressClassName: nginx
+  # No host rules - matches any host (IP access)
+  defaultBackend:
+    service:
+      name: ai-interviewer-nginx-gateway
+      port:
+        number: 80
+  rules:
+    # Catch-all rule for IP access
+    - http:
+        paths:
+          # Main application (default)
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-interviewer-nginx-gateway
+                port:
+                  number: 80
+          
+          # Registry API access via path
+          - path: /registry
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-interviewer-registry
+                port:
+                  number: 8000
+          
+          # Direct API access via path  
+          - path: /direct-api
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-interviewer-backend
+                port:
+                  number: 8080
+          
+          # Individual agents via paths
+          - path: /agents/pdf-extractor
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-interviewer-pdf-extractor
+                port:
+                  number: 8090
+          
+          - path: /agents/interview-agent
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-interviewer-interview-agent
+                port:
+                  number: 8090
+          
+          - path: /agents/llm-agent
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-interviewer-llm-agent
+                port:
+                  number: 8090
+          
+          - path: /agents/openai-llm-agent
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-interviewer-openai-llm-agent
+                port:
+                  number: 8090
+          
+          # Grafana via path
+          - path: /grafana
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-interviewer-grafana
+                port:
+                  number: 3000

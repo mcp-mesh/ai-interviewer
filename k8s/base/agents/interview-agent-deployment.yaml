@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-interviewer-interview-agent
+  namespace: ai-interviewer
+  labels:
+    app.kubernetes.io/name: ai-interviewer-interview-agent
+    app.kubernetes.io/component: agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ai-interviewer-interview-agent
+      app.kubernetes.io/component: agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ai-interviewer-interview-agent
+        app.kubernetes.io/component: agent
+    spec:
+      containers:
+      - name: interview-agent
+        image: ai-interviewer/interview-agent:latest
+        imagePullPolicy: Never  # Use local minikube images
+        ports:
+        - containerPort: 8090
+          name: http
+        env:
+        - name: MCP_MESH_REGISTRY_URL
+          value: "http://ai-interviewer-registry:8000"
+        - name: MCP_MESH_HTTP_PORT
+          value: "8090"
+        - name: MCP_MESH_ENV
+          value: "production"
+        - name: MCP_MESH_LOG_LEVEL
+          value: "info"
+        - name: MCP_MESH_AGENT_NAME
+          value: "interview-agent"
+        - name: REDIS_URL
+          value: "redis://ai-interviewer-redis:6379"
+        # Redis configuration for session management (individual connection parameters)
+        - name: REDIS_HOST
+          value: "ai-interviewer-redis"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: REDIS_DB
+          value: "0"
+        - name: REDIS_PASSWORD
+          value: ""
+        # Enable distributed tracing for MCP agent
+        - name: MCP_MESH_DISTRIBUTED_TRACING_ENABLED
+          value: "true"
+        - name: MCP_MESH_TELEMETRY_ENABLED
+          value: "true"
+        - name: MCP_MESH_REDIS_TRACE_PUBLISHING
+          value: "true"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8090
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8090
+          initialDelaySeconds: 10
+          periodSeconds: 5

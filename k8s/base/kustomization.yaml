@@ -1,0 +1,42 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ai-interviewer
+
+resources:
+  # Foundation services - Redis
+  - database/redis-deployment.yaml
+  - database/redis-service.yaml
+  
+  # Registry (MCP Mesh Registry from Docker Hub)
+  - registry/deployment.yaml
+  - registry/service.yaml
+  
+  # Backend FastAPI application
+  - backend/deployment.yaml
+  - backend/service.yaml
+  
+  # MCP Agents
+  - agents/pdf-extractor-deployment.yaml
+  - agents/pdf-extractor-service.yaml
+  - agents/interview-agent-deployment.yaml
+  - agents/interview-agent-service.yaml
+  - agents/llm-agent-deployment.yaml
+  - agents/llm-agent-service.yaml
+  - agents/openai-llm-agent-deployment.yaml
+  - agents/openai-llm-agent-service.yaml
+  
+  # Gateway (Nginx with UI)
+  - gateway/deployment.yaml
+  - gateway/service.yaml
+  
+  # Observability - Grafana
+  - observability/grafana-deployment.yaml
+  - observability/grafana-service.yaml
+  
+  # Storage for Redis
+  - storage/redis-pvc.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: ai-interviewer
+  app.kubernetes.io/managed-by: kustomize
