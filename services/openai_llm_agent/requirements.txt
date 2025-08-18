@@ -1,0 +1,22 @@
+# OpenAI LLM Agent specific dependencies
+# MCP Mesh and FastMCP are already included in the base runtime image
+
+# OpenAI API client
+openai>=1.20.0
+
+# HTTP and API utilities
+httpx>=0.25.0
+aiofiles>=23.0.0
+
+# Monitoring and metrics
+prometheus-client>=0.17.0
+
+# Redis for caching
+redis>=5.0.0
+aioredis>=2.0.0
+
+# JSON handling
+pydantic>=2.0.0
+
+# Retry logic
+tenacity>=8.0.0

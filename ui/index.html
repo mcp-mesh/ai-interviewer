@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Interviewer Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .test-auth-link {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            text-decoration: none;
+            transition: background 0.3s ease;
+        }
+        
+        .test-auth-link:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            text-decoration: none;
+            transition: background 0.3s ease;
+        }
+        
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .card h3 {
+            color: #333;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+        
+        .card p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: opacity 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            opacity: 0.9;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+        
+        .status-online {
+            background-color: #28a745;
+        }
+        
+        .status-offline {
+            background-color: #dc3545;
+        }
+        
+        .interview-section {
+            background: white;
+            border-radius: 10px;
+            padding: 2rem;
+            margin-top: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+        
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+        
+        .success {
+            background: #efe;
+            color: #363;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">🤖 AI Interviewer</div>
+        <div class="user-info">
+            <span>Welcome, <span id="userName">Loading...</span></span>
+            <a href="/test-auth.html" class="test-auth-link">🔐 Test Auth</a>
+            <a href="/logout" class="logout-btn">Logout</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="dashboard-grid">
+            <div class="card">
+                <h3>🎯 Start New Interview</h3>
+                <p>Begin a new technical interview session. Upload your resume and job description to get personalized questions.</p>
+                <button class="btn" onclick="startNewInterview()">Start Interview</button>
+            </div>
+            
+            <div class="card">
+                <h3>📊 Interview History</h3>
+                <p>View your previous interview sessions, scores, and feedback reports.</p>
+                <button class="btn" onclick="viewHistory()">View History</button>
+            </div>
+            
+            <div class="card">
+                <h3>⚙️ System Status</h3>
+                <p>Check the status of AI Interviewer services and system health.</p>
+                <div id="systemStatus">
+                    <div><span class="status-indicator status-online"></span>Authentication Service</div>
+                    <div><span class="status-indicator status-offline"></span>Interview Engine</div>
+                    <div><span class="status-indicator status-offline"></span>Document Processor</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>📝 Quick Stats</h3>
+                <p>Your interview performance overview.</p>
+                <div id="userStats">
+                    <div>Total Interviews: <strong id="totalInterviews">0</strong></div>
+                    <div>Average Score: <strong id="averageScore">N/A</strong></div>
+                    <div>Last Interview: <strong id="lastInterview">Never</strong></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="interview-section" id="interviewSection" style="display: none;">
+            <h3>Current Interview Session</h3>
+            <div id="interviewContent">
+                <!-- Interview content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+
+        // Load user profile on page load
+        async function loadUserProfile() {
+            try {
+                const response = await fetch('/api/user/profile');
+                if (response.ok) {
+                    currentUser = await response.json();
+                    document.getElementById('userName').textContent = currentUser.name || currentUser.email;
+                    updateSystemStatus();
+                    loadUserStats();
+                } else if (response.status === 401) {
+                    // Not authenticated, redirect to login
+                    window.location.href = '/login.html';
+                } else {
+                    showError('Failed to load user profile');
+                }
+            } catch (error) {
+                console.error('Error loading user profile:', error);
+                showError('Failed to connect to server');
+            }
+        }
+
+        async function updateSystemStatus() {
+            try {
+                // Check API health
+                const healthResponse = await fetch('/api/health');
+                const apiStatus = healthResponse.ok;
+                
+                // Update status indicators
+                const indicators = document.querySelectorAll('.status-indicator');
+                indicators[0].className = `status-indicator ${apiStatus ? 'status-online' : 'status-offline'}`;
+                
+                // For now, set other services as offline since they're not implemented yet
+                // In a real implementation, these would check actual service health
+                indicators[1].className = 'status-indicator status-offline';
+                indicators[2].className = 'status-indicator status-offline';
+            } catch (error) {
+                console.error('Error checking system status:', error);
+            }
+        }
+
+        async function loadUserStats() {
+            try {
+                const response = await fetch('/api/users/interviews');
+                if (response.ok) {
+                    const interviews = await response.json();
+                    // Update stats (placeholder implementation)
+                    document.getElementById('totalInterviews').textContent = interviews.length || 0;
+                    document.getElementById('averageScore').textContent = 'Coming Soon';
+                    document.getElementById('lastInterview').textContent = interviews.length > 0 ? 'Recently' : 'Never';
+                } else {
+                    console.log('User stats not available yet');
+                }
+            } catch (error) {
+                console.error('Error loading user stats:', error);
+            }
+        }
+
+        async function startNewInterview() {
+            try {
+                const response = await fetch('/api/interviews/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    showSuccess('Interview session started successfully!');
+                    // Here you would typically redirect to the interview interface
+                    // or show the interview UI
+                    showInterviewSection(result);
+                } else {
+                    showError('Failed to start interview session');
+                }
+            } catch (error) {
+                console.error('Error starting interview:', error);
+                showError('Failed to connect to interview service');
+            }
+        }
+
+        function showInterviewSection(interviewData) {
+            const section = document.getElementById('interviewSection');
+            const content = document.getElementById('interviewContent');
+            
+            content.innerHTML = `
+                <div class="interview-info">
+                    <p><strong>Session ID:</strong> ${interviewData.session_id || 'Generated'}</p>
+                    <p><strong>Status:</strong> ${interviewData.status || 'Active'}</p>
+                    <p><strong>Started:</strong> ${new Date().toLocaleString()}</p>
+                </div>
+                <div style="margin: 1rem 0;">
+                    <p><strong>Next Steps:</strong></p>
+                    <ol>
+                        <li>Upload your resume (PDF/Word format)</li>
+                        <li>Enter the job description you're interviewing for</li>
+                        <li>Begin the interactive interview session</li>
+                    </ol>
+                </div>
+                <div>
+                    <button class="btn" onclick="uploadResume()">Upload Resume</button>
+                    <button class="btn" onclick="enterJobDescription()" style="margin-left: 1rem;">Job Description</button>
+                </div>
+            `;
+            
+            section.style.display = 'block';
+            section.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function viewHistory() {
+            showInfo('Interview history feature will be available soon!');
+        }
+
+        function uploadResume() {
+            showInfo('Resume upload feature will be integrated with the document processing service.');
+        }
+
+        function enterJobDescription() {
+            showInfo('Job description input will be available in the full interview interface.');
+        }
+
+        function showError(message) {
+            showMessage(message, 'error');
+        }
+
+        function showSuccess(message) {
+            showMessage(message, 'success');
+        }
+
+        function showInfo(message) {
+            showMessage(message, 'success');
+        }
+
+        function showMessage(message, type) {
+            // Remove existing messages
+            const existingMessages = document.querySelectorAll('.error, .success');
+            existingMessages.forEach(msg => msg.remove());
+            
+            // Create new message
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type;
+            messageDiv.textContent = message;
+            
+            // Insert at top of container
+            const container = document.querySelector('.container');
+            container.insertBefore(messageDiv, container.firstChild);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.remove();
+                }
+            }, 5000);
+        }
+
+        // Load user profile when page loads
+        document.addEventListener('DOMContentLoaded', loadUserProfile);
+        
+        // Refresh system status every 30 seconds
+        setInterval(updateSystemStatus, 30000);
+    </script>
+</body>
+</html>

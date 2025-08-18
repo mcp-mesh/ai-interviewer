@@ -1,0 +1,43 @@
+# PDF Extractor Agent specific dependencies
+# MCP Mesh and FastMCP are already included in the base runtime image
+
+# PDF processing
+PyPDF2>=3.0.1
+PyMuPDF>=1.23.0
+pdfplumber>=0.9.0
+python-magic>=0.4.27
+
+# Image processing for PDF extraction
+Pillow>=10.0.0
+opencv-python-headless>=4.8.0
+
+# Table extraction
+tabula-py>=2.9.0
+camelot-py[cv]>=0.11.0
+
+# Text processing and NLP
+nltk>=3.8.1
+spacy>=3.7.0
+
+# Data handling
+pandas>=2.0.0
+numpy>=1.24.0
+
+# File handling and validation
+python-magic>=0.4.27
+filetype>=1.2.0
+
+# HTTP and API utilities
+httpx>=0.25.0
+aiofiles>=23.0.0
+
+# Caching and performance
+diskcache>=5.6.0
+joblib>=1.3.0
+
+# Monitoring and metrics
+prometheus-client>=0.17.0
+
+# S3/MinIO support
+boto3>=1.28.0
+aiobotocore>=2.7.0

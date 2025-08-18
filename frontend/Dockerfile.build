@@ -1,0 +1,25 @@
+# Build stage for static export
+FROM node:18-alpine
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+# Install dependencies
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+# Copy source files
+COPY . .
+
+# Set environment variables for static export
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+
+# Build and export static files
+RUN npm run build
+
+# Create volume directory
+RUN mkdir -p /app/out
+COPY out/* /app/out/ 2>/dev/null || echo "No out directory"
+
+# Keep container running to copy files
+CMD ["tail", "-f", "/dev/null"]
