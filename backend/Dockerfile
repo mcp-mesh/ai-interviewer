@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first (better caching)
-COPY --chown=mcp-mesh:mcp-mesh ai-interviewer/backend/requirements.txt ./
+COPY --chown=mcp-mesh:mcp-mesh backend/requirements.txt ./
 
 # Install backend-specific dependencies as root
 RUN pip install --no-cache-dir -r requirements.txt
@@ -26,7 +26,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 USER mcp-mesh
 
 # Copy backend application code (will be overridden by volume mount in dev mode)
-COPY --chown=mcp-mesh:mcp-mesh ai-interviewer/backend/ ./backend/
+COPY --chown=mcp-mesh:mcp-mesh backend/ ./backend/
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \

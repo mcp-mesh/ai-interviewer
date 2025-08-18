@@ -7,15 +7,15 @@ FROM openresty/openresty:1.21.4.1-alpine
 RUN apk add --no-cache curl
 
 # Copy built Next.js UI from frontend/out to nginx html directory
-COPY ai-interviewer/frontend/out /usr/local/openresty/nginx/html
+COPY frontend/out /usr/local/openresty/nginx/html
 
 # Copy full Nginx configuration with OAuth and Lua scripts (adapted for K8s)
-COPY ai-interviewer/k8s/gateway/nginx-k8s.conf /usr/local/openresty/nginx/conf/nginx.conf
-COPY ai-interviewer/k8s/gateway/lua /etc/nginx/lua
+COPY k8s/gateway/nginx-k8s.conf /usr/local/openresty/nginx/conf/nginx.conf
+COPY k8s/gateway/lua /etc/nginx/lua
 
 # Copy SSL certificates for HTTPS
-COPY ai-interviewer/nginx/ssl/server.crt /etc/ssl/certs/server.crt
-COPY ai-interviewer/nginx/ssl/server.key /etc/ssl/private/server.key
+COPY nginx/ssl/server.crt /etc/ssl/certs/server.crt
+COPY nginx/ssl/server.key /etc/ssl/private/server.key
 
 # Create required directories with proper permissions
 RUN mkdir -p /usr/local/openresty/nginx/logs \
@@ -39,10 +39,10 @@ RUN chown -R nobody:nobody /usr/local/openresty/nginx/html \
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:9080/health || exit 1
+    CMD curl -f http://localhost:80/health || exit 1
 
 # Expose HTTP and HTTPS ports
-EXPOSE 9080 9443
+EXPOSE 80 443
 
 # Use nobody user for security
 USER nobody
