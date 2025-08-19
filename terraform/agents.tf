@@ -551,14 +551,14 @@ resource "kubernetes_deployment" "interview_agent" {
   }
 }
 
-# LLM Agent (Claude)
-resource "kubernetes_deployment" "llm_agent" {
+# Claude LLM Agent
+resource "kubernetes_deployment" "claude_llm_agent" {
   depends_on = [
     kubernetes_service.redis
   ]
 
   metadata {
-    name      = "ai-interviewer-llm-agent"
+    name      = "ai-interviewer-claude-llm-agent"
     namespace = var.namespace
   }
 
@@ -567,21 +567,21 @@ resource "kubernetes_deployment" "llm_agent" {
 
     selector {
       match_labels = {
-        app = "ai-interviewer-llm-agent"
+        app = "ai-interviewer-claude-llm-agent"
       }
     }
 
     template {
       metadata {
         labels = {
-          app = "ai-interviewer-llm-agent"
+          app = "ai-interviewer-claude-llm-agent"
         }
       }
 
       spec {
         container {
-          name              = "llm-agent"
-          image             = var.docker_images.llm_agent
+          name              = "claude-llm-agent"
+          image             = var.docker_images.claude_llm_agent
           image_pull_policy = "Never"
 
           port {
@@ -591,7 +591,7 @@ resource "kubernetes_deployment" "llm_agent" {
           # Agent configuration
           env {
             name  = "AGENT_NAME"
-            value = "llm-claude-agent"
+            value = "claude-llm-agent"
           }
           
           env {

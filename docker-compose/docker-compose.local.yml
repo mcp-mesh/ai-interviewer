@@ -55,11 +55,11 @@ services:
       - LOG_LEVEL=DEBUG
       - PYTHONPATH=/app/mcp_mesh_local:/app:$PYTHONPATH
 
-  # Override LLM Agent to use local MCP Mesh source
-  llm-agent:
+  # Override Claude LLM Agent to use local MCP Mesh source
+  claude-llm-agent:
     build:
       context: ../
-      dockerfile: ai-interviewer/services/llm_agent/Dockerfile.local
+      dockerfile: ai-interviewer/services/claude_llm_agent/Dockerfile.local
     environment:
       # Enhanced debug settings for local development
       - MCP_MESH_LOG_LEVEL=DEBUG

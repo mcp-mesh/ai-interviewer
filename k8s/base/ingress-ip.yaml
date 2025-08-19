@@ -67,11 +67,11 @@ spec:
                 port:
                   number: 8090
           
-          - path: /agents/llm-agent
+          - path: /agents/claude-llm-agent
             pathType: Prefix
             backend:
               service:
-                name: ai-interviewer-llm-agent
+                name: ai-interviewer-claude-llm-agent
                 port:
                   number: 8090
           

@@ -1,6 +1,6 @@
-# LLM Agent - Generic AI Processing Service
+# Claude LLM Agent - Claude AI Processing Service
 
-A generic LLM processing MCP Mesh agent for the AI Interviewer system, providing Claude API integration with dynamic tool support.
+A Claude LLM processing MCP Mesh agent for the AI Interviewer system, providing Claude API integration with dynamic tool support.
 
 ## Features
 
@@ -14,7 +14,7 @@ A generic LLM processing MCP Mesh agent for the AI Interviewer system, providing
 ## Architecture
 
 ### Service Identity
-- **Name**: `llm-claude-agent`
+- **Name**: `claude-llm-agent`
 - **Capability**: `llm-service`
 - **Version**: `1.5` (Claude identifier)
 - **Port**: `9094`
@@ -40,7 +40,7 @@ def process_with_tools(
 ### Basic Text Processing
 ```python
 # From another MCP Mesh agent
-@mesh.tool(dependencies=["llm-service"])
+@mesh.tool(dependencies=["claude-llm-service"])
 async def analyze_text(text: str, llm_service: mesh.McpMeshAgent = None):
     response = await llm_service.process_with_tools(
         text=text,
@@ -75,7 +75,7 @@ resume_tool = {
     }
 }
 
-@mesh.tool(dependencies=["llm-service"])
+@mesh.tool(dependencies=["claude-llm-service"])
 async def extract_resume_info(resume_text: str, llm_service: mesh.McpMeshAgent = None):
     response = await llm_service.process_with_tools(
         text=resume_text,
@@ -160,7 +160,7 @@ The PDF extractor can use this LLM agent for structured analysis:
 
 ```python
 # In PDF Extractor Agent
-@mesh.tool(dependencies=["llm-service"])
+@mesh.tool(dependencies=["claude-llm-service"])
 async def analyze_resume_pdf(file_path: str, llm_service: mesh.McpMeshAgent = None):
     # Extract PDF text
     pdf_content = extract_text_from_pdf(file_path)
@@ -201,7 +201,7 @@ async def analyze_resume_pdf(file_path: str, llm_service: mesh.McpMeshAgent = No
 ### Local Development
 ```bash
 # Install in editable mode
-cd services/llm_agent
+cd services/claude_llm_agent
 pip install -e .[dev]
 
 # Set environment variables
@@ -209,16 +209,16 @@ export CLAUDE_API_KEY=sk-ant-api03-...
 export LOG_LEVEL=DEBUG
 
 # Run the agent
-python -m llm_agent
+python -m claude_llm_agent
 ```
 
 ### Docker Development
 ```bash
 # Build
-docker build -t llm-agent .
+docker build -t claude-llm-agent .
 
 # Run
-docker run -e CLAUDE_API_KEY=sk-ant-api03-... -p 9094:9094 llm-agent
+docker run -e CLAUDE_API_KEY=sk-ant-api03-... -p 9094:9094 claude-llm-agent
 ```
 
 ### Testing
@@ -245,7 +245,7 @@ curl http://localhost:9094/health
 
 ## Production Deployment
 
-The LLM agent is designed to be deployed as part of the AI Interviewer system using Docker Compose with MCP Mesh service discovery.
+The Claude LLM agent is designed to be deployed as part of the AI Interviewer system using Docker Compose with MCP Mesh service discovery.
 
 ### Security Considerations
 - Claude API key stored as environment variable

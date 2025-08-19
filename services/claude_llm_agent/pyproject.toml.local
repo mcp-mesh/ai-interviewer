@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ai-interviewer-llm-agent"
+name = "ai-interviewer-claude-llm-agent"
 version = "1.0.0"
-description = "Generic LLM processing MCP Mesh service for AI Interviewer system"
+description = "Claude LLM processing MCP Mesh service for AI Interviewer system"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
@@ -30,8 +30,8 @@ classifiers = [
 ]
 requires-python = ">=3.8"
 dependencies = [
-    # MCP Mesh framework - using published version
-    "mcp-mesh>=0.5.0,<0.6.0",
+    # MCP Mesh framework - using LOCAL version (installed via -e .)
+    # "mcp-mesh>=0.5.0,<0.6.0",  # REMOVED - using local source
     "fastmcp>=0.9.0",
     
     # Claude API integration
@@ -65,14 +65,14 @@ Repository = "https://github.com/ai-interviewer/ai-interviewer"
 Issues = "https://github.com/ai-interviewer/ai-interviewer/issues"
 
 [project.scripts]
-llm-agent = "llm_agent.__main__:main"
+claude-llm-agent = "claude_llm_agent.__main__:main"
 
 [tool.setuptools.packages.find]
-include = ["llm_agent*"]
+include = ["claude_llm_agent*"]
 exclude = ["tests*", "docs*"]
 
 [tool.setuptools.package-data]
-llm_agent = ["py.typed", "*.json", "*.yaml", "*.yml"]
+claude_llm_agent = ["py.typed", "*.json", "*.yaml", "*.yml"]
 
 # Black configuration
 [tool.black]

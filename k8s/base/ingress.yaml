@@ -71,14 +71,14 @@ spec:
                 port:
                   number: 8090
 
-    - host: llm-agent.ai-interviewer.local
+    - host: claude-llm-agent.ai-interviewer.local
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: ai-interviewer-llm-agent
+                name: ai-interviewer-claude-llm-agent
                 port:
                   number: 8090
 

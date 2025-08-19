@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-LLM Agent - Main Entry Point
+Claude LLM Agent - Main Entry Point
 
-A generic LLM processing MCP Mesh agent for the AI Interviewer system.
+A Claude LLM processing MCP Mesh agent for the AI Interviewer system.
 Provides Claude API integration with dynamic tool support.
 """
 
@@ -17,7 +17,7 @@ from anthropic import Anthropic
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 # Create FastMCP app instance for hybrid functionality
-app = FastMCP("LLM Processing Service")
+app = FastMCP("Claude LLM Processing Service")
 
 # Configure logging
 logging.basicConfig(
@@ -138,7 +138,7 @@ def call_claude_api(
     stream_timeout=300,  # 5-minute streaming timeout for large PDFs
     retry_count=2,
     custom_headers={
-        "X-Service-Type": "llm-agent",
+        "X-Service-Type": "claude-llm-agent",
         "X-Model-Provider": "anthropic",
         "X-Model-Version": "claude-3-sonnet"
     }
@@ -275,7 +275,7 @@ def get_llm_status() -> Dict[str, Any]:
     """
     try:
         return {
-            "agent_name": "llm-claude-agent",
+            "agent_name": "claude-llm-agent",
             "version": "1.5",
             "status": "healthy",
             "model_provider": "anthropic",
@@ -312,15 +312,15 @@ def get_llm_status() -> Dict[str, Any]:
 
 # Agent class definition - MCP Mesh will auto-discover and run the FastMCP app
 @mesh.agent(
-    name="llm-claude-agent",
+    name="claude-llm-agent",
     http_port=9094,
     auto_run=True  # KEY: This makes MCP Mesh automatically start the FastMCP server
 )
-class LLMAgent:
+class ClaudeLLMAgent:
     """
-    LLM Agent for AI Interviewer System
+    Claude LLM Agent for AI Interviewer System
     
-    A generic MCP Mesh agent for LLM processing operations using Claude API.
+    A Claude-specific MCP Mesh agent for LLM processing operations using Claude API.
     
     MCP Mesh will automatically:
     1. Discover the 'app' FastMCP instance above
@@ -332,7 +332,7 @@ class LLMAgent:
     """
     
     def __init__(self):
-        logger.info("Initializing LLM Claude Agent v1.5")
+        logger.info("Initializing Claude LLM Agent v1.5")
         logger.info(f"Default model: {DEFAULT_MODEL}")
         logger.info(f"Max tokens: {MAX_TOKENS}")
         logger.info(f"API key configured: {bool(anthropic_api_key)}")

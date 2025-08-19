@@ -90,7 +90,7 @@ k8s-build-backend: k8s-context
 	@echo "✅ Backend image built: $(REGISTRY)/backend:$(TAG)"
 
 .PHONY: k8s-build-agents
-k8s-build-agents: k8s-context k8s-build-pdf-extractor k8s-build-interview-agent k8s-build-llm-agent k8s-build-openai-llm-agent
+k8s-build-agents: k8s-context k8s-build-pdf-extractor k8s-build-interview-agent k8s-build-claude-llm-agent k8s-build-openai-llm-agent
 	@echo "✅ All agent images built successfully"
 
 .PHONY: k8s-build-pdf-extractor
@@ -111,14 +111,14 @@ k8s-build-interview-agent: k8s-context
 		.
 	@echo "✅ Interview Agent image built: $(REGISTRY)/interview-agent:$(TAG)"
 
-.PHONY: k8s-build-llm-agent
-k8s-build-llm-agent: k8s-context
-	@echo "🏗️ Building LLM agent image..."
-	cd .. && docker build -f ai-interviewer/services/llm_agent/Dockerfile \
+.PHONY: k8s-build-claude-llm-agent
+k8s-build-claude-llm-agent: k8s-context
+	@echo "🏗️ Building Claude LLM agent image..."
+	cd .. && docker build -f ai-interviewer/services/claude_llm_agent/Dockerfile \
 		--build-arg MCP_MESH_VERSION=$(MCP_MESH_VERSION) \
-		-t $(REGISTRY)/llm-agent:$(TAG) \
+		-t $(REGISTRY)/claude-llm-agent:$(TAG) \
 		.
-	@echo "✅ LLM Agent image built: $(REGISTRY)/llm-agent:$(TAG)"
+	@echo "✅ Claude LLM Agent image built: $(REGISTRY)/claude-llm-agent:$(TAG)"
 
 .PHONY: k8s-build-openai-llm-agent
 k8s-build-openai-llm-agent: k8s-context
@@ -345,7 +345,7 @@ k8s-ingress-hosts:
 	echo "$$MINIKUBE_IP api.ai-interviewer.local" | sudo tee -a /etc/hosts; \
 	echo "$$MINIKUBE_IP pdf-extractor.ai-interviewer.local" | sudo tee -a /etc/hosts; \
 	echo "$$MINIKUBE_IP interview-agent.ai-interviewer.local" | sudo tee -a /etc/hosts; \
-	echo "$$MINIKUBE_IP llm-agent.ai-interviewer.local" | sudo tee -a /etc/hosts; \
+	echo "$$MINIKUBE_IP claude-llm-agent.ai-interviewer.local" | sudo tee -a /etc/hosts; \
 	echo "$$MINIKUBE_IP openai-llm-agent.ai-interviewer.local" | sudo tee -a /etc/hosts; \
 	echo "$$MINIKUBE_IP grafana.ai-interviewer.local" | sudo tee -a /etc/hosts; \
 	echo "✅ Added all AI Interviewer ingress hosts to /etc/hosts"
@@ -377,7 +377,7 @@ k8s-test-health:
 	curl -s http://interview-agent.ai-interviewer.local/health | jq . || echo "❌ Interview agent health failed"
 	@echo ""
 	@echo "LLM Agent:"
-	curl -s http://llm-agent.ai-interviewer.local/health | jq . || echo "❌ LLM agent health failed"
+	curl -s http://claude-llm-agent.ai-interviewer.local/health | jq . || echo "❌ Claude LLM agent health failed"
 	@echo ""
 	@echo "OpenAI LLM Agent:"
 	curl -s http://openai-llm-agent.ai-interviewer.local/health | jq . || echo "❌ OpenAI LLM agent health failed"
@@ -507,7 +507,7 @@ k8s-test-mcp-tools:
 	  -d '{"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}' | grep "^data:" | sed 's/^data: //' | jq '.result.tools[] | {name: .name, description: .description}' || echo "❌ Interview agent MCP tools failed"
 	@echo ""
 	@echo "=== LLM Agent Tools ==="
-	curl -s -X POST http://llm-agent.ai-interviewer.local/mcp/ \
+	curl -s -X POST http://claude-llm-agent.ai-interviewer.local/mcp/ \
 	  -H "Content-Type: application/json" \
 	  -H "Accept: application/json, text/event-stream" \
 	  -d '{"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}' | grep "^data:" | sed 's/^data: //' | jq '.result.tools[] | {name: .name, description: .description}' || echo "❌ LLM agent MCP tools failed"
@@ -528,7 +528,7 @@ k8s-show-ip-access:
 	echo "🔧 Agent Endpoints:"; \
 	echo "  PDF Extractor: http://$$MINIKUBE_IP/agents/pdf-extractor"; \
 	echo "  Interview:     http://$$MINIKUBE_IP/agents/interview-agent"; \
-	echo "  LLM Agent:     http://$$MINIKUBE_IP/agents/llm-agent"; \
+	echo "  Claude LLM:    http://$$MINIKUBE_IP/agents/claude-llm-agent"; \
 	echo "  OpenAI LLM:    http://$$MINIKUBE_IP/agents/openai-llm-agent"; \
 	echo ""; \
 	echo "💡 Examples:"; \

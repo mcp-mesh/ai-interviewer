@@ -24,7 +24,7 @@ variable "docker_images" {
     frontend          = "ai-interviewer/nginx-gateway:latest"
     pdf_extractor     = "ai-interviewer/pdf-extractor:latest"
     interview_agent   = "ai-interviewer/interview-agent:latest"
-    llm_agent         = "ai-interviewer/llm-agent:latest"
+    claude_llm_agent  = "ai-interviewer/claude-llm-agent:latest"
     openai_llm_agent  = "ai-interviewer/openai-llm-agent:latest"
   }
 }

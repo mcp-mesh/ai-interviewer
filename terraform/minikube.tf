@@ -53,8 +53,8 @@ resource "null_resource" "build_images" {
       echo "🏗️ Building interview agent..."
       docker build -f services/interview_agent/Dockerfile -t ai-interviewer/interview-agent:latest .
       
-      echo "🏗️ Building LLM agent..."
-      docker build -f services/llm_agent/Dockerfile -t ai-interviewer/llm-agent:latest .
+      echo "🏗️ Building Claude LLM agent..."
+      docker build -f services/claude_llm_agent/Dockerfile -t ai-interviewer/claude-llm-agent:latest .
       
       echo "🏗️ Building OpenAI LLM agent..."
       docker build -f services/openai_llm_agent/Dockerfile -t ai-interviewer/openai-llm-agent:latest .

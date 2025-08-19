@@ -1,26 +1,26 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ai-interviewer-llm-agent
+  name: ai-interviewer-claude-llm-agent
   namespace: ai-interviewer
   labels:
-    app.kubernetes.io/name: ai-interviewer-llm-agent
+    app.kubernetes.io/name: ai-interviewer-claude-llm-agent
     app.kubernetes.io/component: agent
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: ai-interviewer-llm-agent
+      app.kubernetes.io/name: ai-interviewer-claude-llm-agent
       app.kubernetes.io/component: agent
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: ai-interviewer-llm-agent
+        app.kubernetes.io/name: ai-interviewer-claude-llm-agent
         app.kubernetes.io/component: agent
     spec:
       containers:
-      - name: llm-agent
-        image: ai-interviewer/llm-agent:latest
+      - name: claude-llm-agent
+        image: ai-interviewer/claude-llm-agent:latest
         imagePullPolicy: Never
         ports:
         - containerPort: 8090
@@ -35,7 +35,7 @@ spec:
         - name: MCP_MESH_LOG_LEVEL
           value: "info"
         - name: MCP_MESH_AGENT_NAME
-          value: "llm-agent"
+          value: "claude-llm-agent"
         - name: REDIS_URL
           value: "redis://ai-interviewer-redis:6379"
         - name: CLAUDE_API_KEY

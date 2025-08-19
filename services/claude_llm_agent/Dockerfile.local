@@ -30,13 +30,13 @@ USER mcp-mesh
 # Set environment variables for the agent
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    AGENT_NAME=llm-claude-agent \
+    AGENT_NAME=claude-llm-agent \
     MCP_MESH_HTTP_PORT=8090 \
     LOG_LEVEL=DEBUG
 
 # Copy agent source code and requirements
-COPY --chown=mcp-mesh:mcp-mesh ai-interviewer/services/llm_agent/requirements.txt ./
-COPY --chown=mcp-mesh:mcp-mesh ai-interviewer/services/llm_agent/ ./llm_agent/
+COPY --chown=mcp-mesh:mcp-mesh ai-interviewer/services/claude_llm_agent/requirements.txt ./
+COPY --chown=mcp-mesh:mcp-mesh ai-interviewer/services/claude_llm_agent/ ./claude_llm_agent/
 
 # Create directories for processing (as non-root user)
 USER root
@@ -54,4 +54,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
 EXPOSE ${MCP_MESH_HTTP_PORT:-8090}
 
 # Start the agent
-CMD ["python", "-m", "llm_agent"]
+CMD ["python", "-m", "claude_llm_agent"]
