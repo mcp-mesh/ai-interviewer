@@ -1,0 +1,89 @@
+# Docker Compose override for local development with local MCP Mesh source
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.local.yml up
+
+version: '3.8'
+
+services:
+  # Override registry to use local version for consistency
+  registry:
+    build:
+      context: ../
+      dockerfile: packaging/docker/registry.Dockerfile
+      args:
+        VERSION: v0.5.3
+    image: mcp-mesh-registry:local
+    environment:
+      # OTLP tracing to Tempo (inherit base config)
+      - TRACE_EXPORTER_TYPE=otlp
+      - TELEMETRY_ENDPOINT=tempo:4317
+      - TELEMETRY_PROTOCOL=grpc
+
+  # Override FastAPI backend to use local MCP Mesh
+  fastapi:
+    build:
+      context: ../
+      dockerfile: ai-interviewer/backend/Dockerfile.local
+    volumes:
+      # Mount local AI-Interviewer source for instant reload
+      - ../backend/app:/app/backend/app:ro
+      - ../backend/main.py:/app/backend/main.py:ro
+      # Mount local MCP Mesh source for instant reload
+      - ../src/runtime/python/_mcp_mesh:/app/mcp_mesh_local/_mcp_mesh:ro
+      - ../src/runtime/python/mesh:/app/mcp_mesh_local/mesh:ro
+    environment:
+      # Enhanced debug settings for local development
+      - MCP_MESH_LOG_LEVEL=DEBUG
+      - MCP_MESH_DEBUG_MODE=true
+      - DEV_MODE=true
+      - PYTHONPATH=/app/mcp_mesh_local:/app:$PYTHONPATH
+
+  # Override PDF Extractor to use local MCP Mesh source
+  pdf-extractor:
+    build:
+      context: ../
+      dockerfile: ai-interviewer/services/pdf_extractor_agent/Dockerfile.local
+    volumes:
+      # Mount local agent source for instant reload
+      - ../services/pdf_extractor_agent:/app/pdf_extractor_agent:ro
+      # Mount local MCP Mesh source for instant reload
+      - ../src/runtime/python/_mcp_mesh:/app/mcp_mesh_local/_mcp_mesh:ro
+      - ../src/runtime/python/mesh:/app/mcp_mesh_local/mesh:ro
+    environment:
+      # Enhanced debug settings for local development
+      - MCP_MESH_LOG_LEVEL=DEBUG
+      - MCP_MESH_DEBUG_MODE=true
+      - LOG_LEVEL=DEBUG
+      - PYTHONPATH=/app/mcp_mesh_local:/app:$PYTHONPATH
+
+  # Override LLM Agent to use local MCP Mesh source
+  llm-agent:
+    build:
+      context: ../
+      dockerfile: ai-interviewer/services/llm_agent/Dockerfile.local
+    environment:
+      # Enhanced debug settings for local development
+      - MCP_MESH_LOG_LEVEL=DEBUG
+      - MCP_MESH_DEBUG_MODE=true
+      - LOG_LEVEL=DEBUG
+
+  # Override OpenAI LLM Agent to use local MCP Mesh source
+  openai-llm-agent:
+    build:
+      context: ../
+      dockerfile: ai-interviewer/services/openai_llm_agent/Dockerfile.local
+    environment:
+      # Enhanced debug settings for local development
+      - MCP_MESH_LOG_LEVEL=DEBUG
+      - MCP_MESH_DEBUG_MODE=true
+      - LOG_LEVEL=DEBUG
+
+  # Override Interview Agent to use local MCP Mesh source
+  interview-agent:
+    build:
+      context: ../
+      dockerfile: ai-interviewer/services/interview_agent/Dockerfile.local
+    environment:
+      # Enhanced debug settings for local development
+      - MCP_MESH_LOG_LEVEL=DEBUG
+      - MCP_MESH_DEBUG_MODE=true
+      - LOG_LEVEL=DEBUG

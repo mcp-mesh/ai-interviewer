@@ -1,0 +1,558 @@
+# docker-compose.yml - AI Interviewer System
+version: '3.8'
+
+services:
+  # NGINX + Lua Gateway (OpenResty) - Main entry point
+  nginx-gateway:
+    image: openresty/openresty:1.21.4.1-alpine
+    container_name: ai-interviewer-gateway
+    ports:
+      - "80:80"     # HTTP (redirects to HTTPS)
+      - "443:443"   # HTTPS (main interface)
+    volumes:
+      - ../nginx/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf:ro
+      - ../nginx/lua:/etc/nginx/lua:ro
+      - ../nginx/ssl:/etc/nginx/ssl:ro
+      - ../frontend/out:/usr/share/nginx/html:ro
+    environment:
+      - DEV_MODE=${DEV_MODE:-false}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID:-}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET:-}
+      - MICROSOFT_CLIENT_ID=${MICROSOFT_CLIENT_ID:-}
+      - MICROSOFT_CLIENT_SECRET=${MICROSOFT_CLIENT_SECRET:-}
+      - APPLE_CLIENT_ID=${APPLE_CLIENT_ID:-}
+      - APPLE_CLIENT_SECRET=${APPLE_CLIENT_SECRET:-}
+    depends_on:
+      redis:
+        condition: service_healthy
+      fastapi:
+        condition: service_started
+    networks:
+      - ai-interviewer-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-k", "https://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+
+  # FastAPI Backend Server with MCP Mesh Integration
+  fastapi:
+    build:
+      context: ../
+      dockerfile: ai-interviewer/backend/Dockerfile
+      args:
+        MCP_MESH_VERSION: 0.5.3
+    container_name: ai-interviewer-api
+    ports:
+      - "8080:8080"
+    volumes:
+      # Mount local AI-Interviewer source for instant reload (dev mode)
+      - ../backend/app:/app/backend/app:ro
+      - ../backend/main.py:/app/backend/main.py:ro
+    environment:
+      # FastAPI application config
+      - REDIS_URL=redis://redis:6379
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY:-}
+      - DEV_MODE=${DEV_MODE:-false}
+      
+      # MCP Mesh integration
+      - MCP_MESH_ENABLED=true
+      - MCP_MESH_REGISTRY_URL=http://registry:8000
+      - MCP_MESH_LOG_LEVEL=DEBUG
+      - MCP_MESH_DEBUG_MODE=true
+      - MCP_MESH_HTTP_PORT=8080
+      - MCP_MESH_API_NAME=interview-api
+      
+      # Enable distributed tracing for API service
+      - MCP_MESH_DISTRIBUTED_TRACING_ENABLED=true
+      - MCP_MESH_TELEMETRY_ENABLED=true
+      - MCP_MESH_REDIS_TRACE_PUBLISHING=true
+      
+      # MinIO configuration
+      - MINIO_HOST=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin123
+      - BUCKET_NAME=ai-interviewer-uploads
+    depends_on:
+      redis:
+        condition: service_healthy
+      registry:
+        condition: service_healthy
+    networks:
+      - ai-interviewer-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Redis for sessions and caching
+  redis:
+    image: redis:7-alpine
+    container_name: ai-interviewer-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - ai-interviewer-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # PostgreSQL for MCP Mesh Registry
+  postgres:
+    image: postgres:15-alpine
+    container_name: ai-interviewer-postgres
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-mcpmesh}
+      - POSTGRES_USER=${POSTGRES_USER:-mcpmesh}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-mcpmesh123}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - ai-interviewer-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-mcpmesh}", "-d", "${POSTGRES_DB:-mcpmesh}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # MCP Mesh Registry - Core service discovery and coordination
+  registry:
+    image: mcpmesh/registry:0.5
+    container_name: ai-interviewer-registry
+    ports:
+      - "8000:8000"
+    environment:
+      # Registry configuration
+      - HOST=0.0.0.0
+      - PORT=8000
+      - MCP_MESH_LOG_LEVEL=${MCP_MESH_LOG_LEVEL:-INFO}
+      - MCP_MESH_DEBUG_MODE=${MCP_MESH_DEBUG_MODE:-false}
+      # PostgreSQL connection
+      - DATABASE_URL=postgres://${POSTGRES_USER:-mcpmesh}:${POSTGRES_PASSWORD:-mcpmesh123}@postgres:5432/${POSTGRES_DB:-mcpmesh}?sslmode=disable
+      # Redis connection for session storage and coordination
+      - REDIS_URL=redis://redis:6379
+      # Enable telemetry and tracing
+      - MCP_MESH_DISTRIBUTED_TRACING_ENABLED=true
+      - MCP_MESH_TELEMETRY_ENABLED=true
+      - MCP_MESH_REDIS_TRACE_PUBLISHING=true
+      # OTLP tracing to Tempo
+      - TRACE_EXPORTER_TYPE=otlp
+      - TELEMETRY_ENDPOINT=tempo:4317
+      - TELEMETRY_PROTOCOL=grpc
+    networks:
+      - ai-interviewer-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # MinIO S3-Compatible Storage - Local object storage for file uploads
+  minio:
+    image: minio/minio:latest
+    container_name: ai-interviewer-minio
+    ports:
+      - "9000:9000"    # S3 API endpoint
+      - "9001:9001"    # Web console
+    environment:
+      # Default credentials (change for production)
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin123
+      # Console configuration
+      - MINIO_BROWSER_REDIRECT_URL=http://localhost:9001
+      # Disable authentication for internal Docker network access
+      - MINIO_API_CORS_ALLOW_ORIGIN=*
+      - MINIO_BROWSER_LOGIN_ANIMATION=off
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - ai-interviewer-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 10s
+
+  # MinIO Setup - Configure bucket policies for anonymous access
+  minio-setup:
+    image: minio/mc:latest
+    container_name: ai-interviewer-minio-setup
+    volumes:
+      - ../scripts/minio-init.sh:/minio-init.sh
+    networks:
+      - ai-interviewer-network
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: /bin/sh
+    command: /minio-init.sh
+    restart: "no"  # Run once and exit
+
+  # PDF Extractor MCP Service - Document processing for AI Interviewer
+  pdf-extractor:
+    build:
+      context: ../
+      dockerfile: ai-interviewer/services/pdf_extractor_agent/Dockerfile
+      args:
+        MCP_MESH_VERSION: 0.5.3
+    container_name: ai-interviewer-pdf-extractor
+    ports:
+      - "8091:8090"
+    volumes:
+      # Mount local agent source for instant reload (dev mode)
+      - ../services/pdf_extractor_agent:/app/pdf_extractor_agent:ro
+      # Mount temporary directories for PDF processing
+      - pdf_temp:/app/temp
+      - pdf_output:/app/output
+      # Mount logs for debugging
+      - ../logs:/app/logs
+    environment:
+      # Agent configuration
+      - AGENT_NAME=pdf-extractor
+      - MCP_MESH_HTTP_PORT=8090
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      
+      # MCP Mesh integration
+      - MCP_MESH_ENABLED=true
+      - MCP_MESH_REGISTRY_URL=http://registry:8000
+      - MCP_MESH_LOG_LEVEL=DEBUG
+      - MCP_MESH_DEBUG_MODE=true
+      
+      # Enable distributed tracing for MCP agent
+      - MCP_MESH_DISTRIBUTED_TRACING_ENABLED=true
+      - MCP_MESH_TELEMETRY_ENABLED=true
+      - MCP_MESH_REDIS_TRACE_PUBLISHING=true
+      - REDIS_URL=redis://redis:6379
+      
+      # Processing limits
+      - PDF_MAX_FILE_SIZE_MB=50
+      - PDF_MAX_PAGES=100
+      - PDF_TIMEOUT_SECONDS=300
+      - PDF_MAX_IMAGE_COUNT=20
+      - PDF_MAX_IMAGE_SIZE_MB=10
+      
+      # Security settings
+      - PDF_ALLOW_ENCRYPTED=false
+      - PDF_SANITIZE_METADATA=true
+      - PDF_VALIDATE_HEADERS=true
+      
+      # Extraction configuration
+      - PDF_PRESERVE_FORMATTING=true
+      - PDF_EXTRACT_IMAGES=true
+      - PDF_EXTRACT_TABLES=true
+      - PDF_IMAGE_FORMAT=PNG
+      - PDF_TABLE_FORMAT=json
+      
+      # Cache configuration
+      - PDF_CACHE_ENABLED=true
+      - PDF_CACHE_TTL_SECONDS=3600
+      - PDF_TEMP_DIR=/app/temp
+      - PDF_OUTPUT_DIR=/app/output
+      
+      # Performance
+      - METRICS_ENABLED=true
+      
+      # S3/MinIO configuration
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin123
+      - S3_BUCKET_NAME=ai-interviewer-uploads
+      - S3_REGION=us-east-1
+    networks:
+      - ai-interviewer-network
+    depends_on:
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  # LLM Agent MCP Service - Generic AI processing using Claude API
+  llm-agent:
+    build:
+      context: ../  # Use parent directory to access src/runtime/python
+      dockerfile: ai-interviewer/services/llm_agent/Dockerfile
+    container_name: ai-interviewer-llm-agent
+    ports:
+      - "8092:8090"
+    environment:
+      # Agent configuration
+      - AGENT_NAME=llm-claude-agent
+      - MCP_MESH_HTTP_PORT=8090
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      
+      # MCP Mesh integration
+      - MCP_MESH_ENABLED=true
+      - MCP_MESH_REGISTRY_URL=http://registry:8000
+      - MCP_MESH_LOG_LEVEL=DEBUG
+      - MCP_MESH_DEBUG_MODE=true
+      
+      # Enable distributed tracing for MCP agent
+      - MCP_MESH_DISTRIBUTED_TRACING_ENABLED=true
+      - MCP_MESH_TELEMETRY_ENABLED=true
+      - MCP_MESH_REDIS_TRACE_PUBLISHING=true
+      - REDIS_URL=redis://redis:6379
+      
+      # Claude API configuration
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - CLAUDE_MODEL=claude-3-5-sonnet-20241022
+      - CLAUDE_MAX_TOKENS=4000
+      - CLAUDE_TEMPERATURE=0.7
+      
+      # Performance and reliability
+      - RETRY_ATTEMPTS=3
+      - TIMEOUT_SECONDS=120
+    volumes:
+      # Mount logs for debugging
+      - ../logs:/app/logs
+    networks:
+      - ai-interviewer-network
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  # OpenAI LLM Agent MCP Service - Generic AI processing using OpenAI ChatGPT API
+  openai-llm-agent:
+    build:
+      context: ../  # Use parent directory to access src/runtime/python
+      dockerfile: ai-interviewer/services/openai_llm_agent/Dockerfile
+    container_name: ai-interviewer-openai-llm-agent
+    ports:
+      - "8094:8090"
+    environment:
+      # Agent configuration
+      - AGENT_NAME=llm-openai-agent
+      - MCP_MESH_HTTP_PORT=8090
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      
+      # MCP Mesh integration
+      - MCP_MESH_ENABLED=true
+      - MCP_MESH_REGISTRY_URL=http://registry:8000
+      - MCP_MESH_LOG_LEVEL=DEBUG
+      - MCP_MESH_DEBUG_MODE=true
+      
+      # Enable distributed tracing for MCP agent
+      - MCP_MESH_DISTRIBUTED_TRACING_ENABLED=true
+      - MCP_MESH_TELEMETRY_ENABLED=true
+      - MCP_MESH_REDIS_TRACE_PUBLISHING=true
+      - REDIS_URL=redis://redis:6379
+      
+      # OpenAI API configuration
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=gpt-4o
+      - OPENAI_MAX_TOKENS=4000
+      - OPENAI_TEMPERATURE=0.7
+      
+      # Performance and reliability
+      - RETRY_ATTEMPTS=3
+      - TIMEOUT_SECONDS=120
+    volumes:
+      # Mount logs for debugging
+      - ../logs:/app/logs
+    networks:
+      - ai-interviewer-network
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  # Interview Agent MCP Service - Technical interviewer with session management
+  interview-agent:
+    build:
+      context: ../  # Use parent directory to access src/runtime/python
+      dockerfile: ai-interviewer/services/interview_agent/Dockerfile
+    container_name: ai-interviewer-interview-agent
+    ports:
+      - "8093:8090"
+    environment:
+      # Agent configuration
+      - AGENT_NAME=interview-agent
+      - MCP_MESH_HTTP_PORT=8090
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      
+      # MCP Mesh integration
+      - MCP_MESH_ENABLED=true
+      - MCP_MESH_REGISTRY_URL=http://registry:8000
+      - MCP_MESH_LOG_LEVEL=DEBUG
+      - MCP_MESH_DEBUG_MODE=true
+      
+      # Enable distributed tracing for MCP agent
+      - MCP_MESH_DISTRIBUTED_TRACING_ENABLED=true
+      - MCP_MESH_TELEMETRY_ENABLED=true
+      - MCP_MESH_REDIS_TRACE_PUBLISHING=true
+      - REDIS_URL=redis://redis:6379
+      
+      # Redis configuration for session management
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - REDIS_PASSWORD=
+    volumes:
+      # Mount logs for debugging
+      - ../logs:/app/logs
+    networks:
+      - ai-interviewer-network
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  # Tempo - Distributed tracing backend
+  tempo:
+    image: grafana/tempo:2.8.1
+    container_name: ai-interviewer-tempo
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ../observability/tempo/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo_data:/var/tempo
+    ports:
+      - "3200:3200" # Tempo HTTP
+      - "4327:4317" # OTLP gRPC receiver
+      - "4328:4318" # OTLP HTTP receiver
+    networks:
+      - ai-interviewer-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3200/ready",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # Grafana - Observability and visualization
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: ai-interviewer-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
+      # Set MCP Mesh Overview as default home dashboard
+      - GF_DEFAULT_PREFERENCES_HOME_DASHBOARD_UID=mcp-mesh-overview
+      - GF_USERS_HOME_PAGE=/d/mcp-mesh-overview/mcp-mesh-overview
+      - GF_USERS_DEFAULT_THEME=dark
+      # Disable welcome screen
+      - GF_AUTH_DISABLE_LOGIN_FORM=false
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_NEWS_NEWS_FEED_ENABLED=false
+    volumes:
+      # Custom Grafana configuration
+      - ../observability/grafana/grafana.ini:/etc/grafana/grafana.ini:ro
+      # Configuration and provisioning
+      - ../observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      # Themes and static files
+      - ../observability/grafana/themes:/usr/share/grafana/public/css/themes:ro
+      # Persistent data
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - ai-interviewer-network
+    depends_on:
+      tempo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000/api/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+# Named volumes for persistent data
+volumes:
+  redis_data:
+    driver: local
+  postgres_data:
+    driver: local
+  pdf_temp:
+    driver: local
+  pdf_output:
+    driver: local
+  minio_data:
+    driver: local
+  tempo_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+# Network for service communication
+networks:
+  ai-interviewer-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

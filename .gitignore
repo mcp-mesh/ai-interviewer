@@ -44,3 +44,10 @@ terraform/*_override.tf.json
 # SSL Certificates - Include fullchain but exclude private key for security
 ssl-*-privkey.pem
 # ssl-*-fullchain.pem can be committed for transparency and deployment
+
+# Self-signed SSL certificates for local development (auto-created by Makefile)
+nginx/ssl/
+docker-compose/nginx/ssl/
+
+# Docker build symlink (auto-created by Makefile)
+ai-interviewer
