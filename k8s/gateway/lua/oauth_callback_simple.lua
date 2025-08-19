@@ -14,12 +14,12 @@ ngx.log(ngx.INFO, "OAuth callback received with code: ", code and "present" or "
 -- Check for OAuth error
 if error_param then
     ngx.log(ngx.ERR, "OAuth error: ", error_param)
-    return ngx.redirect("/login.html?error=oauth_" .. error_param)
+    return ngx.redirect("/?error=oauth_" .. error_param)
 end
 
 if not code or not state then
     ngx.log(ngx.ERR, "Missing code or state in OAuth callback")
-    return ngx.redirect("/login.html?error=missing_params")
+    return ngx.redirect("/?error=missing_params")
 end
 
 -- Validate state parameter and get provider
@@ -27,7 +27,7 @@ local oauth_states = ngx.shared.oauth_states
 local provider = oauth_states:get(state)
 if not provider then
     ngx.log(ngx.ERR, "Invalid or expired OAuth state")
-    return ngx.redirect("/login.html?error=invalid_state")
+    return ngx.redirect("/?error=invalid_state")
 end
 oauth_states:delete(state)
 
@@ -42,7 +42,7 @@ local token_endpoints = {
 local endpoint = token_endpoints[provider]
 if not endpoint then
     ngx.log(ngx.ERR, "Unsupported OAuth provider: ", provider)
-    return ngx.redirect("/login.html?error=unsupported_provider")
+    return ngx.redirect("/?error=unsupported_provider")
 end
 
 -- Exchange authorization code for tokens
@@ -54,7 +54,7 @@ ngx.log(ngx.INFO, "Starting OAuth token exchange for ", provider, " with code: "
 local oauth_config = _G.OAUTH_CONFIG and _G.OAUTH_CONFIG[provider]
 if not oauth_config or not oauth_config.client_id or not oauth_config.client_secret then
     ngx.log(ngx.ERR, "Missing OAuth credentials for provider: ", provider)
-    return ngx.redirect("/login.html?error=config_missing")
+    return ngx.redirect("/?error=config_missing")
 end
 
 local client_id = oauth_config.client_id
@@ -65,8 +65,32 @@ local redirect_uri = "https://" .. ngx.var.host .. "/auth/callback"
 local sock = ngx.socket.tcp()
 sock:settimeout(10000)  -- 10 seconds timeout
 
+-- Force IPv4 resolution to avoid IPv6 connectivity issues
+local resolver = require "resty.dns.resolver"
+local r, err = resolver:new{
+    nameservers = {"8.8.8.8", "8.8.4.4"},  -- Use Google DNS for reliable IPv4 resolution
+    retrans = 3,
+    timeout = 2000,
+}
+
 local session
-local ok, err = sock:connect(endpoint.host, endpoint.port)
+local target_host = endpoint.host
+local target_port = endpoint.port
+
+-- Resolve hostname to IPv4 address
+if r then
+    local answers, err = r:query(endpoint.host, {qtype = r.TYPE_A})  -- Force A record (IPv4)
+    if answers and answers[1] and answers[1].address then
+        target_host = answers[1].address
+        ngx.log(ngx.INFO, "Resolved ", endpoint.host, " to IPv4: ", target_host)
+    else
+        ngx.log(ngx.WARN, "Failed to resolve ", endpoint.host, " to IPv4, using hostname: ", err or "unknown error")
+    end
+else
+    ngx.log(ngx.WARN, "Failed to create DNS resolver, using hostname: ", err or "unknown error")
+end
+
+local ok, err = sock:connect(target_host, target_port)
 if not ok then
     ngx.log(ngx.ERR, "Failed to connect to ", provider, " OAuth: ", err)
     -- Fallback to demo session if connection fails
@@ -89,7 +113,7 @@ else
     if not ok then
         ngx.log(ngx.ERR, "SSL handshake failed for ", provider, ": ", err)
         sock:close()
-        return ngx.redirect("/login.html?error=ssl_failed")
+        return ngx.redirect("/?error=ssl_failed")
     end
 
     -- Prepare POST data for token exchange
@@ -115,7 +139,7 @@ else
     if not bytes then
         ngx.log(ngx.ERR, "Failed to send token request: ", err)
         sock:close()
-        return ngx.redirect("/login.html?error=token_request_failed")
+        return ngx.redirect("/?error=token_request_failed")
     end
 
     -- Read response headers
@@ -123,14 +147,14 @@ else
     if not headers then
         ngx.log(ngx.ERR, "Failed to read token response headers: ", err)
         sock:close()
-        return ngx.redirect("/login.html?error=token_response_failed")
+        return ngx.redirect("/?error=token_response_failed")
     end
 
     -- Check if response is successful
     if not string.match(headers, "HTTP/1%.[01] 200") then
         ngx.log(ngx.ERR, "Token request failed: ", headers)
         sock:close()
-        return ngx.redirect("/login.html?error=token_http_error")
+        return ngx.redirect("/?error=token_http_error")
     end
 
     -- Check if response uses chunked encoding
@@ -184,7 +208,7 @@ else
     if not body then
         ngx.log(ngx.ERR, "Failed to read token response body: ", err)
         sock:close()
-        return ngx.redirect("/login.html?error=token_body_failed")
+        return ngx.redirect("/?error=token_body_failed")
     end
 
     sock:close()
@@ -203,12 +227,12 @@ else
     if not token_data then
         ngx.log(ngx.ERR, "JSON decode error: ", decode_err or "unknown")
         ngx.log(ngx.ERR, "Raw body: ", body)
-        return ngx.redirect("/login.html?error=json_decode_failed")
+        return ngx.redirect("/?error=json_decode_failed")
     end
     
     if token_data.error then
         ngx.log(ngx.ERR, "Token exchange failed: ", body)
-        return ngx.redirect("/login.html?error=token_exchange_failed")
+        return ngx.redirect("/?error=token_exchange_failed")
     end
 
     -- Extract user info based on provider
@@ -303,7 +327,7 @@ else
         ngx.log(ngx.INFO, "OAuth token exchange successful")
     else
         ngx.log(ngx.ERR, "No access token in response")
-        return ngx.redirect("/login.html?error=no_access_token")
+        return ngx.redirect("/?error=no_access_token")
     end
 end
 
@@ -313,7 +337,7 @@ red:set_timeout(1000)
 local ok, err = red:connect("ai-interviewer-redis.ai-interviewer.svc.cluster.local", 6379)
 if not ok then
     ngx.log(ngx.ERR, "Failed to connect to Redis for session storage: ", err)
-    return ngx.redirect("/login.html?error=session_storage_failed")
+    return ngx.redirect("/?error=session_storage_failed")
 end
 
 ngx.log(ngx.ERR, "About to store session with ID: ", session_id)
@@ -323,7 +347,7 @@ local success, err = red:setex("session:" .. session_id, 86400, json.encode(sess
 if not success then
     ngx.log(ngx.ERR, "Failed to store session in Redis: ", err)
     red:close()
-    return ngx.redirect("/login.html?error=session_storage_failed")
+    return ngx.redirect("/?error=session_storage_failed")
 end
 
 -- Verify the session was stored by reading it back immediately

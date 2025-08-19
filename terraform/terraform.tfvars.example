@@ -1,0 +1,56 @@
+# AI Interviewer Terraform Configuration
+# Copy this file to terraform.tfvars and customize as needed
+
+# Minikube Configuration  
+minikube_memory = 28672  # 28 GB RAM (leaving ~4GB for host OS)
+minikube_cpus   = 8      # 8 CPU cores
+
+# Kubernetes Configuration
+namespace = "ai-interviewer"
+metallb_ip_range = "192.168.49.100-192.168.49.200"
+
+# Environment (dev, staging, prod)
+environment = "dev"
+
+# Feature Toggles
+enable_observability = true
+enable_debug = false
+
+# Docker Images (built locally)
+docker_images = {
+  backend           = "ai-interviewer/backend:latest"
+  frontend          = "ai-interviewer/nginx-gateway:latest"
+  pdf_extractor     = "ai-interviewer/pdf-extractor:latest"
+  interview_agent   = "ai-interviewer/interview-agent:latest"
+  llm_agent         = "ai-interviewer/llm-agent:latest"
+  openai_llm_agent  = "ai-interviewer/openai-llm-agent:latest"
+}
+
+# IMPORTANT: Secrets should be provided via environment variables!
+# Set these environment variables before running terraform:
+#
+# OAuth Configuration:
+# export TF_VAR_env_secrets='{"GOOGLE_CLIENT_ID":"your-google-client-id","GOOGLE_CLIENT_SECRET":"your-google-client-secret"}'
+# OR individually:
+# export GOOGLE_CLIENT_ID="your-google-client-id"
+# export GOOGLE_CLIENT_SECRET="your-google-client-secret"
+# export GITHUB_CLIENT_ID="your-github-client-id"
+# export GITHUB_CLIENT_SECRET="your-github-client-secret"
+# export MICROSOFT_CLIENT_ID="your-microsoft-client-id"
+# export MICROSOFT_CLIENT_SECRET="your-microsoft-client-secret"
+# export APPLE_CLIENT_ID="your-apple-client-id"
+# export APPLE_CLIENT_SECRET="your-apple-client-secret"
+#
+# API Keys:
+# export ANTHROPIC_API_KEY="your-anthropic-api-key"
+# export OPENAI_API_KEY="your-openai-api-key"
+#
+# Optional database overrides:
+# export POSTGRES_USER="custom_user"
+# export POSTGRES_PASSWORD="custom_password"
+# export POSTGRES_DB="custom_db"
+# export MINIO_ACCESS_KEY="custom_access_key"
+# export MINIO_SECRET_KEY="custom_secret_key"
+
+# DO NOT put actual secrets in terraform.tfvars!
+# Use environment variables instead for security.
