@@ -18,7 +18,7 @@ from app.services.interview_monitoring import monitoring_service
 from app.middleware.auth import auth_middleware
 
 # Import route modules
-from app.routes import auth, interviews, upload, roles_new as roles, admin, reference
+from app.routes import auth, interviews, upload, roles_new as roles, admin, reference, profiles
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -83,6 +83,7 @@ app.include_router(upload.router)
 app.include_router(roles.router)
 app.include_router(admin.router)
 app.include_router(reference.router)
+app.include_router(profiles.router)
 
 @app.get("/debug/routes")
 async def debug_routes():

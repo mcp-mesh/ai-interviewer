@@ -137,88 +137,119 @@ class HybridDataService:
             return False
     
     @staticmethod
-    async def process_resume_upload(
+    async def create_or_update_profile_from_resume(
         email: str, 
         resume_content: str, 
         file_metadata: Dict[str, Any],
-        llm_service,
+        profile_analysis: Dict[str, Any],
         db: Session = None
     ) -> Dict[str, Any]:
-        """Process resume upload: extract skills, update both Redis and PostgreSQL."""
+        """Create or update user profile with Phase 2 matching-optimized data structure."""
+        close_session = False
+        if db is None:
+            db = get_session()
+            close_session = True
+        
         try:
-            # Extract skills using LLM
-            logger.info(f"Extracting skills from resume for {email}")
-            extracted_data = await SkillExtractionService.extract_profile_data(
-                resume_content, llm_service
-            )
+            logger.info(f"Creating/updating Phase 2 profile for {email}")
             
-            if "error" in extracted_data:
-                return {"success": False, "error": extracted_data["error"]}
-            
-            # Prepare profile data for PostgreSQL
+            # Prepare Phase 2 profile data from LLM analysis
             profile_data = {
                 "name": file_metadata.get("user_name"),
-                "overall_experience_level": extracted_data.get("overall_experience_level"),
-                "total_years_experience": extracted_data.get("total_years_experience"),
-                "skills": extracted_data.get("skills", {}),
-                "leadership_experience": extracted_data.get("leadership_experience", {}),
-                "career_progression": extracted_data.get("career_progression", []),
-                "preferred_experience_levels": extracted_data.get("preferred_next_levels", []),
-                "category_preferences": extracted_data.get("categories_of_interest", []),
+                # Phase 2: Three-factor matching data
+                "categories": profile_analysis.get("categories", []),
+                "experience_level": profile_analysis.get("experience_level"),
+                "years_experience": profile_analysis.get("years_experience", 0),
+                "tags": profile_analysis.get("tags", []),
+                # Phase 2: LLM-generated profile data
+                "professional_summary": profile_analysis.get("professional_summary"),
+                "education_level": profile_analysis.get("education_level"),
+                "confidence_score": profile_analysis.get("confidence_score", 0.0),
+                "profile_strength": profile_analysis.get("profile_strength", "average"),
+                "profile_version": 2,  # Mark as Phase 2 profile
+                # Resume storage
                 "resume_content": resume_content,
+                "resume_filename": file_metadata.get("filename"),
+                "minio_file_path": file_metadata.get("minio_path"),
                 "resume_metadata": file_metadata,
-                "is_profile_complete": True
+                # Profile status
+                "is_profile_complete": True,
+                "needs_review": False,
+                "last_resume_upload": datetime.utcnow()
             }
             
-            # Save to PostgreSQL
-            profile_success = HybridDataService.create_or_update_profile(
-                email, profile_data, db
-            )
+            # Get or create profile
+            profile = db.query(UserProfile).filter(UserProfile.email == email).first()
             
-            if not profile_success:
-                return {"success": False, "error": "Failed to save profile data"}
+            if profile:
+                # Update existing profile with Phase 2 data
+                logger.info(f"Updating existing profile for {email} to Phase 2 schema")
+                for key, value in profile_data.items():
+                    if hasattr(profile, key):
+                        setattr(profile, key, value)
+            else:
+                # Create new Phase 2 profile
+                logger.info(f"Creating new Phase 2 profile for {email}")
+                profile = UserProfile(email=email, **profile_data)
+                db.add(profile)
             
-            # Update Redis with resume info (for backward compatibility)
-            resume_data = {
-                "resume": {
-                    "filename": file_metadata.get("filename"),
-                    "extracted_text": resume_content,
-                    "upload_date": datetime.utcnow().isoformat(),
-                    "structured_analysis": {
-                        "skills_count": len(extracted_data.get("skills", {})),
-                        "experience_level": extracted_data.get("overall_experience_level"),
-                        "confidence_avg": HybridDataService._calculate_avg_confidence(
-                            extracted_data.get("skills", {})
-                        )
-                    }
-                }
+            db.commit()
+            db.refresh(profile)
+            
+            # Update Redis with only essential session data (no redundant resume data)
+            session_data = {
+                "profile_exists": True,
+                "profile_complete": True,
+                "profile_version": 2,
+                "categories_count": len(profile_analysis.get("categories", [])),
+                "experience_level": profile_analysis.get("experience_level"),
+                "profile_strength": profile_analysis.get("profile_strength"),
+                "last_profile_update": datetime.utcnow().isoformat()
             }
             
-            redis_success = HybridDataService.update_auth_data(email, resume_data)
+            redis_success = HybridDataService.update_auth_data(email, session_data)
             
             if not redis_success:
-                logger.warning(f"Profile saved to PostgreSQL but Redis update failed for {email}")
+                logger.warning(f"Profile saved to PostgreSQL but Redis session update failed for {email}")
             
             return {
                 "success": True,
-                "skills_extracted": len(extracted_data.get("skills", {})),
-                "experience_level": extracted_data.get("overall_experience_level"),
-                "profile_complete": True
+                "profile_complete": True,
+                "categories_extracted": len(profile_analysis.get("categories", [])),
+                "tags_extracted": len(profile_analysis.get("tags", [])),
+                "experience_level": profile_analysis.get("experience_level"),
+                "profile_strength": profile_analysis.get("profile_strength"),
+                "confidence_score": profile_analysis.get("confidence_score", 0.0),
+                "ready_for_matching": True
             }
             
         except Exception as e:
-            logger.error(f"Error processing resume upload for {email}: {e}")
+            logger.error(f"Error creating/updating Phase 2 profile for {email}: {e}")
+            if db:
+                db.rollback()
             return {"success": False, "error": str(e)}
+        finally:
+            if close_session:
+                db.close()
     
     @staticmethod
     def _sync_profile_flags_to_redis(email: str, profile: UserProfile):
         """Sync PostgreSQL profile status flags to Redis for fast access."""
         try:
+            # Use Phase 2 fields if available, fallback to legacy fields
+            experience_level = profile.experience_level or profile.overall_experience_level
+            categories_count = len(profile.categories) if profile.categories else 0
+            tags_count = len(profile.tags) if profile.tags else 0
+            
             flags = {
                 "profile_exists": True,
                 "profile_complete": profile.is_profile_complete,
-                "skills_count": len(profile.skills) if profile.skills else 0,
-                "experience_level": profile.overall_experience_level,
+                "profile_version": getattr(profile, 'profile_version', 1),
+                "experience_level": experience_level,
+                "categories_count": categories_count,
+                "tags_count": tags_count,
+                "profile_strength": getattr(profile, 'profile_strength', 'average'),
+                "confidence_score": getattr(profile, 'confidence_score', 0.0),
                 "last_profile_update": datetime.utcnow().isoformat()
             }
             

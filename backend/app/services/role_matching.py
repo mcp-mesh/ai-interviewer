@@ -1,9 +1,10 @@
 """
-Intelligent role matching service for matching candidates to job roles.
+Phase 2 three-factor role matching service for matching candidates to job roles.
+Uses categories, experience level, and tags for intelligent matching.
 """
 
 import logging
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional
 from datetime import datetime
 from sqlalchemy.orm import Session
 from app.models.database import Role, UserProfile, RoleMatchHistory
@@ -11,342 +12,246 @@ from app.models.database import Role, UserProfile, RoleMatchHistory
 logger = logging.getLogger(__name__)
 
 class RoleMatchingService:
-    """Service for intelligent role matching based on skills and experience."""
+    """Service for Phase 2 three-factor role matching (categories + experience_level + tags)."""
     
-    # Experience level hierarchy for comparison
-    EXPERIENCE_LEVELS = {
-        "intern": 0,
-        "junior": 1, 
-        "mid": 2,
-        "senior": 3,
-        "lead": 4,
-        "principal": 5
-    }
+    # Experience level hierarchy for ±1 level compatibility
+    EXPERIENCE_LEVELS = ["intern", "junior", "mid", "senior", "lead", "principal"]
     
-    # Skill level hierarchy for comparison
-    SKILL_LEVELS = {
-        "beginner": 0,
-        "junior": 1,
-        "mid": 2, 
-        "senior": 3,
-        "expert": 4
+    # Category matching thresholds by business category
+    CATEGORY_TAG_THRESHOLDS = {
+        "technology": 0.35,           # Higher precision needed for technical roles
+        "sales": 0.25,               # Broader skill transferability
+        "marketing": 0.20,           # Creative skills vary widely
+        "operations": 0.30,          # Process-focused
+        "investment_management": 0.30, # Finance-specific skills
+        "legal_compliance": 0.35,    # Specialized knowledge required
+        "relationship_management": 0.25  # People skills transferable
     }
     
     @classmethod
     def calculate_role_match(cls, user_profile: UserProfile, role: Role) -> Dict[str, Any]:
-        """Calculate comprehensive match score between user and role."""
+        """Calculate Phase 2 three-factor match score between user and role."""
         
-        # Extract user data
-        user_skills = user_profile.skills or {}
-        user_level = user_profile.overall_experience_level or "junior"
-        user_years = user_profile.total_years_experience or 0
-        user_preferences = user_profile.preferred_experience_levels or []
-        user_categories = user_profile.category_preferences or []
+        # Extract Phase 2 user profile data
+        user_categories = user_profile.categories or []
+        user_experience_level = user_profile.experience_level or "junior"
+        user_tags = user_profile.tags or []
         
         # Extract role data
-        role_skills = role.required_skills or {}
-        role_level = role.required_experience_level or "mid"
-        role_years_min = role.required_years_min or 0
-        role_years_max = role.required_years_max or 50
         role_category = role.category
+        role_experience_level = role.required_experience_level or "mid"
+        role_tags = role.tags or []
         
-        # Calculate individual match components
-        experience_match = cls._calculate_experience_match(
-            user_level, user_years, user_preferences,
-            role_level, role_years_min, role_years_max
-        )
-        
-        skills_match = cls._calculate_skills_match(user_skills, role_skills)
-        
+        # 1. Category Matching (40% weight)
         category_match = cls._calculate_category_match(user_categories, role_category)
         
-        location_match = cls._calculate_location_match(user_profile, role)
+        # 2. Experience Level Compatibility (30% weight)
+        experience_match = cls._calculate_experience_compatibility(
+            user_experience_level, role_experience_level
+        )
+        
+        # 3. Tag Matching (30% weight)
+        tag_match = cls._calculate_tag_match(
+            user_tags, role_tags, role_category
+        )
         
         # Calculate weighted overall score
         overall_score = (
-            experience_match["score"] * 0.35 +  # 35% experience match
-            skills_match["score"] * 0.40 +      # 40% skills match  
-            category_match["score"] * 0.15 +    # 15% category preference
-            location_match["score"] * 0.10      # 10% location preference
+            category_match["score"] * 0.4 +    # 40% category match
+            experience_match["score"] * 0.3 +  # 30% experience compatibility
+            tag_match["score"] * 0.3           # 30% tag match
         )
         
         # Determine recommendation level
         recommendation = cls._get_recommendation_level(
             overall_score, 
-            skills_match["missing_required_skills"],
-            experience_match["level_gap"]
+            category_match["matches"],
+            experience_match["compatible"],
+            tag_match["threshold_met"]
         )
         
         # Generate explanatory reasons
         reasons = cls._generate_match_reasons(
-            user_profile, role, experience_match, skills_match, 
-            category_match, location_match
+            user_profile, role, category_match, experience_match, tag_match
         )
         
         return {
             "overall_score": round(overall_score, 3),
             "recommendation": recommendation,
             "match_details": {
-                "experience": experience_match,
-                "skills": skills_match,
                 "category": category_match,
-                "location": location_match
+                "experience": experience_match,
+                "tags": tag_match
             },
             "reasons": reasons,
             "calculated_at": datetime.utcnow().isoformat()
         }
     
     @classmethod
-    def _calculate_experience_match(
-        cls, 
-        user_level: str, user_years: int, user_preferences: List[str],
-        role_level: str, role_years_min: int, role_years_max: int
-    ) -> Dict[str, Any]:
-        """Calculate experience level and years match."""
-        
-        user_level_num = cls.EXPERIENCE_LEVELS.get(user_level, 1)
-        role_level_num = cls.EXPERIENCE_LEVELS.get(role_level, 2)
-        
-        # Experience level match
-        level_gap = user_level_num - role_level_num
-        
-        if level_gap == 0:
-            level_score = 1.0  # Perfect match
-        elif level_gap == 1:
-            level_score = 0.8  # Slightly overqualified
-        elif level_gap == -1:
-            level_score = 0.7  # Slightly underqualified but possible
-        elif level_gap >= 2:
-            # Significantly overqualified - penalize more for bigger gaps
-            level_score = max(0.2, 0.8 - (level_gap - 1) * 0.2)
-        else:
-            # Significantly underqualified
-            level_score = max(0.1, 0.7 + level_gap * 0.2)
-        
-        # Years experience match
-        years_score = 1.0
-        if user_years < role_years_min:
-            # Not enough experience
-            years_shortage = role_years_min - user_years
-            years_score = max(0.2, 1.0 - years_shortage * 0.1)
-        elif user_years > role_years_max and role_years_max > 0:
-            # Too much experience (overqualified)
-            years_excess = user_years - role_years_max
-            years_score = max(0.3, 1.0 - years_excess * 0.05)
-        
-        # User preference bonus
-        preference_bonus = 0.0
-        if user_preferences and role_level in user_preferences:
-            preference_bonus = 0.1  # 10% bonus for preferred level
-        
-        # Combined experience score
-        experience_score = (level_score * 0.7 + years_score * 0.3) + preference_bonus
-        experience_score = min(1.0, experience_score)  # Cap at 1.0
-        
-        return {
-            "score": experience_score,
-            "level_gap": level_gap,
-            "user_level": user_level,
-            "role_level": role_level,
-            "years_match": years_score,
-            "preference_bonus": preference_bonus > 0
-        }
-    
-    @classmethod
-    def _calculate_skills_match(
-        cls, user_skills: Dict[str, Any], role_skills: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Calculate skills match with detailed breakdown."""
-        
-        if not role_skills:
-            return {"score": 0.8, "missing_required_skills": [], "skill_matches": []}
-        
-        skill_matches = []
-        missing_required_skills = []
-        bonus_skills = []
-        
-        # Check each required skill
-        for skill_name, skill_req in role_skills.items():
-            skill_name_clean = skill_name.lower().strip()
-            user_skill = user_skills.get(skill_name_clean, {})
-            
-            required = skill_req.get("required", False)
-            req_level = skill_req.get("level", "mid")
-            req_years = skill_req.get("years", 0)
-            
-            if not user_skill:
-                # User doesn't have this skill
-                if required:
-                    missing_required_skills.append(skill_name)
-                    skill_matches.append({
-                        "skill": skill_name,
-                        "score": 0.0,
-                        "required": True,
-                        "missing": True
-                    })
-                else:
-                    skill_matches.append({
-                        "skill": skill_name,
-                        "score": 0.0,
-                        "required": False,
-                        "missing": True
-                    })
-                continue
-            
-            # User has this skill - compare levels
-            user_level = user_skill.get("level", "beginner")
-            user_years = user_skill.get("years", 0)
-            confidence = user_skill.get("confidence", 0.8)
-            
-            user_level_num = cls.SKILL_LEVELS.get(user_level, 0)
-            req_level_num = cls.SKILL_LEVELS.get(req_level, 2)
-            
-            # Calculate skill level match
-            if user_level_num >= req_level_num:
-                # User meets or exceeds skill level requirement
-                level_match = 1.0
-                if user_level_num > req_level_num:
-                    # Bonus for exceeding (but not too much)
-                    level_match = min(1.2, 1.0 + (user_level_num - req_level_num) * 0.1)
-            else:
-                # User below required level
-                level_match = max(0.2, user_level_num / req_level_num)
-            
-            # Calculate years match
-            years_match = 1.0
-            if user_years < req_years:
-                years_shortage = req_years - user_years
-                years_match = max(0.3, 1.0 - years_shortage * 0.1)
-            
-            # Apply confidence factor
-            skill_score = (level_match * 0.7 + years_match * 0.3) * confidence
-            
-            skill_matches.append({
-                "skill": skill_name,
-                "score": round(skill_score, 3),
-                "required": required,
-                "level_match": level_match,
-                "years_match": years_match,
-                "confidence": confidence,
-                "user_level": user_level,
-                "required_level": req_level
-            })
-        
-        # Find bonus skills (user has skills not required by role)
-        user_skill_names = set(user_skills.keys())
-        role_skill_names = set(s.lower().strip() for s in role_skills.keys())
-        bonus_skill_names = user_skill_names - role_skill_names
-        
-        for skill_name in bonus_skill_names:
-            user_skill = user_skills[skill_name]
-            if user_skill.get("level") in ["senior", "expert"]:
-                bonus_skills.append({
-                    "skill": skill_name,
-                    "level": user_skill.get("level"),
-                    "years": user_skill.get("years", 0)
-                })
-        
-        # Calculate overall skills score
-        if not skill_matches:
-            skills_score = 0.5
-        else:
-            # Required skills must be weighted more heavily
-            required_matches = [sm for sm in skill_matches if sm["required"]]
-            optional_matches = [sm for sm in skill_matches if not sm["required"]]
-            
-            if required_matches:
-                required_score = sum(sm["score"] for sm in required_matches) / len(required_matches)
-                # Heavy penalty for missing required skills
-                if missing_required_skills:
-                    required_score *= (1.0 - len(missing_required_skills) * 0.4)
-            else:
-                required_score = 0.8  # No required skills defined
-            
-            optional_score = 0.8  # Default if no optional skills
-            if optional_matches:
-                optional_score = sum(sm["score"] for sm in optional_matches) / len(optional_matches)
-            
-            # Weighted combination (required skills are 80% of score)
-            skills_score = required_score * 0.8 + optional_score * 0.2
-            
-            # Small bonus for additional relevant skills
-            if bonus_skills:
-                bonus_factor = min(0.1, len(bonus_skills) * 0.02)
-                skills_score += bonus_factor
-        
-        skills_score = min(1.0, max(0.0, skills_score))
-        
-        return {
-            "score": round(skills_score, 3),
-            "missing_required_skills": missing_required_skills,
-            "skill_matches": skill_matches,
-            "bonus_skills": bonus_skills,
-            "total_skills_evaluated": len(skill_matches)
-        }
-    
-    @classmethod
-    def _calculate_category_match(
-        cls, user_categories: List[str], role_category: str
-    ) -> Dict[str, Any]:
-        """Calculate category preference match."""
+    def _calculate_category_match(cls, user_categories: List[str], role_category: str) -> Dict[str, Any]:
+        """Calculate category match score with primary/secondary logic."""
         
         if not user_categories:
-            # No preferences specified - neutral score
-            return {"score": 0.7, "matches_preference": False}
+            return {"score": 0.0, "matches": False, "match_type": "no_categories"}
         
         if role_category in user_categories:
-            return {"score": 1.0, "matches_preference": True, "preferred_category": role_category}
+            # Check if it's primary or secondary category
+            primary_match = user_categories[0] == role_category
+            
+            if primary_match:
+                return {
+                    "score": 1.0,
+                    "matches": True,
+                    "match_type": "primary_category",
+                    "category": role_category
+                }
+            else:
+                return {
+                    "score": 0.8,
+                    "matches": True,
+                    "match_type": "secondary_category",
+                    "category": role_category
+                }
         else:
-            return {"score": 0.3, "matches_preference": False, "user_categories": user_categories}
+            return {
+                "score": 0.0,
+                "matches": False,
+                "match_type": "no_category_overlap",
+                "user_categories": user_categories,
+                "role_category": role_category
+            }
     
     @classmethod
-    def _calculate_location_match(
-        cls, user_profile: UserProfile, role: Role
-    ) -> Dict[str, Any]:
-        """Calculate location preference match."""
+    def _calculate_experience_compatibility(cls, user_level: str, role_level: str) -> Dict[str, Any]:
+        """Calculate experience level compatibility with ±1 level flexibility."""
         
-        location_prefs = user_profile.location_preferences or {}
+        try:
+            user_index = cls.EXPERIENCE_LEVELS.index(user_level)
+            role_index = cls.EXPERIENCE_LEVELS.index(role_level)
+            
+            level_gap = user_index - role_index
+            compatible = abs(level_gap) <= 1  # ±1 level flexibility
+            
+            if level_gap == 0:
+                score = 1.0  # Perfect match
+                match_type = "exact_match"
+            elif level_gap == 1:
+                score = 0.9  # Slightly overqualified
+                match_type = "slightly_overqualified"
+            elif level_gap == -1:
+                score = 0.8  # Growth opportunity
+                match_type = "growth_opportunity"
+            elif level_gap >= 2:
+                score = 0.3  # Significantly overqualified
+                match_type = "overqualified"
+            else:  # level_gap <= -2
+                score = 0.2  # Significantly underqualified
+                match_type = "underqualified"
+            
+            return {
+                "score": score,
+                "compatible": compatible,
+                "level_gap": level_gap,
+                "user_level": user_level,
+                "role_level": role_level,
+                "match_type": match_type
+            }
+            
+        except ValueError:
+            # Invalid experience level
+            return {
+                "score": 0.5,
+                "compatible": False,
+                "level_gap": 0,
+                "user_level": user_level,
+                "role_level": role_level,
+                "match_type": "invalid_level"
+            }
+    
+    @classmethod
+    def _calculate_tag_match(cls, user_tags: List[str], role_tags: List[str], role_category: str) -> Dict[str, Any]:
+        """Calculate tag match with configurable threshold by category."""
         
-        if not location_prefs:
-            # No location preferences - neutral score
-            return {"score": 0.8, "note": "No location preferences specified"}
+        if not role_tags:
+            return {
+                "score": 0.8,
+                "threshold_met": True,
+                "exact_matches": [],
+                "missing_tags": [],
+                "match_percentage": 0.0,
+                "threshold": 0.0
+            }
         
-        preferred_countries = location_prefs.get("countries", [])
-        remote_ok = location_prefs.get("remote_ok", False)
+        if not user_tags:
+            return {
+                "score": 0.0,
+                "threshold_met": False,
+                "exact_matches": [],
+                "missing_tags": role_tags,
+                "match_percentage": 0.0,
+                "threshold": cls.CATEGORY_TAG_THRESHOLDS.get(role_category, 0.25)
+            }
         
-        # Check if role location matches preferences
-        if role.country == "Remote" and remote_ok:
-            return {"score": 1.0, "match_type": "remote_preferred"}
+        # Convert to lowercase for case-insensitive matching
+        user_tags_lower = [tag.lower().strip() for tag in user_tags]
+        role_tags_lower = [tag.lower().strip() for tag in role_tags]
         
-        if role.country in preferred_countries:
-            return {"score": 1.0, "match_type": "country_match", "country": role.country}
+        # Find exact matches
+        exact_matches = set(user_tags_lower) & set(role_tags_lower)
+        match_percentage = len(exact_matches) / len(role_tags_lower)
         
-        if remote_ok and role.city and "remote" in role.city.lower():
-            return {"score": 0.9, "match_type": "remote_option"}
+        # Get category-specific threshold
+        threshold = cls.CATEGORY_TAG_THRESHOLDS.get(role_category, 0.25)
+        threshold_met = match_percentage >= threshold
         
-        # Location doesn't match preferences
-        return {"score": 0.4, "match_type": "location_mismatch"}
+        # Calculate score based on match percentage
+        if match_percentage >= 0.7:
+            score = 1.0  # Excellent match
+        elif match_percentage >= 0.5:
+            score = 0.8  # Good match
+        elif match_percentage >= threshold:
+            score = 0.6  # Meets threshold
+        else:
+            # Below threshold - scale score proportionally
+            score = match_percentage / threshold * 0.5
+        
+        # Find missing tags
+        missing_tags = [tag for tag in role_tags_lower if tag not in user_tags_lower]
+        
+        return {
+            "score": round(score, 3),
+            "threshold_met": threshold_met,
+            "exact_matches": list(exact_matches),
+            "missing_tags": missing_tags,
+            "match_percentage": round(match_percentage, 3),
+            "threshold": threshold,
+            "user_tag_count": len(user_tags),
+            "role_tag_count": len(role_tags)
+        }
     
     @classmethod
     def _get_recommendation_level(
-        cls, overall_score: float, missing_required_skills: List[str], level_gap: int
+        cls, 
+        overall_score: float, 
+        category_match: bool, 
+        experience_compatible: bool, 
+        threshold_met: bool
     ) -> str:
-        """Determine recommendation level based on match analysis."""
+        """Determine recommendation level based on Phase 2 match analysis."""
         
-        if missing_required_skills:
-            return "not_recommended"
+        # Strong requirements for good recommendations
+        if not category_match:
+            return "poor_match"  # Must have category overlap
         
-        if overall_score >= 0.85:
+        if overall_score >= 0.85 and experience_compatible and threshold_met:
             return "excellent_match"
-        elif overall_score >= 0.70:
+        elif overall_score >= 0.70 and experience_compatible:
             return "good_match"
         elif overall_score >= 0.50:
-            if level_gap >= 2:  # Significantly overqualified
-                return "overqualified"
-            elif level_gap <= -2:  # Significantly underqualified
-                return "underqualified" 
-            else:
+            if experience_compatible:
                 return "possible_match"
+            else:
+                return "experience_mismatch"
         else:
             return "poor_match"
     
@@ -355,58 +260,56 @@ class RoleMatchingService:
         cls,
         user_profile: UserProfile,
         role: Role,
-        experience_match: Dict[str, Any],
-        skills_match: Dict[str, Any],
         category_match: Dict[str, Any],
-        location_match: Dict[str, Any]
+        experience_match: Dict[str, Any],
+        tag_match: Dict[str, Any]
     ) -> List[str]:
-        """Generate human-readable reasons for the match score."""
+        """Generate human-readable reasons for the Phase 2 match score."""
         
         reasons = []
         
-        # Experience reasons
-        level_gap = experience_match["level_gap"]
-        if level_gap == 0:
-            reasons.append(f"Perfect experience level match ({experience_match['user_level']} level)")
-        elif level_gap == 1:
-            reasons.append(f"Slightly overqualified but good fit ({experience_match['user_level']} for {experience_match['role_level']} role)")
-        elif level_gap >= 2:
-            reasons.append(f"Significantly overqualified ({experience_match['user_level']} for {experience_match['role_level']} role)")
-        elif level_gap == -1:
-            reasons.append(f"Could be a growth opportunity ({experience_match['user_level']} to {experience_match['role_level']})")
+        # Category reasons
+        if category_match["matches"]:
+            if category_match["match_type"] == "primary_category":
+                reasons.append(f"Perfect category match - {role.category} is your primary area")
+            else:
+                reasons.append(f"Good category match - {role.category} is in your background")
         else:
-            reasons.append(f"May be underqualified ({experience_match['user_level']} for {experience_match['role_level']} role)")
+            reasons.append(f"Role category ({role.category}) doesn't match your background")
         
-        # Skills reasons
-        if skills_match["missing_required_skills"]:
-            missing_count = len(skills_match["missing_required_skills"])
-            if missing_count == 1:
-                reasons.append(f"Missing required skill: {skills_match['missing_required_skills'][0]}")
+        # Experience level reasons
+        match_type = experience_match["match_type"]
+        if match_type == "exact_match":
+            reasons.append(f"Perfect experience level match ({experience_match['user_level']})")
+        elif match_type == "slightly_overqualified":
+            reasons.append(f"Slightly overqualified but good fit ({experience_match['user_level']} for {experience_match['role_level']})")
+        elif match_type == "growth_opportunity":
+            reasons.append(f"Great growth opportunity ({experience_match['user_level']} to {experience_match['role_level']})")
+        elif match_type == "overqualified":
+            reasons.append(f"Significantly overqualified ({experience_match['user_level']} for {experience_match['role_level']})")
+        elif match_type == "underqualified":
+            reasons.append(f"May be underqualified ({experience_match['user_level']} for {experience_match['role_level']})")
+        
+        # Tag/skills reasons
+        if tag_match["threshold_met"]:
+            match_count = len(tag_match["exact_matches"])
+            total_required = tag_match["role_tag_count"]
+            if match_count >= total_required * 0.7:
+                reasons.append(f"Excellent skills match - {match_count}/{total_required} required skills")
+            else:
+                reasons.append(f"Good skills match - {match_count}/{total_required} required skills")
+        else:
+            missing_count = len(tag_match["missing_tags"])
+            if missing_count <= 3:
+                reasons.append(f"Missing {missing_count} key skills: {', '.join(tag_match['missing_tags'][:3])}")
             else:
                 reasons.append(f"Missing {missing_count} required skills")
-        else:
-            strong_skills = [sm for sm in skills_match["skill_matches"] if sm["score"] >= 0.8 and sm["required"]]
-            if strong_skills:
-                reasons.append(f"Strong match in {len(strong_skills)} key required skills")
         
-        # Bonus skills
-        if skills_match["bonus_skills"]:
-            expert_bonus = [bs for bs in skills_match["bonus_skills"] if bs["level"] == "expert"]
-            if expert_bonus:
-                reasons.append(f"Expert level in additional skills: {', '.join(bs['skill'] for bs in expert_bonus[:2])}")
-        
-        # Category match
-        if category_match["matches_preference"]:
-            reasons.append(f"Matches career interest in {role.category}")
-        elif not category_match["matches_preference"] and category_match["score"] < 0.5:
-            reasons.append(f"Role category ({role.category}) not in preferred areas")
-        
-        # Location match
-        if location_match["score"] >= 0.9:
-            if location_match.get("match_type") == "remote_preferred":
-                reasons.append("Remote role matches location preference")
-            elif location_match.get("match_type") == "country_match":
-                reasons.append(f"Location ({role.country}) matches preference")
+        # Additional skills insight
+        if tag_match["user_tag_count"] > tag_match["role_tag_count"]:
+            extra_skills = tag_match["user_tag_count"] - len(tag_match["exact_matches"])
+            if extra_skills > 5:
+                reasons.append(f"Brings {extra_skills} additional relevant skills")
         
         return reasons[:5]  # Limit to top 5 reasons
     

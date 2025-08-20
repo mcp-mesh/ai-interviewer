@@ -112,29 +112,40 @@ class UserProfile(Base):
     # Basic information
     name = Column(String(200))
     
-    # Simplified three-factor matching data
+    # Phase 2: Three-factor matching data optimized for role matching
     categories = Column(JSON, nullable=False, default=list)  # ["technology", "sales"] - multi-category support
-    overall_experience_level = Column(String(20))  # "intern", "junior", "mid", "senior", "lead", "principal"
-    tags = Column(JSON, nullable=False, default=list)  # ["python", "salesforce", "crm"] - simple skill tags
+    experience_level = Column(String(20))  # "intern", "junior", "mid", "senior", "lead", "principal"
+    years_experience = Column(Integer, default=0)  # Total years of professional experience
+    tags = Column(JSON, nullable=False, default=list)  # ["python", "salesforce", "crm"] - skill tags for matching
     
-    # Additional context (for future enhancements)
-    total_years_experience = Column(Integer)        # Total years in industry
-    leadership_experience = Column(JSON, default=dict)  # Basic leadership info
-    career_progression = Column(JSON, default=list)     # Career history summary
+    # Phase 2: LLM-generated profile data
+    professional_summary = Column(Text)  # Concise professional summary (2-3 sentences)
+    education_level = Column(String(100))  # Highest education level achieved
+    confidence_score = Column(Float, default=0.0)  # LLM confidence in profile analysis (0.0-1.0)
+    profile_strength = Column(String(20), default='average')  # "excellent", "good", "average", "needs_improvement"
+    profile_version = Column(Integer, default=1)  # Track profile schema version
     
-    # LLM analysis confidence
-    analysis_confidence = Column(Float)  # Overall confidence in profile extraction
+    # Legacy fields (for backward compatibility during migration)
+    overall_experience_level = Column(String(20))  # Deprecated: use experience_level
+    total_years_experience = Column(Integer)  # Deprecated: use years_experience  
+    leadership_experience = Column(JSON, default=dict)  # Additional context
+    career_progression = Column(JSON, default=list)  # Career history summary
+    analysis_confidence = Column(Float)  # Deprecated: use confidence_score
     
     # Preferences
     location_preferences = Column(JSON, default=dict)        # {"countries": ["USA"], "remote_ok": True}
     role_type_preferences = Column(JSON, default=list)       # ["full-time", "contract"]
     
-    # Resume data
-    resume_content = Column(Text)                   # Original resume text
-    resume_metadata = Column(JSON, default=dict)   # File info, upload date, etc.
+    # Resume storage
+    resume_content = Column(Text)  # Full extracted text from PDF
+    resume_filename = Column(String(255))  # Original filename
+    minio_file_path = Column(String(500))  # MinIO storage path
+    resume_metadata = Column(JSON, default=dict)  # Additional file metadata
     
     # Profile status
     is_profile_complete = Column(Boolean, default=False)
+    needs_review = Column(Boolean, default=False)  # Flag for manual review if needed
+    last_resume_upload = Column(DateTime)  # Track when resume was last uploaded
     
     # Admin flags
     admin = Column(Boolean, default=False)
@@ -149,13 +160,16 @@ class UserProfile(Base):
     # Relationships
     interviews = relationship("Interview", back_populates="user", cascade="all, delete-orphan")
     
-    # Indexes
+    # Indexes for Phase 2 matching queries
     __table_args__ = (
         Index('ix_user_profiles_email', 'email'),
-        Index('ix_user_profiles_categories', 'categories'),
-        Index('ix_user_profiles_experience_level', 'overall_experience_level'),
+        Index('ix_user_profiles_categories', 'categories'),  # GIN index created in migration
+        Index('ix_user_profiles_tags', 'tags'),  # GIN index created in migration  
+        Index('ix_user_profiles_experience', 'experience_level', 'years_experience'),
+        Index('ix_user_profiles_complete', 'is_profile_complete'),
         Index('ix_user_profiles_admin', 'admin'),
         Index('ix_user_profiles_updated_at', 'updated_at'),
+        Index('ix_user_profiles_last_upload', 'last_resume_upload'),
     )
 
 class Interview(Base):

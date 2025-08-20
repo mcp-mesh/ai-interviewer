@@ -3,6 +3,7 @@ File upload routes - MCP Mesh Integration with hybrid data storage.
 """
 
 import logging
+from datetime import datetime
 import mesh
 from fastapi import APIRouter, Request, HTTPException, UploadFile, File, Depends
 from mesh.types import McpMeshAgent
@@ -99,77 +100,89 @@ async def upload_user_resume(
             "text_stats": extraction_result.get("text_stats", {}) if extraction_result else {}
         }
         
-        # Process resume using hybrid data service (LLM skill extraction + dual storage)
+        # Process resume using Phase 2 profile analysis and single-source storage
         if llm_service:
-            logger.info("Processing resume with LLM skill extraction")
-            processing_result = await HybridDataService.process_resume_upload(
-                user_email, resume_text, file_metadata, llm_service, db
+            logger.info("Processing resume with Phase 2 profile analysis")
+            
+            # Extract profile analysis from PDF processor result
+            profile_analysis = extraction_result.get("profile_analysis", {})
+            
+            if not profile_analysis:
+                logger.error("No profile analysis returned from PDF processor")
+                raise HTTPException(status_code=500, detail="Profile analysis failed - no data returned")
+            
+            # Create/update profile using Phase 2 schema
+            processing_result = await HybridDataService.create_or_update_profile_from_resume(
+                user_email, resume_text, file_metadata, profile_analysis, db
             )
             
             if not processing_result.get("success"):
-                error_msg = processing_result.get("error", "Unknown error during skill extraction")
-                logger.error(f"Failed to process resume: {error_msg}")
-                raise HTTPException(status_code=500, detail=f"Failed to process resume: {error_msg}")
+                error_msg = processing_result.get("error", "Unknown error during profile creation")
+                logger.error(f"Failed to create profile: {error_msg}")
+                raise HTTPException(status_code=500, detail=f"Failed to create profile: {error_msg}")
             
-            # Also update Redis with legacy resume format for backward compatibility
-            legacy_resume_data = {
-                "filename": file.filename,
-                "extracted_text": resume_text,
-                "uploaded_at": minio_result.get("uploaded_at"),
-                "file_size": len(file_content),
-                "minio_path": minio_result.get("path"),
-                "structured_analysis": processing_result
-            }
-            
-            AuthService.update_user_data(user_email, {"resume": legacy_resume_data})
-            
+            # No Redis redundancy - profile data is in PostgreSQL, session flags in Redis
             return {
                 "upload_success": True,
                 "filename": file.filename,
                 "minio_path": minio_result.get("path"),
-                "skills_extracted": processing_result.get("skills_extracted", 0),
-                "experience_level": processing_result.get("experience_level"),
+                "profile_analysis": {
+                    "categories": profile_analysis.get("categories", []),
+                    "experience_level": profile_analysis.get("experience_level"),
+                    "years_experience": profile_analysis.get("years_experience", 0),
+                    "tags_extracted": len(profile_analysis.get("tags", [])),
+                    "confidence_score": profile_analysis.get("confidence_score", 0.0),
+                    "profile_strength": profile_analysis.get("profile_strength", "average")
+                },
                 "profile_complete": processing_result.get("profile_complete", False),
-                "message": "Resume uploaded and processed successfully with skill extraction",
-                "hybrid_storage": True
+                "ready_for_matching": processing_result.get("ready_for_matching", False),
+                "message": "Resume processed and profile created successfully"
             }
         else:
             # Fallback: save basic resume data without LLM extraction
-            logger.warning("No LLM service available - saving resume without skill extraction")
+            logger.warning("No LLM service available - saving resume without profile analysis")
             
-            # Create basic profile
-            profile_data = {
+            # Create basic Phase 2 profile structure without LLM analysis
+            basic_profile_data = {
                 "name": user_data.get("name"),
+                # Phase 2: Default/empty matching data
+                "categories": [],  # Empty - requires manual categorization or re-upload
+                "experience_level": None,  # Requires manual input or LLM analysis
+                "years_experience": 0,
+                "tags": [],  # Empty - requires LLM analysis
+                # Resume storage
                 "resume_content": resume_text,
+                "resume_filename": file.filename,
+                "minio_file_path": minio_result.get("path"),
                 "resume_metadata": file_metadata,
-                "is_profile_complete": False,
-                "skills": {},
-                "leadership_experience": {},
-                "career_progression": []
+                # Profile status
+                "is_profile_complete": False,  # Incomplete without LLM analysis
+                "needs_review": True,  # Flag for manual processing
+                "last_resume_upload": datetime.utcnow(),
+                "profile_version": 2
             }
             
-            success = HybridDataService.create_or_update_profile(user_email, profile_data, db)
+            success = HybridDataService.create_or_update_profile(user_email, basic_profile_data, db)
             if not success:
                 raise HTTPException(status_code=500, detail="Failed to save resume data")
             
-            # Update Redis for backward compatibility
-            legacy_resume_data = {
-                "filename": file.filename,
-                "extracted_text": resume_text,
-                "uploaded_at": minio_result.get("uploaded_at"),
-                "file_size": len(file_content),
-                "minio_path": minio_result.get("path")
+            # Update Redis session data only (no redundant resume storage)
+            session_update = {
+                "profile_exists": True,
+                "profile_complete": False,
+                "needs_llm_analysis": True,
+                "last_upload": datetime.utcnow().isoformat()
             }
-            
-            AuthService.update_user_data(user_email, {"resume": legacy_resume_data})
+            AuthService.update_user_data(user_email, session_update)
             
             return {
                 "upload_success": True,
                 "filename": file.filename,
                 "minio_path": minio_result.get("path"),
-                "message": "Resume uploaded successfully (skill extraction unavailable)",
-                "requires_skill_extraction": True,
-                "hybrid_storage": True
+                "profile_complete": False,
+                "needs_llm_analysis": True,
+                "message": "Resume uploaded successfully - requires profile analysis",
+                "recommendation": "Please try again later when profile analysis is available"
             }
         
     except HTTPException:

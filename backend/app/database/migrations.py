@@ -68,7 +68,7 @@ def run_schema_migrations():
             # Add any schema changes here
             logger.info("Checking for schema migrations...")
             
-            # Example: Add missing columns if they don't exist
+            # Phase 1: Role schema updates
             conn.execute(text("""
                 ALTER TABLE roles 
                 ADD COLUMN IF NOT EXISTS confidence_score REAL DEFAULT 0.5;
@@ -82,6 +82,54 @@ def run_schema_migrations():
             conn.execute(text("""
                 ALTER TABLE roles 
                 ADD COLUMN IF NOT EXISTS employment_type_id INTEGER;
+            """))
+            
+            # Phase 2: User profile schema updates for role matching
+            logger.info("Adding Phase 2 profile columns...")
+            
+            conn.execute(text("""
+                ALTER TABLE user_profiles 
+                ADD COLUMN IF NOT EXISTS categories JSONB DEFAULT '[]';
+            """))
+            
+            conn.execute(text("""
+                ALTER TABLE user_profiles 
+                ADD COLUMN IF NOT EXISTS experience_level VARCHAR(20);
+            """))
+            
+            conn.execute(text("""
+                ALTER TABLE user_profiles 
+                ADD COLUMN IF NOT EXISTS years_experience INTEGER DEFAULT 0;
+            """))
+            
+            conn.execute(text("""
+                ALTER TABLE user_profiles 
+                ADD COLUMN IF NOT EXISTS tags JSONB DEFAULT '[]';
+            """))
+            
+            conn.execute(text("""
+                ALTER TABLE user_profiles 
+                ADD COLUMN IF NOT EXISTS professional_summary TEXT;
+            """))
+            
+            conn.execute(text("""
+                ALTER TABLE user_profiles 
+                ADD COLUMN IF NOT EXISTS education_level VARCHAR(100);
+            """))
+            
+            conn.execute(text("""
+                ALTER TABLE user_profiles 
+                ADD COLUMN IF NOT EXISTS confidence_score REAL DEFAULT 0.0;
+            """))
+            
+            conn.execute(text("""
+                ALTER TABLE user_profiles 
+                ADD COLUMN IF NOT EXISTS profile_strength VARCHAR(20) DEFAULT 'average';
+            """))
+            
+            conn.execute(text("""
+                ALTER TABLE user_profiles 
+                ADD COLUMN IF NOT EXISTS profile_version INTEGER DEFAULT 1;
             """))
             
             # Add foreign key constraints if they don't exist
@@ -111,6 +159,42 @@ def run_schema_migrations():
                         FOREIGN KEY (employment_type_id) REFERENCES employment_types(id);
                     END IF;
                 END $$;
+            """))
+            
+            # Phase 2: Add indexes for profile matching queries
+            logger.info("Creating indexes for profile matching...")
+            
+            # Convert JSON columns to JSONB for better indexing
+            logger.info("Converting JSON columns to JSONB...")
+            conn.execute(text("""
+                ALTER TABLE user_profiles 
+                ALTER COLUMN categories TYPE JSONB USING categories::jsonb;
+            """))
+            
+            conn.execute(text("""
+                ALTER TABLE user_profiles 
+                ALTER COLUMN tags TYPE JSONB USING tags::jsonb;
+            """))
+            
+            # Now create GIN indexes on JSONB columns
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_user_profiles_categories 
+                ON user_profiles USING GIN (categories);
+            """))
+            
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_user_profiles_tags 
+                ON user_profiles USING GIN (tags);
+            """))
+            
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_user_profiles_experience 
+                ON user_profiles (experience_level, years_experience);
+            """))
+            
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_user_profiles_complete 
+                ON user_profiles (is_profile_complete);
             """))
             
             conn.commit()

@@ -183,13 +183,28 @@ async def get_recommended_roles(
     user_data = request.state.user
     user_email = user_data.get("email")
     
-    # Check if user has a complete profile
+    # Check if user has a complete Phase 2 profile
     profile = db.query(UserProfile).filter(UserProfile.email == user_email).first()
     
-    if not profile or not profile.is_profile_complete:
+    if not profile:
         raise HTTPException(
             status_code=400,
-            detail="Profile not complete. Please upload a resume first."
+            detail="Profile not found. Please upload a resume first."
+        )
+    
+    # Check Phase 2 profile completeness
+    phase2_complete = (
+        profile.categories and 
+        profile.experience_level and 
+        profile.tags and
+        len(profile.categories) > 0 and
+        len(profile.tags) > 0
+    )
+    
+    if not phase2_complete:
+        raise HTTPException(
+            status_code=400,
+            detail="Profile not complete. Please upload a resume to enable role matching."
         )
     
     # Get role recommendations
@@ -212,15 +227,18 @@ async def get_recommended_roles(
                     "description": role.description,
                     "short_description": role.short_description,
                     "category": role.category,
-                    "type": role.type,
-                    "country": role.country,
-                    "state": role.state,
-                    "city": role.city,
+                    "type": role.employment_type.type_code if role.employment_type else "full-time",
+                    "location": {
+                        "id": role.location_id,
+                        "country": role.location.country if role.location else None,
+                        "state": role.location.state if role.location else None,
+                        "city": role.location.city if role.location else None,
+                    },
                     "required_experience_level": role.required_experience_level,
                     "required_years_min": role.required_years_min,
                     "required_years_max": role.required_years_max,
-                    "required_skills": role.required_skills,
                     "tags": role.tags,
+                    "confidence_score": role.confidence_score,
                     "status": role.status,
                     "duration": role.duration,
                     "created_at": role.created_at,
@@ -235,11 +253,12 @@ async def get_recommended_roles(
             })
         
         user_profile_summary = {
-            "experience_level": profile.overall_experience_level,
-            "total_years": profile.total_years_experience,
-            "top_skills": list(profile.skills.keys())[:10] if profile.skills else [],
-            "preferred_categories": profile.category_preferences,
-            "location_preferences": profile.location_preferences
+            "experience_level": profile.experience_level,
+            "total_years": profile.years_experience,
+            "categories": profile.categories[:3] if profile.categories else [],
+            "top_tags": profile.tags[:10] if profile.tags else [],
+            "profile_strength": profile.profile_strength,
+            "profile_version": getattr(profile, 'profile_version', 2)
         }
         
         return RecommendedRolesResponse(

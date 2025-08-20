@@ -81,7 +81,7 @@ class RoleListResponse(BaseModel):
     page: int
     limit: int
 
-# User Profile Schemas
+# User Profile Schemas (Legacy - Phase 1)
 class UserProfileUpdate(BaseModel):
     name: Optional[str] = None
     location_preferences: Optional[Dict[str, Any]] = None
@@ -104,6 +104,67 @@ class UserProfileResponse(BaseModel):
     is_profile_complete: bool
     created_at: datetime
     updated_at: datetime
+
+# Phase 2: Profile Schemas for Role Matching
+class ProfileAnalysisResponse(BaseModel):
+    """Response schema for profile analysis from LLM."""
+    categories: List[str] = Field(..., description="Business categories (max 3, ordered by relevance)")
+    experience_level: str = Field(..., description="Overall experience level")
+    years_experience: int = Field(..., description="Total years of professional experience")
+    tags: List[str] = Field(..., description="Skills, technologies, and competencies")
+    professional_summary: str = Field(..., description="Concise professional summary")
+    education_level: Optional[str] = Field(None, description="Highest education level")
+    confidence_score: float = Field(..., description="LLM confidence in analysis (0.0-1.0)")
+    profile_strength: str = Field(..., description="Overall profile strength assessment")
+
+class ProfileStatusResponse(BaseModel):
+    """Quick profile status for dashboards and session management."""
+    profile_exists: bool
+    profile_complete: bool
+    profile_version: int = Field(default=2, description="Profile schema version")
+    categories: List[str] = Field(default=[], description="User's business categories")
+    experience_level: Optional[str] = Field(None, description="User's experience level")
+    tags_count: int = Field(default=0, description="Number of skill tags")
+    profile_strength: str = Field(default="average", description="Profile quality assessment")
+    confidence_score: float = Field(default=0.0, description="Analysis confidence")
+    last_updated: Optional[datetime] = Field(None, description="Last profile update")
+    ready_for_matching: bool = Field(default=False, description="Ready for role matching")
+
+class UserProfileV2Response(BaseModel):
+    """Phase 2 user profile optimized for role matching."""
+    email: str
+    name: Optional[str]
+    # Phase 2: Three-factor matching data
+    categories: List[str] = Field(default=[], description="Business categories")
+    experience_level: Optional[str] = Field(None, description="Experience level")
+    years_experience: int = Field(default=0, description="Years of experience")
+    tags: List[str] = Field(default=[], description="Skill and competency tags")
+    # Profile metadata
+    professional_summary: Optional[str] = Field(None, description="Professional summary")
+    education_level: Optional[str] = Field(None, description="Education level")
+    confidence_score: float = Field(default=0.0, description="Analysis confidence")
+    profile_strength: str = Field(default="average", description="Profile strength")
+    profile_version: int = Field(default=2, description="Profile schema version")
+    # Status flags
+    is_profile_complete: bool = Field(default=False, description="Profile completeness")
+    needs_review: bool = Field(default=False, description="Requires manual review")
+    ready_for_matching: bool = Field(default=False, description="Ready for role matching")
+    # Timestamps
+    created_at: datetime
+    updated_at: datetime
+    last_resume_upload: Optional[datetime] = Field(None, description="Last resume upload")
+
+class ResumeUploadV2Response(BaseModel):
+    """Phase 2 resume upload response with profile analysis."""
+    upload_success: bool
+    filename: str
+    minio_path: Optional[str] = None
+    profile_analysis: Optional[ProfileAnalysisResponse] = None
+    profile_complete: bool = Field(default=False, description="Profile completion status")
+    ready_for_matching: bool = Field(default=False, description="Ready for role matching")
+    needs_llm_analysis: bool = Field(default=False, description="Requires LLM analysis")
+    message: str
+    recommendation: Optional[str] = Field(None, description="User guidance message")
 
 # Role Matching Schemas
 class RoleMatchResponse(BaseModel):
