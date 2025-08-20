@@ -13,11 +13,12 @@ from fastapi.responses import JSONResponse
 
 from app.config import DEV_MODE
 from app.database.redis_client import redis_client
+from app.database.postgres import init_db, check_db_health
 from app.services.interview_monitoring import monitoring_service
 from app.middleware.auth import auth_middleware
 
 # Import route modules
-from app.routes import auth, interviews, upload, roles, admin
+from app.routes import auth, interviews, upload, roles_new as roles, admin, reference
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -27,7 +28,27 @@ logger = logging.getLogger(__name__)
 async def lifespan(app_instance):
     """Manage application lifespan - startup and shutdown."""
     # Startup
-    logger.info("FastAPI startup - initializing background tasks")
+    logger.info("FastAPI startup - initializing services...")
+    
+    # Initialize PostgreSQL database (create tables if needed)
+    logger.info("Initializing PostgreSQL database...")
+    db_init_success = await init_db()
+    if db_init_success:
+        logger.info("PostgreSQL database initialized successfully")
+        
+        # Run database migrations and seed reference data
+        try:
+            from app.database.migrations import run_all_migrations
+            run_all_migrations()
+            logger.info("Database migrations and reference data seeding completed")
+        except Exception as e:
+            logger.error(f"Database migrations failed: {e}")
+            # Continue anyway - migrations are often idempotent
+    else:
+        logger.error("PostgreSQL database initialization failed")
+        # Don't exit - continue with Redis-only mode for backward compatibility
+    
+    # Start background monitoring
     await monitoring_service.start_monitor()
     logger.info("Background interview timer monitor started successfully")
     
@@ -61,6 +82,7 @@ app.include_router(interviews.router)
 app.include_router(upload.router)
 app.include_router(roles.router)
 app.include_router(admin.router)
+app.include_router(reference.router)
 
 @app.get("/debug/routes")
 async def debug_routes():
@@ -78,29 +100,40 @@ async def debug_routes():
 async def health_check():
     """Health check endpoint."""
     try:
-        # Test Redis connection by calling ping through our client
+        # Test Redis connection
         redis_client.client.ping()
-        
-        return {
-            "status": "healthy",
-            "timestamp": datetime.now().isoformat(),
-            "version": "1.0.0",
-            "dev_mode": DEV_MODE,
-            "services": {
-                "redis": "healthy",
-                "api": "healthy"
-            }
-        }
+        redis_healthy = True
     except Exception as e:
-        logger.error(f"Health check failed: {e}")
-        return JSONResponse(
-            status_code=503,
-            content={
-                "status": "unhealthy",
-                "error": str(e),
-                "timestamp": datetime.now().isoformat()
-            }
-        )
+        logger.error(f"Redis health check failed: {e}")
+        redis_healthy = False
+    
+    try:
+        # Test PostgreSQL connection
+        postgres_healthy = await check_db_health()
+    except Exception as e:
+        logger.error(f"PostgreSQL health check failed: {e}")
+        postgres_healthy = False
+    
+    # Overall health status
+    overall_healthy = redis_healthy and postgres_healthy
+    status_code = 200 if overall_healthy else 503
+    
+    health_data = {
+        "status": "healthy" if overall_healthy else "degraded",
+        "timestamp": datetime.now().isoformat(),
+        "version": "1.0.0",
+        "dev_mode": DEV_MODE,
+        "services": {
+            "redis": "healthy" if redis_healthy else "unhealthy",
+            "postgresql": "healthy" if postgres_healthy else "unhealthy",
+            "api": "healthy"
+        }
+    }
+    
+    if overall_healthy:
+        return health_data
+    else:
+        return JSONResponse(status_code=status_code, content=health_data)
 
 @app.get("/api/users/interviews")
 async def get_user_interviews(request: Request):

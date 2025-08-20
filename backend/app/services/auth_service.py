@@ -1,5 +1,5 @@
 """
-Authentication and user management service.
+Authentication and user management service with hybrid data support.
 """
 
 import json
@@ -10,7 +10,9 @@ from typing import Optional, Dict, Any
 
 import jwt
 from app.database.redis_client import redis_client
+from app.database.postgres import get_session
 from app.config import ADMIN_EMAIL
+from app.services.hybrid_data_service import HybridDataService
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +48,7 @@ class AuthService:
 
     @staticmethod
     async def get_or_create_user(bearer_token: str) -> Optional[Dict[str, Any]]:
-        """Parse OAuth token and get/create user profile."""
+        """Parse OAuth token and get/create user profile using hybrid data service."""
         try:
             logger.info(f"Starting get_or_create_user with token length: {len(bearer_token)}")
             
@@ -68,25 +70,27 @@ class AuthService:
                 logger.warning("No user email found in JWT token, returning None")
                 return None
             
-            logger.info(f"About to lookup user in Redis with key: user:{user_email}")
+            logger.info(f"About to lookup user using hybrid service: {user_email}")
             
-            # Use email as the persistent key
-            user_key = f"user:{user_email}"
+            # Use hybrid service to get user data
+            user_status = HybridDataService.check_user_has_profile(user_email)
             
-            # Try to get existing user by email
-            user_data = redis_client.get_json(user_key)
-            logger.info(f"Redis lookup result: {user_data is not None}")
-            
-            if user_data:
-                # User exists, update last_active and return
-                user_data["last_active"] = datetime.now().isoformat()
+            if user_status["exists"]:
+                # User exists, update last_active and return full data
+                update_success = HybridDataService.update_auth_data(
+                    user_email, 
+                    {"last_active": datetime.now().isoformat()}
+                )
                 
-                # Store updated user data (no expiry for user profiles)
-                redis_client.set_json(user_key, user_data)
+                if not update_success:
+                    logger.warning(f"Failed to update last_active for {user_email}")
+                
+                # Get complete user data
+                complete_data = HybridDataService.get_user_complete_data(user_email)
+                auth_data = complete_data.get("auth", {})
                 
                 logger.info(f"Existing user found: {user_email}")
-                logger.info(f"Returning existing user data: {user_email}")
-                return user_data
+                return auth_data
             
             # User doesn't exist, create new user
             # Check if user is admin
@@ -102,14 +106,20 @@ class AuthService:
                 "interview_count": 0,
                 "current_setup": {
                     "status": "initial"
-                }
+                },
+                "profile_exists": False,
+                "profile_complete": False
             }
             
-            # Store user in Redis (no expiry for user profiles)
-            redis_client.set_json(user_key, user_data)
+            # Store user in Redis using hybrid service
+            success = HybridDataService.update_auth_data(user_email, user_data)
             
-            logger.info(f"New user created: {user_email} (admin: {is_admin})")
-            return user_data
+            if success:
+                logger.info(f"New user created: {user_email} (admin: {is_admin})")
+                return user_data
+            else:
+                logger.error(f"Failed to create user: {user_email}")
+                return None
             
         except Exception as e:
             logger.error(f"Exception in get_or_create_user: {e}")
@@ -119,23 +129,21 @@ class AuthService:
 
     @staticmethod
     def update_user_data(email: str, updates: Dict[str, Any]) -> bool:
-        """Update user data in Redis."""
+        """Update user data using hybrid data service."""
         try:
-            user_key = f"user:{email}"
-            user_data = redis_client.get_json(user_key)
-            
-            if not user_data:
-                logger.error(f"User not found for email: {email}")
-                return False
-            
-            user_data.update(updates)
-            user_data["last_active"] = datetime.now().isoformat()
-            
-            success = redis_client.set_json(user_key, user_data)
-            if success:
-                logger.info(f"Updated user data for: {email}")
-            return success
+            # Use hybrid service to update user data
+            return HybridDataService.update_auth_data(email, updates)
             
         except Exception as e:
             logger.error(f"Error updating user data: {e}")
             return False
+    
+    @staticmethod
+    def get_user_quick_stats(email: str) -> Dict[str, Any]:
+        """Get quick user statistics using hybrid data service."""
+        return HybridDataService.get_user_quick_stats(email)
+    
+    @staticmethod
+    def get_user_complete_data(email: str) -> Dict[str, Any]:
+        """Get complete user data from both Redis and PostgreSQL."""
+        return HybridDataService.get_user_complete_data(email)

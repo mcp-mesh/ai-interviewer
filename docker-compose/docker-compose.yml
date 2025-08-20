@@ -60,6 +60,14 @@ services:
       - CLAUDE_API_KEY=${CLAUDE_API_KEY:-}
       - DEV_MODE=${DEV_MODE:-false}
       
+      # PostgreSQL configuration for application data
+      - POSTGRES_URL=postgresql://${POSTGRES_USER:-mcpmesh}:${POSTGRES_PASSWORD:-mcpmesh123}@postgres:5432/ai_interviewer
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=ai_interviewer
+      - POSTGRES_USER=${POSTGRES_USER:-mcpmesh}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-mcpmesh123}
+      
       # MCP Mesh integration
       - MCP_MESH_ENABLED=true
       - MCP_MESH_REGISTRY_URL=http://registry:8000
@@ -80,6 +88,8 @@ services:
       - BUCKET_NAME=ai-interviewer-uploads
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
       registry:
         condition: service_healthy
@@ -110,7 +120,7 @@ services:
       retries: 3
       start_period: 10s
 
-  # PostgreSQL for MCP Mesh Registry
+  # PostgreSQL for MCP Mesh Registry and Application Data
   postgres:
     image: postgres:15-alpine
     container_name: ai-interviewer-postgres
@@ -119,8 +129,12 @@ services:
       - POSTGRES_USER=${POSTGRES_USER:-mcpmesh}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-mcpmesh123}
       - PGDATA=/var/lib/postgresql/data/pgdata
+      # Initialize both MCP Mesh and AI Interviewer databases
+      - POSTGRES_MULTIPLE_DATABASES=mcpmesh,ai_interviewer
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Add initialization script for multiple databases
+      - ../database/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
     ports:
       - "5432:5432"
     networks:
