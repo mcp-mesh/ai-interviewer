@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apply - Senior Software Engineer - S Corp.</title>
+    <link rel="stylesheet" href="../../css/careers.css">
+</head>
+<body>
+    <!-- Navigation Header -->
+    <header class="header">
+        <div class="nav-container">
+            <a href="../../index.html" class="logo">
+                <div class="logo-icon">SCI</div>
+                <span>S Corp.</span>
+            </a>
+            
+            <div class="nav-actions">
+                <div class="user-info">
+                    <div class="user-avatar">DR</div>
+                    <div class="user-details">
+                        <h4>Dhyan Raj</h4>
+                        <p>dhyan.raj@gmail.com</p>
+                    </div>
+                    <a href="../auth/dashboard-with-applications.html" class="btn btn-secondary">My Applications</a>
+                    <a href="#" class="btn btn-secondary" onclick="logout()">Logout</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container">
+        <!-- Redirect Message -->
+        <div style="text-align: center; margin: 4rem auto; max-width: 600px;">
+            <div style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 0.75rem; padding: 3rem;">
+                <div style="font-size: 3rem; margin-bottom: 1.5rem;">🚀</div>
+                <h1 style="font-size: 2rem; font-weight: 700; color: #1f2937; margin-bottom: 1rem;">Starting Your Application</h1>
+                <p style="color: #6b7280; margin-bottom: 2rem; line-height: 1.6;">
+                    You're about to begin the application process for Senior Software Engineer. 
+                    We'll guide you through each step to ensure we have all the information needed to consider your application.
+                </p>
+                <button onclick="startApplication()" style="background: #3b82f6; color: white; border: none; padding: 1rem 2rem; border-radius: 0.5rem; font-weight: 600; font-size: 1.125rem; cursor: pointer;">
+                    Start Application
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script src="../../js/careers.js"></script>
+    <script>
+        function startApplication() {
+            showNotification('Starting your application...', 'info');
+            setTimeout(() => {
+                window.location.href = 'application-info.html';
+            }, 1000);
+        }
+        
+        function logout() {
+            window.location.href = '../../index.html';
+        }
+    </script>
+</body>
+</html>

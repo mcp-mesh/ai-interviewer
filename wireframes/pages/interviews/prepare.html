@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interview Preparation - S Corp.</title>
+    <link rel="stylesheet" href="../../css/careers.css">
+    <link rel="stylesheet" href="../../css/listing-clean.css">
+</head>
+<body>
+    <!-- Navigation Header -->
+    <header class="header">
+        <div class="nav-container">
+            <a href="../../index.html" class="logo">
+                <div class="logo-icon">SCI</div>
+                <span>S Corp.</span>
+            </a>
+            
+            <div class="nav-actions">
+                <!-- Logged In State -->
+                <div class="user-info">
+                    <div class="user-avatar">DR</div>
+                    <div class="user-details">
+                        <h4>Dhyan Raj</h4>
+                        <p>dhyan.raj@gmail.com</p>
+                    </div>
+                    <a href="../auth/dashboard-with-applications.html" class="nav-link">My Applications</a>
+                    <a href="../../index.html" class="nav-link">Logout</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container">
+        <!-- Two-column layout -->
+        <div class="detail-layout">
+            <!-- Main Content -->
+            <div class="content-area">
+                <!-- Job Header -->
+                <div style="margin-bottom: 2rem;">
+                    <h1 style="color: #dc2626; font-size: 2.5rem; font-weight: 700; margin-bottom: 1rem; line-height: 1.1;">Senior Software Engineer</h1>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <div class="job-meta-line">
+                            <div style="display: flex; align-items: center; gap: 0.25rem; color: #6b7280; font-size: 0.875rem;">
+                                📅 Interview Duration: 30 minutes
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.25rem; color: #6b7280; font-size: 0.875rem;">
+                                📍 San Francisco, CA
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.25rem; color: #6b7280; font-size: 0.875rem;">
+                                🕐 Full Time
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 1rem;">
+                            <button class="btn btn-secondary" style="padding: 0.75rem 1.5rem;" onclick="goBack()">I Need More Time</button>
+                            <button class="btn btn-primary" style="background: #dc2626; border-color: #dc2626; padding: 0.75rem 1.5rem;" onclick="startInterview()">I'm Ready - Start Interview</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; color: #dc2626; font-size: 0.875rem;">
+                    <a href="../auth/dashboard-with-applications.html" style="color: #dc2626; text-decoration: none; display: flex; align-items: center; gap: 0.5rem;">
+                        ← Back to Dashboard
+                    </a>
+                </div>
+
+                <!-- Interview Rules Section -->
+                <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 0.75rem; padding: 2rem; margin-bottom: 3rem;">
+                    <h2 style="font-size: 1.5rem; font-weight: 600; color: #dc2626; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                        ⚠️ Interview Guidelines & Rules
+                    </h2>
+                    
+                    <div style="space-y: 1.5rem;">
+                        <div style="margin-bottom: 1.5rem;">
+                            <h4 style="font-weight: 600; color: #991b1b; margin-bottom: 0.75rem;">🚫 Prohibited Activities</h4>
+                            <ul style="list-style: none; padding-left: 1rem; color: #7f1d1d;">
+                                <li style="margin-bottom: 0.5rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+                                    <span style="color: #dc2626; font-weight: bold;">•</span>
+                                    <span><strong>Copy & Paste:</strong> Copying and pasting text is disabled during the interview</span>
+                                </li>
+                                <li style="margin-bottom: 0.5rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+                                    <span style="color: #dc2626; font-weight: bold;">•</span>
+                                    <span><strong>Tab Switching:</strong> Switching to other browser tabs or applications is not allowed</span>
+                                </li>
+                                <li style="margin-bottom: 0.5rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+                                    <span style="color: #dc2626; font-weight: bold;">•</span>
+                                    <span><strong>JavaScript Modification:</strong> Attempting to modify browser developer tools or JavaScript is prohibited</span>
+                                </li>
+                                <li style="display: flex; align-items: flex-start; gap: 0.5rem;">
+                                    <span style="color: #dc2626; font-weight: bold;">•</span>
+                                    <span><strong>External Assistance:</strong> Using external resources, tools, or getting help from others during the interview</span>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div style="margin-bottom: 1.5rem;">
+                            <h4 style="font-weight: 600; color: #991b1b; margin-bottom: 0.75rem;">⚖️ Violation Policy</h4>
+                            <p style="color: #7f1d1d; margin-bottom: 1rem;">Our AI monitoring system will detect violations and respond as follows:</p>
+                            <ul style="list-style: none; padding-left: 1rem; color: #7f1d1d;">
+                                <li style="margin-bottom: 0.5rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+                                    <span style="color: #f59e0b; font-weight: bold;">1st & 2nd Violation:</span>
+                                    <span>You will receive a warning and the interview will continue</span>
+                                </li>
+                                <li style="display: flex; align-items: flex-start; gap: 0.5rem;">
+                                    <span style="color: #dc2626; font-weight: bold;">3rd Violation:</span>
+                                    <span>The interview will be automatically terminated and marked as incomplete</span>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div style="margin-bottom: 1.5rem;">
+                            <h4 style="font-weight: 600; color: #991b1b; margin-bottom: 0.75rem;">⏰ Time Management</h4>
+                            <ul style="list-style: none; padding-left: 1rem; color: #7f1d1d;">
+                                <li style="margin-bottom: 0.5rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+                                    <span style="color: #10b981; font-weight: bold;">•</span>
+                                    <span><strong>Duration:</strong> This interview is scheduled for 30 minutes</span>
+                                </li>
+                                <li style="margin-bottom: 0.5rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+                                    <span style="color: #10b981; font-weight: bold;">•</span>
+                                    <span><strong>Auto-End:</strong> The interview will automatically end when time expires</span>
+                                </li>
+                                <li style="display: flex; align-items: flex-start; gap: 0.5rem;">
+                                    <span style="color: #10b981; font-weight: bold;">•</span>
+                                    <span><strong>Manual Exit:</strong> You can end the interview early at any time using the "End Interview" button</span>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div>
+                            <h4 style="font-weight: 600; color: #991b1b; margin-bottom: 0.75rem;">🔧 Technical Issues & Recovery</h4>
+                            <ul style="list-style: none; padding-left: 1rem; color: #7f1d1d;">
+                                <li style="margin-bottom: 0.5rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+                                    <span style="color: #3b82f6; font-weight: bold;">•</span>
+                                    <span><strong>Reconnection Window:</strong> If technical issues occur, you can reconnect and resume your interview as long as the total scheduled time hasn't elapsed</span>
+                                </li>
+                                <li style="margin-bottom: 0.5rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+                                    <span style="color: #3b82f6; font-weight: bold;">•</span>
+                                    <span><strong>Example:</strong> If your interview starts at 2:00 PM for 30 minutes, you can reconnect until 2:30 PM, even if you were disconnected</span>
+                                </li>
+                                <li style="display: flex; align-items: flex-start; gap: 0.5rem;">
+                                    <span style="color: #3b82f6; font-weight: bold;">•</span>
+                                    <span><strong>Progress Saved:</strong> Your answers and progress will be automatically saved and restored upon reconnection</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Role Description -->
+                <div style="background: white; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 2rem;">
+                    <h2 style="font-size: 1.5rem; font-weight: 600; color: #1f2937; margin-bottom: 1.5rem;">About This Role</h2>
+                    
+                    <p style="line-height: 1.6; margin-bottom: 1.5rem; color: #4b5563;">
+                        The Software Engineering team at S Corp. is growing rapidly and is seeking new members for our platform development team. The platform team is responsible for building scalable web applications that serve millions of users worldwide. As a Senior Software Engineer, you will be responsible for designing and implementing robust, scalable solutions using modern web technologies.
+                    </p>
+
+                    <h3 style="font-size: 1.25rem; font-weight: 600; margin: 2rem 0 1rem; color: #1f2937;">What you will do:</h3>
+                    <ul style="list-style: disc; padding-left: 1.5rem; color: #4b5563; line-height: 1.6;">
+                        <li style="margin-bottom: 0.5rem;">Design and develop high-quality, scalable web applications using React, Node.js, and cloud technologies</li>
+                        <li style="margin-bottom: 0.5rem;">Collaborate with cross-functional teams including product managers, designers, and other engineers</li>
+                        <li style="margin-bottom: 0.5rem;">Participate in code reviews and maintain high coding standards across the team</li>
+                        <li style="margin-bottom: 0.5rem;">Architect and implement APIs and microservices for our platform infrastructure</li>
+                        <li style="margin-bottom: 0.5rem;">Mentor junior developers and contribute to team knowledge sharing</li>
+                        <li style="margin-bottom: 0.5rem;">Optimize application performance and ensure reliability at scale</li>
+                    </ul>
+
+                    <h3 style="font-size: 1.25rem; font-weight: 600; margin: 2rem 0 1rem; color: #1f2937;">What we need from you:</h3>
+                    <ul style="list-style: disc; padding-left: 1.5rem; color: #4b5563; line-height: 1.6;">
+                        <li style="margin-bottom: 0.5rem;">BS/MS degree in Computer Science, Engineering, or related field, or equivalent experience</li>
+                        <li style="margin-bottom: 0.5rem;">5+ years of professional software development experience</li>
+                        <li style="margin-bottom: 0.5rem;">Strong proficiency in JavaScript, React, and Node.js</li>
+                        <li style="margin-bottom: 0.5rem;">Experience with cloud platforms (AWS, GCP, or Azure)</li>
+                        <li style="margin-bottom: 0.5rem;">Solid understanding of database design and SQL</li>
+                        <li style="margin-bottom: 0.5rem;">Experience with RESTful APIs and microservices architecture</li>
+                        <li style="margin-bottom: 0.5rem;">Strong problem-solving skills and attention to detail</li>
+                        <li style="margin-bottom: 0.5rem;">Excellent communication skills and ability to work in a collaborative environment</li>
+                    </ul>
+
+                    <h3 style="font-size: 1.25rem; font-weight: 600; margin: 2rem 0 1rem; color: #1f2937;">What we would like from you:</h3>
+                    <ul style="list-style: disc; padding-left: 1.5rem; color: #4b5563; line-height: 1.6;">
+                        <li style="margin-bottom: 0.5rem;">Experience with TypeScript and modern frontend build tools</li>
+                        <li style="margin-bottom: 0.5rem;">Knowledge of containerization technologies (Docker, Kubernetes)</li>
+                        <li style="margin-bottom: 0.5rem;">Experience with testing frameworks and CI/CD pipelines</li>
+                        <li style="margin-bottom: 0.5rem;">Contributions to open-source projects</li>
+                        <li style="margin-bottom: 0.5rem;">Experience with agile development methodologies</li>
+                    </ul>
+
+                    <h3 style="font-size: 1.25rem; font-weight: 600; margin: 2rem 0 1rem; color: #1f2937;">Benefits and Perks:</h3>
+                    <p style="line-height: 1.6; color: #4b5563;">
+                        We offer competitive compensation including base salary, equity, and comprehensive benefits. Our benefits package includes healthcare (medical, dental, vision), 401(k) match, unlimited PTO, flexible working arrangements, professional development stipend, and access to cutting-edge technology. We also provide catered meals, gym membership, and a collaborative work environment in our modern office space.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <aside class="sidebar" style="position: static; max-height: none; padding: 1.5rem;">
+                <!-- Interview Info -->
+                <div style="border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 2rem; background: #f0f9ff;">
+                    <h4 style="font-weight: 600; margin-bottom: 1rem; color: #0c4a6e;">Interview Information</h4>
+                    <div style="space-y: 0.75rem;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+                            <span style="color: #374151; font-size: 0.875rem;">Position:</span>
+                            <span style="color: #0c4a6e; font-weight: 500; font-size: 0.875rem;">Senior Software Engineer</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+                            <span style="color: #374151; font-size: 0.875rem;">Duration:</span>
+                            <span style="color: #0c4a6e; font-weight: 500; font-size: 0.875rem;">30 minutes</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+                            <span style="color: #374151; font-size: 0.875rem;">Type:</span>
+                            <span style="color: #0c4a6e; font-weight: 500; font-size: 0.875rem;">AI-Powered Technical</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: #374151; font-size: 0.875rem;">Questions:</span>
+                            <span style="color: #0c4a6e; font-weight: 500; font-size: 0.875rem;">8-12 questions</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preparation Tips -->
+                <div style="border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 2rem;">
+                    <h4 style="font-weight: 600; margin-bottom: 1rem; color: #1f2937;">💡 Preparation Tips</h4>
+                    <ul style="list-style: none; padding: 0; font-size: 0.875rem; color: #4b5563;">
+                        <li style="margin-bottom: 0.75rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+                            <span style="color: #10b981;">✓</span>
+                            <span>Ensure stable internet connection</span>
+                        </li>
+                        <li style="margin-bottom: 0.75rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+                            <span style="color: #10b981;">✓</span>
+                            <span>Use a quiet environment</span>
+                        </li>
+                        <li style="margin-bottom: 0.75rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+                            <span style="color: #10b981;">✓</span>
+                            <span>Close unnecessary applications</span>
+                        </li>
+                        <li style="margin-bottom: 0.75rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+                            <span style="color: #10b981;">✓</span>
+                            <span>Have your resume nearby for reference</span>
+                        </li>
+                        <li style="display: flex; align-items: flex-start; gap: 0.5rem;">
+                            <span style="color: #10b981;">✓</span>
+                            <span>Test your microphone and camera</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Technical Requirements -->
+                <div style="border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1.5rem;">
+                    <h4 style="font-weight: 600; margin-bottom: 1rem; color: #1f2937;">🔧 Technical Requirements</h4>
+                    <ul style="list-style: none; padding: 0; font-size: 0.875rem; color: #4b5563;">
+                        <li style="margin-bottom: 0.75rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+                            <span style="color: #3b82f6;">•</span>
+                            <span>Chrome, Firefox, Safari, or Edge browser</span>
+                        </li>
+                        <li style="margin-bottom: 0.75rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+                            <span style="color: #3b82f6;">•</span>
+                            <span>Microphone access for voice responses</span>
+                        </li>
+                        <li style="margin-bottom: 0.75rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+                            <span style="color: #3b82f6;">•</span>
+                            <span>Camera access for verification</span>
+                        </li>
+                        <li style="display: flex; align-items: flex-start; gap: 0.5rem;">
+                            <span style="color: #3b82f6;">•</span>
+                            <span>Minimum 5 Mbps internet speed</span>
+                        </li>
+                    </ul>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <script src="../../js/careers.js"></script>
+    <script>
+        function startInterview() {
+            // Show confirmation dialog
+            if (confirm('Are you ready to begin your interview? Once started, the 30-minute timer will begin and monitoring will be active.')) {
+                showNotification('Starting your interview...', 'info');
+                // In a real implementation, this would redirect to the actual interview interface
+                // window.location.href = 'interview-session.html?position=senior-engineer';
+                
+                // For demo purposes, show a placeholder
+                setTimeout(() => {
+                    alert('Interview session would start here. This would redirect to the actual AI interview interface.');
+                }, 1500);
+            }
+        }
+
+        function goBack() {
+            window.location.href = '../auth/dashboard-with-applications.html';
+        }
+    </script>
+</body>
+</html>

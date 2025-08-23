@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - S Corp.</title>
+    <link rel="stylesheet" href="../../css/careers.css">
+    <link rel="stylesheet" href="../../css/listing-clean.css">
+</head>
+<body>
+    <!-- Navigation Header -->
+    <header class="header">
+        <div class="nav-container">
+            <a href="../../index.html" class="logo">
+                <div class="logo-icon">SCI</div>
+                <span>S Corp.</span>
+            </a>
+            
+            <div class="nav-actions">
+                <!-- Logged In State -->
+                <div class="user-info">
+                    <div class="user-avatar">DR</div>
+                    <div class="user-details">
+                        <h4>Dhyan Raj</h4>
+                        <p>dhyan.raj@gmail.com</p>
+                    </div>
+                    <a href="dashboard-with-applications.html" class="nav-link">My Applications</a>
+                    <a href="../../index.html" class="nav-link">Logout</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container">
+        <!-- Welcome Section -->
+        <div style="margin-bottom: 3rem;">
+            <h1 style="font-size: 2rem; font-weight: 700; color: #1f2937; margin-bottom: 0.5rem;">
+                Welcome back, Dhyan! 👋
+            </h1>
+            <p style="color: #6b7280; font-size: 1.125rem;">
+                Your profile is ready - let's find your perfect match
+            </p>
+        </div>
+
+        <!-- Profile Summary Card -->
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 2rem; margin-bottom: 3rem;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem;">
+                <div>
+                    <h3 style="font-size: 1.5rem; font-weight: 600; color: #1f2937; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                        📄 Your Profile Summary
+                    </h3>
+                </div>
+                <button onclick="updateResume()" class="btn btn-secondary" style="font-size: 0.875rem;">
+                    Update Resume
+                </button>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem;">
+                <div>
+                    <h4 style="font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Experience Level</h4>
+                    <p style="color: #6b7280; font-size: 0.875rem;">Senior (5+ years)</p>
+                </div>
+                
+                <div>
+                    <h4 style="font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Primary Skills</h4>
+                    <div style="display: flex; flex-wrap: gap: 0.5rem; margin-top: 0.5rem;">
+                        <span style="background: #dbeafe; color: #1e40af; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">JavaScript</span>
+                        <span style="background: #dbeafe; color: #1e40af; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">React</span>
+                        <span style="background: #dbeafe; color: #1e40af; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">Node.js</span>
+                        <span style="background: #dbeafe; color: #1e40af; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">AWS</span>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 style="font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Preferred Location</h4>
+                    <p style="color: #6b7280; font-size: 0.875rem;">San Francisco, CA (Remote OK)</p>
+                </div>
+                
+                <div>
+                    <h4 style="font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Salary Range</h4>
+                    <p style="color: #6b7280; font-size: 0.875rem;">$120k - $180k</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current Status Card -->
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 2rem; margin-bottom: 3rem;">
+            <h3 style="font-size: 1.25rem; font-weight: 600; color: #1f2937; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                📊 Your Profile Status
+            </h3>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem;">
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <span style="color: #374151; font-weight: 500;">Profile Completion</span>
+                        <span style="color: #10b981; font-size: 0.875rem; font-weight: 600;">85%</span>
+                    </div>
+                    <div style="background: #f3f4f6; border-radius: 0.5rem; height: 0.5rem; overflow: hidden;">
+                        <div style="background: #10b981; height: 100%; width: 85%; border-radius: 0.5rem;"></div>
+                    </div>
+                    <p style="color: #6b7280; font-size: 0.875rem; margin-top: 0.5rem;">Great! Your profile is nearly complete</p>
+                </div>
+                
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <span style="color: #374151; font-weight: 500;">Job Matches Found</span>
+                        <span style="color: #3b82f6; font-weight: 600; font-size: 1.25rem;">24</span>
+                    </div>
+                    <p style="color: #6b7280; font-size: 0.875rem;">Including 8 positions with 90%+ match scores</p>
+                </div>
+                
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <span style="color: #374151; font-weight: 500;">Applications Submitted</span>
+                        <span style="color: #10b981; font-weight: 600;">8</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <span style="color: #374151; font-weight: 500;">Interview Invitations</span>
+                        <span style="color: #3b82f6; font-weight: 600;">5</span>
+                    </div>
+                    <p style="color: #6b7280; font-size: 0.875rem;">Ready to schedule your interviews</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interview Invitations Section -->
+        <div class="alert alert-info animate-fade-in" style="border-radius: 1rem; padding: 2.5rem; margin-bottom: 3rem;">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">🎉</div>
+                <h2 style="font-size: 1.875rem; font-weight: 700; margin-bottom: 1rem;">
+                    Congratulations! You Have Interview Invitations
+                </h2>
+                <p style="font-size: 1.125rem; line-height: 1.6; color: #374151;">
+                    Your applications have been reviewed and you're invited for AI interviews. Schedule your interviews below.
+                </p>
+            </div>
+            
+            <div style="display: grid; gap: 1rem;">
+                <div style="background: white; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                        <h4 class="job-title" style="font-weight: 600; color: #1f2937; margin-bottom: 0.5rem; cursor: pointer;" onclick="window.location.href='../positions/detail-loggedin.html?id=1'">Senior Software Engineer</h4>
+                        <div style="background: #3b82f6; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600;">30 min</div>
+                    </div>
+                    <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 0.75rem;">📍 San Francisco, CA • 🕐 Full Time • 💰 $140k-$180k</p>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
+                        <p style="color: #4b5563; font-size: 0.875rem; line-height: 1.5; flex: 1;">Lead our engineering team to build scalable web applications using React, Node.js, and cloud technologies. You'll architect solutions, mentor junior developers, and drive technical excellence across our platform.</p>
+                        <button onclick="window.location.href='../interviews/prepare.html?position=senior-engineer'" class="btn btn-primary" style="font-size: 0.875rem; padding: 0.5rem 1rem; flex-shrink: 0;">
+                            Attend Interview
+                        </button>
+                    </div>
+                </div>
+                
+                <div style="background: white; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                        <h4 class="job-title" style="font-weight: 600; color: #1f2937; margin-bottom: 0.5rem; cursor: pointer;" onclick="window.location.href='../positions/detail-loggedin.html?id=2'">Lead Frontend Developer</h4>
+                        <div style="background: #10b981; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600;">25 min</div>
+                    </div>
+                    <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 0.75rem;">📍 Remote • 🕐 Full Time • 💰 $130k-$170k</p>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
+                        <p style="color: #4b5563; font-size: 0.875rem; line-height: 1.5; flex: 1;">Shape the future of our user experience by leading frontend architecture decisions. Work with React, TypeScript, and modern design systems to create intuitive interfaces for millions of users.</p>
+                        <button onclick="window.location.href='../interviews/prepare.html?position=frontend-lead'" class="btn btn-primary" style="font-size: 0.875rem; padding: 0.5rem 1rem; flex-shrink: 0;">
+                            Attend Interview
+                        </button>
+                    </div>
+                </div>
+                
+                <div style="background: white; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                        <h4 class="job-title" style="font-weight: 600; color: #1f2937; margin-bottom: 0.5rem; cursor: pointer;" onclick="window.location.href='../positions/detail-loggedin.html?id=3'">Full Stack Engineer</h4>
+                        <div style="background: #f59e0b; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600;">35 min</div>
+                    </div>
+                    <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 0.75rem;">📍 Palo Alto, CA • 🕐 Full Time • 💰 $125k-$165k</p>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
+                        <p style="color: #4b5563; font-size: 0.875rem; line-height: 1.5; flex: 1;">Join our innovation team to build end-to-end solutions across our tech stack. Work on both frontend React applications and backend Node.js services, with opportunities to explore new technologies and frameworks.</p>
+                        <button onclick="window.location.href='../interviews/prepare.html?position=fullstack-engineer'" class="btn btn-primary" style="font-size: 0.875rem; padding: 0.5rem 1rem; flex-shrink: 0;">
+                            Attend Interview
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Recommendations Banner -->
+        <div class="alert alert-info animate-fade-in" style="margin-bottom: 2rem;">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <strong>🎯 AI Recommendations:</strong> We found <strong>12 positions</strong> that match your profile
+                </div>
+                <button onclick="browseMatches()" class="btn btn-primary">View Matches</button>
+            </div>
+        </div>
+
+        <!-- Top Matches Preview -->
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 2rem; margin-bottom: 3rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h3 style="font-size: 1.25rem; font-weight: 600; color: #1f2937;">Your Top Matches</h3>
+                <a href="../positions/listing-has-resume.html" style="color: #3b82f6; text-decoration: none; font-weight: 500;">View All 24 →</a>
+            </div>
+            
+            <div style="display: grid; gap: 1rem;">
+                <div style="background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                        <h4 class="job-title" style="font-weight: 600; color: #1f2937; margin-bottom: 0.5rem; cursor: pointer;" onclick="window.location.href='../positions/detail-loggedin.html?id=4'">Senior Software Engineer</h4>
+                        <div style="background: #10b981; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600;">95% Match</div>
+                    </div>
+                    <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 0.5rem;">📍 San Francisco, CA • 🕐 Full Time • 💰 $140k-$180k</p>
+                    <p style="color: #6b7280; font-size: 0.875rem;">Perfect match for your React and Node.js expertise...</p>
+                </div>
+                
+                <div style="background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                        <h4 class="job-title" style="font-weight: 600; color: #1f2937; margin-bottom: 0.5rem; cursor: pointer;" onclick="window.location.href='../positions/detail-loggedin.html?id=5'">Lead Frontend Developer</h4>
+                        <div style="background: #3b82f6; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600;">92% Match</div>
+                    </div>
+                    <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 0.5rem;">📍 Remote • 🕐 Full Time • 💰 $130k-$170k</p>
+                    <p style="color: #6b7280; font-size: 0.875rem;">Remote-first role focusing on React architecture...</p>
+                </div>
+                
+                <div style="background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                        <h4 class="job-title" style="font-weight: 600; color: #1f2937; margin-bottom: 0.5rem; cursor: pointer;" onclick="window.location.href='../positions/detail-loggedin.html?id=6'">Full Stack Engineer</h4>
+                        <div style="background: #3b82f6; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600;">90% Match</div>
+                    </div>
+                    <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 0.5rem;">📍 Palo Alto, CA • 🕐 Full Time • 💰 $125k-$165k</p>
+                    <p style="color: #6b7280; font-size: 0.875rem;">Startup environment with modern tech stack...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Demo Controls -->
+    <div style="position: fixed; bottom: 1rem; left: 1rem; background: #ffffff; border: 1px solid #e5e7eb; padding: 1rem; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); z-index: 1000; font-size: 0.875rem;">
+        <h4 style="margin-bottom: 0.5rem; font-weight: 600; color: #1f2937;">Dashboard States</h4>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <button onclick="switchToDashboardState('no-resume')" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">No Resume</button>
+            <button onclick="switchToDashboardState('no-applications')" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">No Applications</button>
+            <button onclick="switchToDashboardState('with-applications')" class="btn btn-primary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">With Applications (Current)</button>
+        </div>
+    </div>
+
+    <script src="../../js/careers.js"></script>
+    <script>
+        function updateResume() {
+            // Redirect to resume update page
+            window.location.href = '../careers/upload.html';
+        }
+
+        function browseMatches() {
+            // Redirect to listing with resume page
+            window.location.href = '../positions/listing-has-resume.html';
+        }
+
+        function attendInterview(company) {
+            // Redirect to specific interview
+            showNotification(`Starting AI interview with ${company}...`, 'info');
+            // window.location.href = `../interviews/ai-interview.html?company=${company}`;
+        }
+
+        // Demo controls for testing different states
+        function switchToDashboardState(state) {
+            if (state === 'no-resume') {
+                window.location.href = 'dashboard.html';
+            } else if (state === 'no-applications') {
+                window.location.href = 'dashboard-no-applications.html';
+            } else if (state === 'with-applications') {
+                window.location.href = 'dashboard-with-applications.html';
+            }
+        }
+
+        // Add some interactivity
+        document.addEventListener('DOMContentLoaded', function() {
+            // Animate profile completion bar
+            setTimeout(() => {
+                const progressBar = document.querySelector('[style*="width: 85%"]');
+                if (progressBar) {
+                    progressBar.style.transition = 'width 1s ease-in-out';
+                }
+            }, 500);
+        });
+    </script>
+</body>
+</html>
