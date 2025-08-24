@@ -1,5 +1,14 @@
 // API Types based on wireframe analysis
 
+export interface UserApplication {
+  jobId: string
+  qualified: boolean
+  status?: 'ELIGIBLE' | 'INPROGRESS' | 'COMPLETED'
+  interviewSession?: string
+  appliedAt: string
+  completedAt?: string
+}
+
 export interface User {
   id: string
   email: string
@@ -16,6 +25,9 @@ export interface User {
   }
   isResumeAvailable?: boolean
   isApplicationsAvailable?: boolean
+  availableJobs?: number
+  matchedJobs?: number
+  applications?: UserApplication[]
   createdAt: string
   updatedAt: string
   created_at?: string // For compatibility with mock-data
@@ -28,6 +40,7 @@ export interface Job {
   location: string
   type: 'Full-time' | 'Part-time' | 'Contract' | 'Internship'
   category: 'Engineering' | 'Operations' | 'Finance' | 'Marketing' | 'Sales' | 'Other'
+  remote?: boolean
   description: string
   requirements: string[]
   benefits?: string[]

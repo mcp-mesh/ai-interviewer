@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Navigation } from "@/components/navigation"
-import { WireframeButton } from "@/components/wireframe/WireframeButton"
+import { Button } from "@/components/ui/button"
 import { ToastContainer, useToast } from "@/components/wireframe"
-import { UserState, User } from "@/lib/types"
+import { UserState, User, Job } from "@/lib/types"
+import { jobsApi } from "@/lib/api"
 
 interface PreparePageProps {
   params: Promise<{ jobId: string }>
@@ -13,18 +14,40 @@ interface PreparePageProps {
 
 export default function InterviewPreparePage({ params }: PreparePageProps) {
   const [jobId, setJobId] = useState<string>("")
+  const [job, setJob] = useState<Job | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [user] = useState<User | null>({
     id: "1",
     name: "Dhyan Raj",
-    email: "dhyan.raj@gmail.com"
+    email: "dhyan.raj@gmail.com",
+    hasResume: true,
+    isResumeAvailable: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   })
-  const userState: UserState = "logged-in"
+  const userState: UserState = "has-resume"
   const { toasts, showToast, removeToast } = useToast()
 
   useEffect(() => {
     const resolveParams = async () => {
       const resolvedParams = await params
       setJobId(resolvedParams.jobId)
+      
+      // Fetch job data
+      setLoading(true)
+      try {
+        const { data: jobData, error: jobError } = await jobsApi.getById(resolvedParams.jobId)
+        if (jobError) {
+          setError(jobError)
+        } else {
+          setJob(jobData)
+        }
+      } catch (err) {
+        setError('Failed to fetch job information')
+      } finally {
+        setLoading(false)
+      }
     }
     resolveParams()
   }, [params])
@@ -41,6 +64,40 @@ export default function InterviewPreparePage({ params }: PreparePageProps) {
     window.location.href = '/dashboard'
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation userState={userState} user={user} theme="light" />
+        <main className="container mx-auto px-6 py-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading interview preparation...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  if (error || !job) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation userState={userState} user={user} theme="light" />
+        <main className="container mx-auto px-6 py-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="text-red-600 text-6xl mb-4">⚠️</div>
+              <h1 className="text-2xl font-bold text-gray-800 mb-2">Job Not Found</h1>
+              <p className="text-gray-600 mb-6">{error || 'The requested job could not be found.'}</p>
+              <Button onClick={handleGoBack} variant="primary">Return to Dashboard</Button>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation userState={userState} user={user} theme="light" />
@@ -52,36 +109,36 @@ export default function InterviewPreparePage({ params }: PreparePageProps) {
           <div className="flex-1">
             {/* Job Header */}
             <div className="mb-8">
-              <h1 className="text-red-600 text-4xl font-bold mb-4 leading-tight">Senior Software Engineer</h1>
+              <h1 className="text-red-600 text-4xl font-bold mb-4 leading-tight">{job.title}</h1>
               <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-6 text-gray-500 text-sm">
                   <div className="flex items-center gap-1">
                     📅 Interview Duration: 30 minutes
                   </div>
                   <div className="flex items-center gap-1">
-                    📍 San Francisco, CA
+                    📍 {job.location}
                   </div>
                   <div className="flex items-center gap-1">
-                    🕐 Full Time
+                    🕐 {job.type}
                   </div>
                 </div>
                 <div className="flex gap-4">
-                  <WireframeButton 
+                  <Button 
                     variant="secondary" 
-                    size="md" 
+                    size="default" 
                     onClick={handleGoBack}
                     className="px-6 py-3 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
                   >
                     I Need More Time
-                  </WireframeButton>
-                  <WireframeButton 
+                  </Button>
+                  <Button 
                     variant="primary" 
-                    size="md" 
+                    size="default" 
                     onClick={handleStartInterview}
                     className="px-6 py-3"
                   >
                     I'm Ready - Start Interview
-                  </WireframeButton>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -180,44 +237,35 @@ export default function InterviewPreparePage({ params }: PreparePageProps) {
               <h2 className="text-xl font-semibold text-gray-800 mb-6">About This Role</h2>
               
               <p className="leading-relaxed mb-6 text-gray-600">
-                The Software Engineering team at S Corp. is growing rapidly and is seeking new members for our platform development team. The platform team is responsible for building scalable web applications that serve millions of users worldwide. As a Senior Software Engineer, you will be responsible for designing and implementing robust, scalable solutions using modern web technologies.
+                {job.description}
               </p>
 
-              <h3 className="text-lg font-semibold mt-8 mb-4 text-gray-800">What you will do:</h3>
+              <h3 className="text-lg font-semibold mt-8 mb-4 text-gray-800">Requirements:</h3>
               <ul className="list-disc pl-6 text-gray-600 leading-relaxed">
-                <li className="mb-2">Design and develop high-quality, scalable web applications using React, Node.js, and cloud technologies</li>
-                <li className="mb-2">Collaborate with cross-functional teams including product managers, designers, and other engineers</li>
-                <li className="mb-2">Participate in code reviews and maintain high coding standards across the team</li>
-                <li className="mb-2">Architect and implement APIs and microservices for our platform infrastructure</li>
-                <li className="mb-2">Mentor junior developers and contribute to team knowledge sharing</li>
-                <li className="mb-2">Optimize application performance and ensure reliability at scale</li>
+                {job.requirements.map((requirement, index) => (
+                  <li key={index} className="mb-2">{requirement}</li>
+                ))}
               </ul>
 
-              <h3 className="text-lg font-semibold mt-8 mb-4 text-gray-800">What we need from you:</h3>
-              <ul className="list-disc pl-6 text-gray-600 leading-relaxed">
-                <li className="mb-2">BS/MS degree in Computer Science, Engineering, or related field, or equivalent experience</li>
-                <li className="mb-2">5+ years of professional software development experience</li>
-                <li className="mb-2">Strong proficiency in JavaScript, React, and Node.js</li>
-                <li className="mb-2">Experience with cloud platforms (AWS, GCP, or Azure)</li>
-                <li className="mb-2">Solid understanding of database design and SQL</li>
-                <li className="mb-2">Experience with RESTful APIs and microservices architecture</li>
-                <li className="mb-2">Strong problem-solving skills and attention to detail</li>
-                <li className="mb-2">Excellent communication skills and ability to work in a collaborative environment</li>
-              </ul>
+              {job.benefits && job.benefits.length > 0 && (
+                <>
+                  <h3 className="text-lg font-semibold mt-8 mb-4 text-gray-800">Benefits and Perks:</h3>
+                  <ul className="list-disc pl-6 text-gray-600 leading-relaxed">
+                    {job.benefits.map((benefit, index) => (
+                      <li key={index} className="mb-2">{benefit}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
 
-              <h3 className="text-lg font-semibold mt-8 mb-4 text-gray-800">What we would like from you:</h3>
-              <ul className="list-disc pl-6 text-gray-600 leading-relaxed">
-                <li className="mb-2">Experience with TypeScript and modern frontend build tools</li>
-                <li className="mb-2">Knowledge of containerization technologies (Docker, Kubernetes)</li>
-                <li className="mb-2">Experience with testing frameworks and CI/CD pipelines</li>
-                <li className="mb-2">Contributions to open-source projects</li>
-                <li className="mb-2">Experience with agile development methodologies</li>
-              </ul>
-
-              <h3 className="text-lg font-semibold mt-8 mb-4 text-gray-800">Benefits and Perks:</h3>
-              <p className="leading-relaxed text-gray-600">
-                We offer competitive compensation including base salary, equity, and comprehensive benefits. Our benefits package includes healthcare (medical, dental, vision), 401(k) match, unlimited PTO, flexible working arrangements, professional development stipend, and access to cutting-edge technology. We also provide catered meals, gym membership, and a collaborative work environment in our modern office space.
-              </p>
+              {job.salaryRange && (
+                <>
+                  <h3 className="text-lg font-semibold mt-8 mb-4 text-gray-800">Compensation:</h3>
+                  <p className="leading-relaxed text-gray-600">
+                    ${job.salaryRange.min.toLocaleString()} - ${job.salaryRange.max.toLocaleString()} {job.salaryRange.currency} annually
+                  </p>
+                </>
+              )}
             </div>
           </div>
 
@@ -229,7 +277,11 @@ export default function InterviewPreparePage({ params }: PreparePageProps) {
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Position:</span>
-                  <span className="text-blue-900 font-medium">Senior Software Engineer</span>
+                  <span className="text-blue-900 font-medium">{job.title}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Company:</span>
+                  <span className="text-blue-900 font-medium">{job.company}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Duration:</span>

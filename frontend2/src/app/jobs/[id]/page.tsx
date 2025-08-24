@@ -2,15 +2,16 @@
 
 import { useState, useEffect } from 'react'
 import { Navigation } from '@/components/navigation'
-import { WireframeButton } from '@/components/wireframe'
+import { Button } from '@/components/ui/button'
 import { Job, User } from '@/lib/types'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 // Mock detailed job data
-const jobDetails: Record<string, Job & { 
+const jobDetails: Record<string, Omit<Job, 'benefits' | 'requirements'> & { 
   fullDescription: string;
   responsibilities: string[];
+  skillTags: string[];
   requirements: string[];
   preferred: string[];
   benefits: string;
@@ -26,7 +27,7 @@ const jobDetails: Record<string, Job & {
     type: 'Full-time',
     category: 'Operations',
     description: 'The Investment Manager Services Division (IMS) at S Corp. is growing rapidly and is seeking new members on our Institutional Private Client (IPC) team.',
-    requirements: ['Finance', 'Analytics', 'Excel', 'Communication'],
+    skillTags: ['Finance', 'Analytics', 'Excel', 'Communication'],
     postedAt: new Date().toISOString(),
     postedDate: 'Jun 27th 2025',
     fullDescription: `The Investment Manager Services Division (IMS) at S Corp. is growing rapidly and is seeking new members on our Institutional Private Client (IPC) team. Our primary goal is to provide exceptional administrative services to our high-net-worth clients and institutional investors. This role involves working closely with portfolio managers and client relationship teams to ensure seamless service delivery.`,
@@ -61,7 +62,7 @@ const jobDetails: Record<string, Job & {
     type: 'Full-time',
     category: 'Finance',
     description: 'The Investment Manager Services Division (IMS) at S Corp. is growing rapidly and is seeking new members on our Investment Fund Services accounting team.',
-    requirements: ['Accounting', 'Finance', 'Excel', 'Detail-oriented'],
+    skillTags: ['Accounting', 'Finance', 'Excel', 'Detail-oriented'],
     postedAt: new Date().toISOString(),
     postedDate: 'Jun 25th 2025',
     fullDescription: `The Investment Manager Services Division (IMS) at S Corp. is growing rapidly and is seeking new members on our Investment Fund Services accounting team. Our primary goal is to provide exceptional accounting and administrative services to investment funds and their managers. This role involves complex fund accounting, financial reporting, and regulatory compliance.`,
@@ -97,7 +98,7 @@ const jobDetails: Record<string, Job & {
     type: 'Full-time',
     category: 'Operations',
     description: 'The Investment Manager Services Division (IMS) at S Corp. is growing rapidly and is seeking new members on our Separately Managed Accounts team.',
-    requirements: ['Operations', 'Analysis', 'Finance', 'Process Improvement'],
+    skillTags: ['Operations', 'Analysis', 'Finance', 'Process Improvement'],
     postedAt: new Date().toISOString(),
     postedDate: 'Jun 20th 2025',
     fullDescription: `The Investment Manager Services Division (IMS) at S Corp. is growing rapidly and is seeking new members on our Separately Managed Accounts team. Our primary goal is to provide exceptional accounting and administrative services to separately managed account programs. This role involves portfolio monitoring, trade processing, and client reporting for institutional separately managed accounts.`,
@@ -133,7 +134,7 @@ const jobDetails: Record<string, Job & {
     type: 'Full-time',
     category: 'Operations',
     description: 'The Investment Manager Services Division (IMS) at S Corp. is growing rapidly and is seeking new members on our Alternative Investment Funds Investor Services Anti-Money Laundering Team.',
-    requirements: ['AML', 'Compliance', 'Risk Management', 'Investigation'],
+    skillTags: ['AML', 'Compliance', 'Risk Management', 'Investigation'],
     postedAt: new Date().toISOString(),
     postedDate: 'Jun 18th 2025',
     fullDescription: `The Investment Manager Services Division (IMS) at S Corp. is growing rapidly and is seeking new members on our Alternative Investment Funds Investor Services Anti-Money Laundering Team. Our primary goal is to ensure compliance with anti-money laundering regulations and protect our clients and firm from financial crimes. This role involves monitoring transactions, conducting investigations, and maintaining compliance with regulatory requirements.`,
@@ -171,7 +172,7 @@ const jobDetails: Record<string, Job & {
     type: 'Full-time',
     category: 'Engineering',
     description: 'Join our engineering team to build scalable web applications using React, Node.js, and cloud technologies.',
-    requirements: ['React', 'Node.js', 'JavaScript', 'AWS', 'TypeScript'],
+    skillTags: ['React', 'Node.js', 'JavaScript', 'AWS', 'TypeScript'],
     postedAt: new Date().toISOString(),
     postedDate: 'Jun 15th 2025',
     fullDescription: `Join our engineering team to build scalable web applications using React, Node.js, and cloud technologies. We\'re looking for someone with 5+ years of experience in full-stack development and cloud architecture. You\'ll be working on cutting-edge financial technology solutions that serve institutional clients and investment managers globally.`,
@@ -278,7 +279,7 @@ export default function JobDetailPage({ params }: JobDetailProps) {
             <h1 className="text-2xl font-bold text-gray-900 mb-4">Job Not Found</h1>
             <p className="text-gray-600 mb-6">The job you're looking for doesn't exist or has been removed.</p>
             <Link href="/jobs">
-              <WireframeButton variant="primary">Back to Jobs</WireframeButton>
+              <Button variant="primary">Back to Jobs</Button>
             </Link>
           </div>
         </main>
@@ -287,7 +288,7 @@ export default function JobDetailPage({ params }: JobDetailProps) {
   }
 
   const isGuest = !user
-  const userState = isGuest ? "guest" : (user.isResumeAvailable ? "has-resume" : "authenticated")
+  const userState = isGuest ? "guest" : (user.isResumeAvailable ? "has-resume" : "no-resume")
 
   const handleApplyNow = () => {
     if (!resolvedParams) return
@@ -335,14 +336,14 @@ export default function JobDetailPage({ params }: JobDetailProps) {
                     🕐 {job.type}
                   </span>
                 </div>
-                <WireframeButton 
+                <Button 
                   variant="primary" 
                   size="lg"
                   onClick={handleApplyNow}
                   disabled={loading}
                 >
                   {loading ? 'Loading...' : 'Apply Now'}
-                </WireframeButton>
+                </Button>
               </div>
             </div>
 
@@ -410,9 +411,9 @@ export default function JobDetailPage({ params }: JobDetailProps) {
 
               <p>{job.equalOpportunity}</p>
 
-              <WireframeButton variant="secondary" className="bg-red-600 hover:bg-red-700 text-white">
+              <Button variant="secondary" className="bg-red-600 hover:bg-red-700 text-white">
                 📍 Explore Location
-              </WireframeButton>
+              </Button>
             </div>
           </div>
 

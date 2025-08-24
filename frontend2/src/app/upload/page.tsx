@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Navigation } from '@/components/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { WireframeButton, ToastContainer, useToast } from '@/components/wireframe'
+import { ToastContainer, useToast } from '@/components/wireframe'
 import { User } from '@/lib/types'
 
 export default function UploadPage() {
@@ -17,7 +17,7 @@ export default function UploadPage() {
   const [captchaValid, setCaptchaValid] = useState(false)
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
-  const { toasts, showToast, removeToast } = useToast()
+  const { toasts, showToast, removeToast, clearAllToasts } = useToast()
 
   useEffect(() => {
     // Get user from localStorage
@@ -85,17 +85,31 @@ export default function UploadPage() {
 
     // Simulate upload process
     setTimeout(() => {
-      // Update user state with resume flag
+      // Update user state with resume flag and job counts
       if (user) {
-        const updatedUser = { ...user, isResumeAvailable: true }
+        const updatedUser = { 
+          ...user, 
+          isResumeAvailable: true,
+          hasResume: true,
+          // Set realistic job match counts when resume is uploaded
+          availableJobs: 5,
+          matchedJobs: 2,
+          profile: {
+            ...user.profile,
+            resume_url: '/uploaded-resume.pdf'
+          }
+        }
         localStorage.setItem('user', JSON.stringify(updatedUser))
       }
 
-      // Show success and redirect
-      showToast.success('Resume uploaded successfully!')
+      // Clear the "Uploading..." toast before showing success
+      clearAllToasts()
       setTimeout(() => {
-        router.push('/dashboard')
-      }, 1500)
+        showToast.success('Resume uploaded successfully!')
+        setTimeout(() => {
+          router.push('/dashboard')
+        }, 1500)
+      }, 100)
     }, 2000)
   }
 
@@ -113,7 +127,7 @@ export default function UploadPage() {
         <Card>
           <CardContent className="text-center py-8">
             <p className="mb-4">Please log in to upload your resume</p>
-            <WireframeButton onClick={() => router.push('/login')} variant="primary">Go to Login</WireframeButton>
+            <Button onClick={() => router.push('/login')} variant="primary">Go to Login</Button>
           </CardContent>
         </Card>
       </div>
@@ -122,7 +136,7 @@ export default function UploadPage() {
 
   return (
     <div className="page-light min-h-screen">
-      <Navigation userState="authenticated" user={user} theme="light" />
+      <Navigation userState="no-resume" user={user} theme="light" />
       
       <main className="container max-w-[900px] mx-auto px-6 pt-20">
         <div className="py-12">
@@ -140,10 +154,6 @@ export default function UploadPage() {
           {/* Upload Section */}
           <div 
             className="bg-white border-2 border-dashed border-[#d1d5db] hover:border-[#3b82f6] transition-all duration-300 rounded-2xl p-12 mb-12 text-center"
-            style={{
-              borderDasharray: '12px 8px',
-              borderStyle: 'dashed'
-            }}
           >
             <div className="text-[3rem] text-[#9ca3af] mb-6">☁️</div>
             <h3 className="text-[1.5rem] font-semibold text-[#1f2937] mb-4">Upload your resume</h3>
@@ -156,13 +166,13 @@ export default function UploadPage() {
               className="hidden"
               id="resume-upload"
             />
-            <WireframeButton 
+            <Button 
               onClick={() => document.getElementById('resume-upload')?.click()}
               variant="primary"
-              size="md"
+              size="default"
             >
               Choose File
-            </WireframeButton>
+            </Button>
             
             {selectedFile && (
               <div className="mt-4 p-4 bg-[#f0f9ff] border border-[#0ea5e9] rounded-lg">
@@ -209,14 +219,14 @@ export default function UploadPage() {
                 <div className="bg-white border border-[#d1d5db] p-4 rounded font-mono text-[1.5rem] tracking-[0.1em] text-[#1f2937] min-w-[150px]">
                   {captchaText}
                 </div>
-                <WireframeButton 
+                <Button 
                   onClick={refreshCaptcha}
                   variant="secondary"
                   size="sm"
                   className="!p-2 !min-h-[2rem]"
                 >
                   🔄
-                </WireframeButton>
+                </Button>
               </div>
               <div className="mb-2">
                 <input
@@ -280,7 +290,7 @@ export default function UploadPage() {
 
           {/* Upload Button */}
           <div className="text-center">
-            <WireframeButton
+            <Button
               onClick={handleUpload}
               disabled={!isFormValid || isUploading}
               variant="primary"
@@ -288,7 +298,7 @@ export default function UploadPage() {
               className="px-12 text-[1.125rem]"
             >
               {isUploading ? 'Uploading...' : 'Upload Resume'}
-            </WireframeButton>
+            </Button>
             <p className="text-[#6b7280] text-sm mt-4">
               {isFormValid 
                 ? 'Ready to upload your resume'

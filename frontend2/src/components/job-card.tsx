@@ -1,6 +1,6 @@
 "use client"
 
-import { MapPin, Clock, Star, Bookmark } from "lucide-react"
+import { MapPin, Clock, Star, Bookmark, DollarSign } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -41,8 +41,8 @@ export function JobCard({
             </div>
           )}
         </div>
-        <p className="text-[#6b7280] text-sm mb-2">
-          📍 {job.location} • 🕐 {job.type} • 💰 {job.salaryRange ? `$${job.salaryRange.min}k-$${job.salaryRange.max}k` : 'Competitive'}
+        <p className="text-[#6b7280] text-sm mb-2 flex items-center gap-1">
+          <MapPin className="w-3 h-3" /> {job.location} • <Clock className="w-3 h-3" /> {job.type} • <DollarSign className="w-3 h-3" /> {job.salaryRange ? `$${job.salaryRange.min}k-$${job.salaryRange.max}k` : 'Competitive'}
         </p>
         <p className="text-[#6b7280] text-sm">
           {job.description.slice(0, 80)}...
@@ -186,17 +186,19 @@ export function JobCard({
                 <Clock className="w-4 h-4" />
                 {job.type}
               </span>
-              <span className={cn("px-2 py-1 rounded-md text-xs", bgSurface, borderStyle, "border")}>
-                {job.salary}
-              </span>
+              {job.salaryRange && (
+                <span className={cn("px-2 py-1 rounded-md text-xs", bgSurface, borderStyle, "border")}>
+                  ${job.salaryRange.min.toLocaleString()}-${job.salaryRange.max.toLocaleString()}
+                </span>
+              )}
             </div>
           </div>
           
           <div className="flex items-center gap-2">
-            {showMatchScore && job.match_score && (
+            {showMatchScore && job.matchScore && (
               <div className="flex items-center gap-1 px-3 py-1 bg-success-500/10 text-success-500 rounded-full text-sm font-semibold">
                 <Star className="w-4 h-4 fill-current" />
-                {job.match_score}% match
+                {job.matchScore}% match
               </div>
             )}
             {showBookmark && (
@@ -239,7 +241,7 @@ export function JobCard({
 
         <div className={cn("flex items-center justify-between pt-4 border-t", borderStyle)}>
           <div className={cn("text-xs", textMuted)}>
-            Posted {new Date(job.posted_at).toLocaleDateString()}
+            Posted {new Date(job.postedAt).toLocaleDateString()}
           </div>
           <div className="flex gap-3">
             <Button variant="secondary" size="sm">

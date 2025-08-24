@@ -28,18 +28,24 @@ export const authApi = {
       const mockOAuthUser: User = {
         id: `oauth-${provider}-${Date.now()}`,
         name: provider === 'google' ? 'John Doe' : 'GitHub User',
-        email: provider === 'google' ? 'john.doe@gmail.com' : 'user@github.com',
+        email: provider === 'google' ? 'testuser@gmail.com' : 'testuser@github.com',
+        avatar: provider === 'google' 
+          ? 'https://lh3.googleusercontent.com/a/default-user' 
+          : 'https://github.com/identicons/user.png',
+        provider: provider,
         profile: {
-          skills: ['JavaScript', 'React', 'Node.js', 'TypeScript'],
-          experience_years: provider === 'google' ? 5 : 3,
-          location: 'San Francisco, CA',
-          resume_url: null,
-          avatar: provider === 'google' 
-            ? 'https://lh3.googleusercontent.com/a/default-user' 
-            : 'https://github.com/identicons/user.png',
-          provider: provider
+          skills: [],
+          experience_years: 0,
+          location: '',
+          resume_url: null
         },
-        created_at: new Date().toISOString()
+        hasResume: false,
+        isResumeAvailable: false,
+        availableJobs: 0,
+        matchedJobs: 0,
+        applications: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       }
 
       // Add to mock users if not exists
@@ -80,7 +86,13 @@ export const authApi = {
           location: '',
           resume_url: null
         },
-        created_at: new Date().toISOString()
+        hasResume: false,
+        isResumeAvailable: false,
+        availableJobs: 0,
+        matchedJobs: 0,
+        applications: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       }
 
       mockUsers.push(newUser)
@@ -140,13 +152,47 @@ export const jobsApi = {
     try {
       // Return top 3 jobs with highest match scores
       const featured = mockJobs
-        .sort((a, b) => (b.match_score || 0) - (a.match_score || 0))
+        .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
         .slice(0, 3)
       
       const response = await mockApiResponse(featured)
       return { data: response.data }
     } catch (error) {
       return { data: [], error: 'Failed to fetch featured jobs' }
+    }
+  },
+
+  getMatched: async (userId: string, filters?: { location?: string; type?: string; remote?: boolean }): Promise<{ data: Job[]; error?: string }> => {
+    try {
+      // Always return exactly 2 matched jobs for predictable testing
+      // In real API, this would use user profile, skills, experience, etc.
+      let matchedJobs = [...mockJobs]
+        .slice(0, 2) // Take first 2 jobs as matches
+        .map(job => ({
+          ...job,
+          // Set deterministic high match scores for matched jobs
+          matchScore: job.id === '1' ? 95 : 88
+        }))
+
+      // Apply filters if provided (after taking the first 2)
+      if (filters?.location) {
+        matchedJobs = matchedJobs.filter(job => 
+          job.location.toLowerCase().includes(filters.location!.toLowerCase())
+        )
+      }
+
+      if (filters?.type) {
+        matchedJobs = matchedJobs.filter(job => job.type === filters.type)
+      }
+
+      if (filters?.remote !== undefined) {
+        matchedJobs = matchedJobs.filter(job => job.remote === filters.remote)
+      }
+
+      const response = await mockApiResponse(matchedJobs)
+      return { data: response.data }
+    } catch (error) {
+      return { data: [], error: 'Failed to fetch matched jobs' }
     }
   }
 }
@@ -162,12 +208,11 @@ export const applicationsApi = {
 
       const newApplication: Application = {
         id: `app-${Date.now()}`,
-        user_id: userId,
-        job_id: jobId,
-        status: 'pending',
-        applied_at: new Date().toISOString(),
-        cover_letter: coverLetter,
-        job
+        userId: userId,
+        jobId: jobId,
+        status: 'submitted',
+        submittedAt: new Date().toISOString(),
+        notes: coverLetter
       }
 
       mockApplications.push(newApplication)
@@ -180,7 +225,7 @@ export const applicationsApi = {
 
   getByUserId: async (userId: string): Promise<{ data: Application[]; error?: string }> => {
     try {
-      const userApplications = mockApplications.filter(app => app.user_id === userId)
+      const userApplications = mockApplications.filter(app => app.userId === userId)
       const response = await mockApiResponse(userApplications)
       return { data: response.data }
     } catch (error) {
@@ -208,7 +253,7 @@ export const applicationsApi = {
 export const interviewsApi = {
   getByApplicationId: async (applicationId: string): Promise<{ data: Interview | null; error?: string }> => {
     try {
-      const interview = mockInterviews.find(i => i.application_id === applicationId)
+      const interview = mockInterviews.find(i => i.applicationId === applicationId)
       if (interview) {
         const response = await mockApiResponse(interview)
         return { data: response.data }
@@ -224,9 +269,13 @@ export const interviewsApi = {
     try {
       const newInterview: Interview = {
         id: `interview-${Date.now()}`,
-        application_id: applicationId,
+        applicationId: applicationId,
+        jobId: 'mock-job-id', // This should come from the application
+        userId: 'mock-user-id', // This should come from the application
+        type: 'ai',
         status: 'scheduled',
-        scheduled_at: scheduledAt,
+        scheduledAt: scheduledAt,
+        duration: 60,
         questions: [
           {
             id: 'q1',
@@ -259,9 +308,18 @@ export const userApi = {
         return { data: null, error: 'User not found' }
       }
 
-      mockUsers[userIndex].profile = {
-        ...mockUsers[userIndex].profile,
-        ...profileData
+      if (mockUsers[userIndex].profile) {
+        mockUsers[userIndex].profile = {
+          ...mockUsers[userIndex].profile!,
+          ...profileData
+        }
+      } else {
+        mockUsers[userIndex].profile = {
+          skills: profileData?.skills || [],
+          experience_years: profileData?.experience_years || 0,
+          location: profileData?.location || '',
+          resume_url: profileData?.resume_url || null
+        }
       }
 
       const response = await mockApiResponse(mockUsers[userIndex])

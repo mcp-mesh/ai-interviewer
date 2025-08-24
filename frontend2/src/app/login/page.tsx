@@ -1,38 +1,39 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { OAuthButton } from '@/components/wireframe/OAuthButton'
 import { authApi } from '@/lib/api'
+import { Bot, Target, Mail, BarChart3, Zap } from 'lucide-react'
 
 const benefits = [
   {
-    icon: '🤖',
+    icon: Bot,
     title: 'Instant AI-Based Interviews',
     description: 'Get immediate feedback and practice with our AI interview system before meeting with real recruiters.',
     color: 'bg-wireframe-blue'
   },
   {
-    icon: '🎯',
+    icon: Target,
     title: 'Smart Profile Matching',
     description: 'Our AI automatically matches your skills and experience to the most relevant job opportunities.',
     color: 'bg-wireframe-green'
   },
   {
-    icon: '📧',
+    icon: Mail,
     title: 'Job Alerts & Notifications',
     description: 'Stay updated with personalized notifications when new positions matching your profile are posted.',
     color: 'bg-wireframe-yellow'
   },
   {
-    icon: '📊',
+    icon: BarChart3,
     title: 'Application Tracking',
     description: 'Keep track of all your applications, interview schedules, and follow-ups in one centralized dashboard.',
     color: 'bg-wireframe-purple'
   },
   {
-    icon: '⚡',
+    icon: Zap,
     title: 'AI Resume Optimization',
     description: 'Get AI-powered suggestions to optimize your resume for specific job applications and ATS systems.',
     color: 'bg-red-500'
@@ -43,8 +44,21 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect') || '/dashboard'
-  
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    // Check if user is already logged in
+    const userData = localStorage.getItem('user')
+    if (userData) {
+      // User is logged in, redirect to dashboard or specified redirect
+      window.location.href = redirect
+      return
+    }
+    
+    // No user found, show login page
+    setLoading(false)
+  }, [redirect])
 
   const handleOAuthLogin = async (provider: 'google' | 'github') => {
     try {
@@ -64,6 +78,18 @@ export default function LoginPage() {
     } catch (err) {
       setError(`An error occurred during ${provider} sign in`)
     }
+  }
+
+  // Show loading while checking authentication
+  if (loading) {
+    return (
+      <div className="page-light min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -105,17 +131,20 @@ export default function LoginPage() {
               </p>
 
               <div className="space-y-6">
-                {benefits.map((benefit, index) => (
-                  <div key={index} className="flex items-start gap-4">
-                    <div className={`w-10 h-10 ${benefit.color} rounded-full flex items-center justify-center flex-shrink-0`}>
-                      <span className="text-xl">{benefit.icon}</span>
+                {benefits.map((benefit, index) => {
+                  const IconComponent = benefit.icon
+                  return (
+                    <div key={index} className="flex items-start gap-4">
+                      <div className={`w-10 h-10 ${benefit.color} rounded-full flex items-center justify-center flex-shrink-0`}>
+                        <IconComponent className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-2">{benefit.title}</h3>
+                        <p className="text-gray-600 text-sm leading-relaxed">{benefit.description}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900 mb-2">{benefit.title}</h3>
-                      <p className="text-gray-600 text-sm leading-relaxed">{benefit.description}</p>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
 
               <div className="mt-8 p-6 bg-slate-50 rounded-xl border-l-4 border-wireframe-blue">

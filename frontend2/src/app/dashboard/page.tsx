@@ -5,11 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Navigation } from '@/components/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { WireframeButton } from '@/components/wireframe'
-import { JobCard } from '@/components/job-card'
 import { jobsApi } from '@/lib/api'
 import { Job, User } from '@/lib/types'
-import Link from 'next/link'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -36,48 +33,50 @@ export default function DashboardPage() {
   const hasResume = user?.isResumeAvailable || false
   const hasApplications = user?.isApplicationsAvailable || false
 
-  // Mock top matches for dashboard
-  const topMatches: Job[] = [
-    {
-      id: '1',
-      title: 'Senior Software Engineer',
-      company: 'TechCorp',
-      location: 'San Francisco, CA',
-      type: 'Full-time',
-      category: 'Engineering',
-      description: 'Perfect match for your React and Node.js expertise. Join our team building scalable web applications.',
-      requirements: ['React', 'Node.js', 'TypeScript', 'AWS'],
-      matchScore: 95,
-      salaryRange: { min: 140, max: 180, currency: 'USD' },
-      postedAt: new Date().toISOString()
-    },
-    {
-      id: '2', 
-      title: 'Lead Frontend Developer',
-      company: 'RemoteFirst Inc',
-      location: 'Remote',
-      type: 'Full-time',
-      category: 'Engineering',
-      description: 'Remote-first role focusing on React architecture and team leadership.',
-      requirements: ['React', 'JavaScript', 'CSS', 'Leadership'],
-      matchScore: 92,
-      salaryRange: { min: 130, max: 170, currency: 'USD' },
-      postedAt: new Date().toISOString()
-    },
-    {
-      id: '3',
-      title: 'Full Stack Engineer', 
-      company: 'StartupCo',
-      location: 'Palo Alto, CA',
-      type: 'Full-time',
-      category: 'Engineering',
-      description: 'Startup environment with modern tech stack and significant growth opportunity.',
-      requirements: ['React', 'Node.js', 'MongoDB', 'Docker'],
-      matchScore: 90,
-      salaryRange: { min: 125, max: 165, currency: 'USD' },
-      postedAt: new Date().toISOString()
+  // Dynamic profile status calculations
+  const getProfileCompletion = () => {
+    if (!user) return { percentage: 0, text: 'Please log in' }
+    
+    if (user.applications && user.applications.length > 0) {
+      return { 
+        percentage: 100, 
+        text: 'Profile complete - actively applying!',
+        color: 'text-green-600'
+      }
+    } else if (user.isResumeAvailable) {
+      return { 
+        percentage: 60, 
+        text: 'Great! Start applying to boost to 100%',
+        color: 'text-blue-600'
+      }
+    } else {
+      return { 
+        percentage: 25, 
+        text: 'Upload your resume to boost your profile to 60%',
+        color: 'text-gray-500'
+      }
     }
-  ]
+  }
+
+  const getJobMatchesCount = () => {
+    if (!user) return 0
+    // If user has resume, show matched jobs count, otherwise show available jobs
+    if (user.isResumeAvailable) {
+      return user.matchedJobs || 0
+    } else {
+      return user.availableJobs || 0
+    }
+  }
+
+  const getApplicationsCount = () => {
+    if (!user) return 0
+    return user.applications ? user.applications.length : 0
+  }
+
+  const profileStatus = getProfileCompletion()
+  const jobMatchesCount = getJobMatchesCount()
+  const applicationsCount = getApplicationsCount()
+
 
   const fetchDashboardData = async () => {
     setLoading(true)
@@ -104,7 +103,7 @@ export default function DashboardPage() {
         <Card>
           <CardContent className="text-center py-8">
             <p className="mb-4">Please log in to view your dashboard</p>
-            <WireframeButton onClick={() => router.push('/login')} variant="primary">Go to Login</WireframeButton>
+            <Button onClick={() => router.push('/login')} variant="primary">Go to Login</Button>
           </CardContent>
         </Card>
       </div>
@@ -115,7 +114,7 @@ export default function DashboardPage() {
   if (!hasResume) {
     return (
       <div className="page-light min-h-screen">
-        <Navigation userState="authenticated" user={user} theme="light" />
+        <Navigation userState="has-resume" user={user} theme="light" />
         
         <main className="container max-w-[900px] mx-auto px-6 pt-20">
           <div className="py-12">
@@ -139,14 +138,14 @@ export default function DashboardPage() {
                 <p className="text-lg mb-8 leading-relaxed text-gray-600">
                   Get personalized job recommendations, instant match scores, and AI-powered application assistance by uploading your resume.
                 </p>
-                <WireframeButton 
+                <Button 
                   onClick={handleUploadResume}
                   variant="primary"
                   size="lg"
                   className="px-8 py-3 text-base"
                 >
                   Upload Resume Now
-                </WireframeButton>
+                </Button>
               </div>
             </div>
 
@@ -187,64 +186,36 @@ export default function DashboardPage() {
                 <div>
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-gray-700 font-medium">Profile Completion</span>
-                    <span className="text-gray-500 text-sm">25%</span>
+                    <span className={`text-sm font-semibold ${profileStatus.color}`}>{profileStatus.percentage}%</span>
                   </div>
                   <div className="bg-gray-200 rounded-lg h-2 overflow-hidden">
-                    <div className="bg-blue-500 h-full w-1/4 rounded-lg"></div>
+                    <div className="bg-blue-500 h-full rounded-lg" style={{width: `${profileStatus.percentage}%`}}></div>
                   </div>
-                  <p className="text-gray-500 text-sm mt-2">Upload your resume to boost your profile to 85%</p>
+                  <p className="text-gray-500 text-sm mt-2">{profileStatus.text}</p>
                 </div>
                 
                 <div>
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-gray-700 font-medium">Job Matches Found</span>
-                    <span className="text-yellow-500 font-semibold">0</span>
+                    <span className={`font-semibold ${jobMatchesCount > 0 ? 'text-blue-600' : 'text-yellow-500'}`}>{jobMatchesCount}</span>
                   </div>
-                  <p className="text-gray-500 text-sm">Complete your profile to see personalized matches</p>
+                  <p className="text-gray-500 text-sm">
+                    {jobMatchesCount > 0 ? `Including ${user?.matchedJobs || 0} high-match positions` : 'Complete your profile to see personalized matches'}
+                  </p>
                 </div>
                 
                 <div>
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-gray-700 font-medium">Applications Submitted</span>
-                    <span className="text-gray-500 font-semibold">0</span>
+                    <span className={`font-semibold ${applicationsCount > 0 ? 'text-green-600' : 'text-gray-500'}`}>{applicationsCount}</span>
                   </div>
-                  <p className="text-gray-500 text-sm">Start applying once you upload your resume</p>
+                  <p className="text-gray-500 text-sm">
+                    {applicationsCount > 0 ? 'Great progress on your applications!' : 'Start applying once you upload your resume'}
+                  </p>
                 </div>
               </div>
             </div>
 
-            {/* Next Steps */}
-            <div className="bg-white border border-gray-200 rounded-xl p-8 mb-12">
-              <h3 className="text-xl font-semibold text-gray-900 mb-6">
-                Recommended Next Steps
-              </h3>
-              
-              <div className="space-y-4">
-                <div className="flex items-center gap-4 p-4 bg-yellow-50 rounded-lg">
-                  <div className="w-8 h-8 bg-yellow-500 text-white rounded-full flex items-center justify-center font-semibold text-sm">1</div>
-                  <div>
-                    <h4 className="font-semibold text-yellow-800 mb-1">Upload Your Resume</h4>
-                    <p className="text-yellow-700 text-sm">This unlocks personalized job matching and AI features</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                  <div className="w-8 h-8 bg-gray-400 text-white rounded-full flex items-center justify-center font-semibold text-sm">2</div>
-                  <div>
-                    <h4 className="font-semibold text-gray-600 mb-1">Browse Matched Positions</h4>
-                    <p className="text-gray-500 text-sm">See jobs ranked by AI compatibility scores</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                  <div className="w-8 h-8 bg-gray-400 text-white rounded-full flex items-center justify-center font-semibold text-sm">3</div>
-                  <div>
-                    <h4 className="font-semibold text-gray-600 mb-1">Apply with AI Assistance</h4>
-                    <p className="text-gray-500 text-sm">Use auto-fill and get AI interview preparation</p>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </main>
       </div>
@@ -254,7 +225,7 @@ export default function DashboardPage() {
   // Show "has resume" dashboard
   return (
     <div className="page-light min-h-screen">
-      <Navigation userState="authenticated" user={user} theme="light" />
+      <Navigation userState="has-resume" user={user} theme="light" />
       
       <main className="container max-w-[900px] mx-auto px-6 pt-20">
         <div className="py-12">
@@ -274,14 +245,14 @@ export default function DashboardPage() {
               <h3 className="text-[1.5rem] font-semibold text-[#1f2937] flex items-center gap-2">
                 📄 Your Profile Summary
               </h3>
-              <WireframeButton 
+              <Button 
                 onClick={handleUploadResume}
                 variant="secondary"
                 size="sm"
                 className="text-sm"
               >
                 Update Resume
-              </WireframeButton>
+              </Button>
             </div>
             
             <div className="grid md:grid-cols-4 gap-8">
@@ -322,106 +293,91 @@ export default function DashboardPage() {
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-[#374151] font-medium">Profile Completion</span>
-                  <span className="text-[#10b981] text-sm font-semibold">85%</span>
+                  <span className={`text-sm font-semibold ${profileStatus.color}`}>{profileStatus.percentage}%</span>
                 </div>
                 <div className="bg-[#f3f4f6] rounded-lg h-2 overflow-hidden">
-                  <div className="bg-[#10b981] h-full w-[85%] rounded-lg"></div>
+                  <div className="bg-[#10b981] h-full rounded-lg" style={{width: `${profileStatus.percentage}%`}}></div>
                 </div>
-                <p className="text-[#6b7280] text-sm mt-2">Great! Your profile is nearly complete</p>
+                <p className="text-[#6b7280] text-sm mt-2">{profileStatus.text}</p>
               </div>
               
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-[#374151] font-medium">Job Matches Found</span>
-                  <span className="text-[#3b82f6] font-semibold text-xl">24</span>
+                  <span className={`font-semibold text-xl ${jobMatchesCount > 0 ? 'text-[#3b82f6]' : 'text-[#f59e0b]'}`}>{jobMatchesCount}</span>
                 </div>
-                <p className="text-[#6b7280] text-sm">Including 8 positions with 90%+ match scores</p>
+                <p className="text-[#6b7280] text-sm">
+                  {user?.matchedJobs && user.matchedJobs > 0 
+                    ? `Including ${user.matchedJobs} positions with high match scores` 
+                    : jobMatchesCount > 0 
+                      ? `${jobMatchesCount} positions available for you`
+                      : 'No matches found - update your profile'
+                  }
+                </p>
               </div>
               
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-[#374151] font-medium">Applications Submitted</span>
-                  <span className="text-[#f59e0b] font-semibold">0</span>
+                  <span className={`font-semibold ${applicationsCount > 0 ? 'text-[#10b981]' : 'text-[#f59e0b]'}`}>{applicationsCount}</span>
                 </div>
-                <p className="text-[#6b7280] text-sm">Ready to start applying to your matches</p>
+                <p className="text-[#6b7280] text-sm">
+                  {applicationsCount > 0 
+                    ? `You've submitted ${applicationsCount} ${applicationsCount === 1 ? 'application' : 'applications'} - great job!`
+                    : 'Ready to start applying to your matches'
+                  }
+                </p>
               </div>
             </div>
           </div>
 
-          {/* AI Matches Section */}
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-10 mb-12 text-center">
-            <div className="max-w-2xl mx-auto">
-              <div className="text-5xl mb-4">🎯</div>
-              <h2 className="text-3xl font-bold mb-4">
-                We Found 24 Perfect Matches for You!
-              </h2>
-              <p className="text-lg mb-8 leading-relaxed text-[#374151]">
-                Based on your resume, our AI has identified positions that match your skills, experience, and preferences.
-              </p>
-              <WireframeButton 
-                onClick={() => router.push('/jobs')}
-                variant="primary"
-                size="lg"
-                className="px-8 py-3 text-base"
-              >
-                Browse Your Matches
-              </WireframeButton>
+          {/* AI Matches Section - Only show if resume is available */}
+          {user?.isResumeAvailable && (
+            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-10 mb-12 text-center">
+              <div className="max-w-2xl mx-auto">
+                <div className="text-5xl mb-4">🎯</div>
+                {user.matchedJobs && user.matchedJobs > 0 ? (
+                  // Show matched jobs count if matches found
+                  <>
+                    <h2 className="text-3xl font-bold mb-4">
+                      We Found {user.matchedJobs} Perfect Match{user.matchedJobs === 1 ? '' : 'es'} for You!
+                    </h2>
+                    <p className="text-lg mb-8 leading-relaxed text-[#374151]">
+                      Based on your resume, our AI has identified {user.matchedJobs} high-match positions out of {user.availableJobs || 'many'} total opportunities.
+                    </p>
+                    <Button 
+                      onClick={() => router.push('/jobs/matched')}
+                      variant="primary"
+                      size="lg"
+                      className="px-8 py-3 text-base"
+                    >
+                      Browse Your Matches
+                    </Button>
+                  </>
+                ) : (
+                  // Show browse all jobs if no matches found
+                  <>
+                    <h2 className="text-3xl font-bold mb-4">
+                      Ready to Find Your Perfect Job?
+                    </h2>
+                    <p className="text-lg mb-8 leading-relaxed text-[#374151]">
+                      Your resume has been processed! Browse all available positions to find opportunities that match your skills and experience.
+                    </p>
+                    <Button 
+                      onClick={() => router.push('/jobs')}
+                      variant="primary"
+                      size="lg"
+                      className="px-8 py-3 text-base"
+                    >
+                      Browse All Jobs
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Top Matches Preview */}
-          <div className="bg-white border border-[#e5e7eb] rounded-xl p-8 mb-12">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-[1.25rem] font-semibold text-[#1f2937]">Your Top Matches</h3>
-              <Link href="/jobs" className="text-[#3b82f6] hover:text-blue-700 font-medium text-sm">
-                View All 24 →
-              </Link>
-            </div>
-            
-            <div className="space-y-4">
-              {topMatches.map((job) => (
-                <JobCard 
-                  key={job.id}
-                  job={job}
-                  variant="dashboard"
-                  showMatchScore={true}
-                />
-              ))}
-            </div>
-          </div>
 
-          {/* Next Steps */}
-          <div className="bg-white border border-[#e5e7eb] rounded-xl p-8">
-            <h3 className="text-[1.25rem] font-semibold text-[#1f2937] mb-6">
-              Recommended Next Steps
-            </h3>
-            
-            <div className="space-y-4">
-              <div className="flex items-center gap-4 p-4 bg-yellow-50 rounded-lg">
-                <div className="w-8 h-8 bg-[#f59e0b] text-white rounded-full flex items-center justify-center font-semibold text-sm">1</div>
-                <div>
-                  <h4 className="font-semibold text-[#92400e] mb-1">Review Your Top Matches</h4>
-                  <p className="text-[#78350f] text-sm">24 positions are waiting for you with high match scores</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-4 p-4 bg-[#f3f4f6] rounded-lg">
-                <div className="w-8 h-8 bg-[#9ca3af] text-white rounded-full flex items-center justify-center font-semibold text-sm">2</div>
-                <div>
-                  <h4 className="font-semibold text-[#4b5563] mb-1">Apply to Your Favorites</h4>
-                  <p className="text-[#6b7280] text-sm">Use AI-powered application assistance for faster submissions</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-4 p-4 bg-[#f3f4f6] rounded-lg">
-                <div className="w-8 h-8 bg-[#9ca3af] text-white rounded-full flex items-center justify-center font-semibold text-sm">3</div>
-                <div>
-                  <h4 className="font-semibold text-[#4b5563] mb-1">Schedule AI Interviews</h4>
-                  <p className="text-[#6b7280] text-sm">Get instant feedback and move forward faster</p>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </main>
     </div>

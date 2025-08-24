@@ -63,10 +63,9 @@ function ToastItem({ toast, onRemove }: ToastProps) {
         "animate-in slide-in-from-right-full duration-300"
       )}
       style={{
-        position: 'fixed',
-        top: '2rem',
-        right: '2rem',
-        zIndex: 1000,
+        position: 'relative',
+        marginBottom: '1rem',
+        marginRight: '2rem',
         minWidth: '300px',
         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
         ...styles
@@ -101,14 +100,11 @@ interface ToastContainerProps {
 
 export function ToastContainer({ toasts, onRemove }: ToastContainerProps) {
   return (
-    <div className="fixed top-0 right-0 z-[1000] pointer-events-none">
-      {toasts.map((toast, index) => (
+    <div className="fixed right-0 z-[1000] pointer-events-none" style={{ top: 'calc(4rem + 2rem)' }}>
+      {toasts.map((toast) => (
         <div
           key={toast.id}
           className="pointer-events-auto"
-          style={{
-            marginTop: `${index * 5}rem`
-          }}
         >
           <ToastItem toast={toast} onRemove={onRemove} />
         </div>
@@ -124,10 +120,15 @@ export function useToast() {
   const addToast = (message: string, type: ToastType = 'info') => {
     const id = Math.random().toString(36).substr(2, 9)
     setToasts(prev => [...prev, { id, message, type }])
+    return id // Return the ID so caller can remove it later
   }
 
   const removeToast = (id: string) => {
     setToasts(prev => prev.filter(toast => toast.id !== id))
+  }
+
+  const clearAllToasts = () => {
+    setToasts([])
   }
 
   const showToast = {
@@ -140,6 +141,7 @@ export function useToast() {
   return {
     toasts,
     showToast,
-    removeToast
+    removeToast,
+    clearAllToasts
   }
 }

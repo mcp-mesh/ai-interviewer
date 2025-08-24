@@ -2,75 +2,10 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { Navigation } from '@/components/navigation'
-import { WireframeButton } from '@/components/wireframe'
+import { Button } from '@/components/ui/button'
 import { Job, User } from '@/lib/types'
+import { jobsApi } from '@/lib/api'
 import Link from 'next/link'
-
-// Mock job data for matched jobs with higher match scores
-const matchedJobs: Job[] = [
-  {
-    id: '1',
-    title: 'Operations Analyst, Institutional Private Client',
-    company: 'S Corp.',
-    location: 'San Francisco, California, United States of America',
-    type: 'Full-time',
-    category: 'Operations',
-    description: 'The Investment Manager Services Division (IMS) at S Corp. is growing rapidly and is seeking new members on our Institutional Private Client (IPC) team. Our primary goal is to provide exceptional administrative services...',
-    requirements: ['Finance', 'Analytics', 'Excel', 'Communication'],
-    postedAt: new Date().toISOString(),
-    matchScore: 92,
-    isRecommended: true
-  },
-  {
-    id: '2',
-    title: 'Fund Accountant, Investment Fund Services',
-    company: 'S Corp.',
-    location: 'Austin, Texas, United States of America',
-    type: 'Full-time',
-    category: 'Finance',
-    description: 'The Investment Manager Services Division (IMS) at S Corp. is growing rapidly and is seeking new members on our Investment Fund Services accounting team. Our primary goal is to provide exceptional accounting...',
-    requirements: ['Accounting', 'Finance', 'Excel', 'Detail-oriented'],
-    postedAt: new Date().toISOString(),
-    matchScore: 88,
-    isRecommended: true
-  },
-  {
-    id: '3',
-    title: 'Operations Analyst, Separately Managed Accounts',
-    company: 'S Corp.',
-    location: 'New York, New York, United States of America',
-    type: 'Full-time',
-    category: 'Operations',
-    description: 'The Investment Manager Services Division (IMS) at S Corp. is growing rapidly and is seeking new members on our Separately Managed Accounts team. Our primary goal is to provide exceptional accounting and administrative...',
-    requirements: ['Operations', 'Analysis', 'Finance', 'Process Improvement'],
-    postedAt: new Date().toISOString(),
-    matchScore: 65
-  },
-  {
-    id: '4',
-    title: 'Operations Analyst, AML',
-    company: 'S Corp.',
-    location: 'Seattle, Washington, United States of America',
-    type: 'Full-time',
-    category: 'Operations',
-    description: 'The Investment Manager Services Division (IMS) at S Corp. is growing rapidly and is seeking new members on our Alternative Investment Funds Investor Services Anti-Money Laundering Team. Our primary goal is...',
-    requirements: ['AML', 'Compliance', 'Risk Management', 'Investigation'],
-    postedAt: new Date().toISOString(),
-    matchScore: 58
-  },
-  {
-    id: '5',
-    title: 'Senior Software Engineer',
-    company: 'S Corp.',
-    location: 'Boston, Massachusetts, United States of America',
-    type: 'Full-time',
-    category: 'Engineering',
-    description: 'Join our engineering team to build scalable web applications using React, Node.js, and cloud technologies. We\'re looking for someone with 5+ years of experience in full-stack development and cloud architecture...',
-    requirements: ['React', 'Node.js', 'JavaScript', 'AWS', 'TypeScript'],
-    postedAt: new Date().toISOString(),
-    matchScore: 72
-  }
-]
 
 // Filter categories matching wireframe
 const filterCategories = [
@@ -176,9 +111,10 @@ function FilterSection({ title, filterId, options, selectedValues, onChange, sho
 
 export default function MatchedJobsPage() {
   const [user, setUser] = useState<User | null>(null)
-  const [jobs] = useState<Job[]>(matchedJobs)
-  const [filteredJobs, setFilteredJobs] = useState<Job[]>(matchedJobs)
-  const [loading, setLoading] = useState(false)
+  const [jobs, setJobs] = useState<Job[]>([])
+  const [allAvailableJobs, setAllAvailableJobs] = useState<Job[]>([])
+  const [filteredJobs, setFilteredJobs] = useState<Job[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState('relevance')
   const [activeTab, setActiveTab] = useState<'recommended' | 'all'>('recommended')
@@ -189,19 +125,46 @@ export default function MatchedJobsPage() {
   const [selectedCountries, setSelectedCountries] = useState<string[]>([])
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
 
-  // Memoize recommended and all jobs to prevent infinite loops
-  const recommendedJobs = useMemo(() => 
-    jobs.filter(job => job.matchScore && job.matchScore >= 80), [jobs]
-  )
-  const allJobs = useMemo(() => jobs, [jobs])
+  // "Recommended" tab shows matched jobs, "All Positions" shows all available jobs
+  const recommendedJobs = useMemo(() => jobs, [jobs])
+  const allJobs = useMemo(() => allAvailableJobs, [allAvailableJobs])
 
   useEffect(() => {
-    // Get user from localStorage
-    const userData = localStorage.getItem('user')
-    if (userData) {
-      const parsedUser = JSON.parse(userData)
-      setUser(parsedUser)
+    const loadData = async () => {
+      setLoading(true)
+      
+      // Get user from localStorage
+      const userData = localStorage.getItem('user')
+      let parsedUser = null
+      
+      if (userData) {
+        parsedUser = JSON.parse(userData)
+        setUser(parsedUser)
+      }
+      
+      // Fetch both matched and all available jobs
+      try {
+        if (parsedUser?.id && parsedUser?.isResumeAvailable) {
+          // Get matched jobs for the user
+          const matchedJobsResponse = await jobsApi.getMatched(parsedUser.id)
+          if (matchedJobsResponse.data) {
+            setJobs(matchedJobsResponse.data)
+          }
+          
+          // Get all available jobs for "All Positions" tab
+          const allJobsResponse = await jobsApi.getAll()
+          if (allJobsResponse.data) {
+            setAllAvailableJobs(allJobsResponse.data)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch jobs:', error)
+      }
+      
+      setLoading(false)
     }
+    
+    loadData()
   }, [])
 
   // Filter jobs based on selected filters, search, and active tab
@@ -236,7 +199,7 @@ export default function MatchedJobsPage() {
     setFilteredJobs(filtered)
   }, [recommendedJobs, allJobs, selectedCategories, selectedStates, selectedCountries, selectedTypes, searchTerm, activeTab])
 
-  const userState = user?.isResumeAvailable ? "has-resume" : "authenticated"
+  const userState = user?.isResumeAvailable ? "has-resume" : "no-resume"
 
   return (
     <div className="page-light min-h-screen">
@@ -249,16 +212,16 @@ export default function MatchedJobsPage() {
             <div>
               <strong className="text-[#0c4a6e]">🎯 AI Recommendations:</strong>
               <span className="text-[#0c4a6e] ml-2">
-                We found <strong>{recommendedJobs.length} positions</strong> that match your profile
+                We found <strong>{jobs.length} position{jobs.length === 1 ? '' : 's'}</strong> that match your profile
               </span>
             </div>
-            <WireframeButton 
+            <Button 
               variant="primary" 
-              size="md"
+              size="default"
               onClick={() => setActiveTab('recommended')}
             >
               View Matches
-            </WireframeButton>
+            </Button>
           </div>
         </div>
 
@@ -273,7 +236,7 @@ export default function MatchedJobsPage() {
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              Recommended for You ({recommendedJobs.length})
+              Recommended for You ({jobs.length})
             </button>
             <button
               onClick={() => setActiveTab('all')}
@@ -283,7 +246,7 @@ export default function MatchedJobsPage() {
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              All Positions ({allJobs.length})
+              All Positions ({allAvailableJobs.length})
             </button>
           </div>
         </div>
@@ -419,7 +382,7 @@ export default function MatchedJobsPage() {
                   <p className="text-gray-600 mb-6">
                     Try adjusting your filters or search criteria
                   </p>
-                  <WireframeButton
+                  <Button
                     variant="primary"
                     onClick={() => {
                       setSelectedCategories([])
@@ -430,7 +393,7 @@ export default function MatchedJobsPage() {
                     }}
                   >
                     Clear All Filters
-                  </WireframeButton>
+                  </Button>
                 </div>
               )}
             </div>
@@ -438,9 +401,9 @@ export default function MatchedJobsPage() {
             {/* Load More */}
             {filteredJobs.length > 0 && (
               <div className="text-center mt-12">
-                <WireframeButton variant="secondary" onClick={() => {/* Load more */}}>
+                <Button variant="secondary" onClick={() => {/* Load more */}}>
                   Load More Positions
-                </WireframeButton>
+                </Button>
               </div>
             )}
           </div>

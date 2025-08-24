@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Navigation } from '@/components/navigation'
-import { WireframeButton } from '@/components/wireframe'
+import { Button } from '@/components/ui/button'
 import { User } from '@/lib/types'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -62,7 +62,7 @@ export default function ApplicationResultPage({ params }: ApplicationResultProps
   }
 
   const isGuest = !user
-  const userState = isGuest ? "guest" : (user?.isResumeAvailable ? "has-resume" : "authenticated")
+  const userState = isGuest ? "guest" : (user?.isResumeAvailable ? "has-resume" : "no-resume")
 
   if (!user || !resolvedParams) {
     return (
@@ -158,20 +158,20 @@ export default function ApplicationResultPage({ params }: ApplicationResultProps
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-              <WireframeButton 
+              <Button 
                 variant="success" 
                 onClick={handleStartInterview}
                 className="px-8 py-3 text-base"
               >
                 Start Interview Now
-              </WireframeButton>
-              <WireframeButton 
+              </Button>
+              <Button 
                 variant="secondary" 
                 onClick={handleScheduleForLater}
                 className="px-8 py-3 text-base bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
               >
                 I need more time
-              </WireframeButton>
+              </Button>
             </div>
 
             {/* Back Link */}
@@ -237,20 +237,20 @@ export default function ApplicationResultPage({ params }: ApplicationResultProps
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-              <WireframeButton 
+              <Button 
                 variant="primary" 
                 onClick={() => router.push('/jobs')}
                 className="px-8 py-3 text-base"
               >
                 View Other Positions
-              </WireframeButton>
-              <WireframeButton 
+              </Button>
+              <Button 
                 variant="secondary" 
                 onClick={() => router.push('/dashboard')}
                 className="px-8 py-3 text-base bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
               >
                 View My Applications
-              </WireframeButton>
+              </Button>
             </div>
           </div>
         )}

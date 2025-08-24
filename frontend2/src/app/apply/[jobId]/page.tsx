@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Navigation } from '@/components/navigation'
-import { WireframeButton, ToastContainer, useToast } from '@/components/wireframe'
+import { Button } from '@/components/ui/button'
+import { ToastContainer, useToast } from '@/components/wireframe'
 import { Job, User } from '@/lib/types'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -1225,15 +1226,15 @@ function ReviewStep({ data, jobTitle, onSubmit, onBack, isSubmitting }: {
 
       {/* Navigation Buttons - consistent with other steps */}
       <div className="flex justify-between items-center pt-8 border-t border-gray-200">
-        <WireframeButton 
+        <Button 
           variant="secondary" 
           onClick={onBack}
           className="px-6 py-3 text-base bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-gray-900 shadow-sm"
         >
           Back
-        </WireframeButton>
+        </Button>
         
-        <WireframeButton
+        <Button
           variant="primary"
           onClick={() => termsAccepted && onSubmit()}
           disabled={!termsAccepted || isSubmitting}
@@ -1242,7 +1243,7 @@ function ReviewStep({ data, jobTitle, onSubmit, onBack, isSubmitting }: {
           }`}
         >
           {isSubmitting ? 'Submitting...' : 'Submit Application'}
-        </WireframeButton>
+        </Button>
       </div>
 
     </div>
@@ -1256,7 +1257,8 @@ export default function ApplicationPage({ params }: ApplicationPageProps) {
   const [formData, setFormData] = useState<ApplicationData>(initialFormData)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [resolvedParams, setResolvedParams] = useState<{ jobId: string } | null>(null)
-  const { toasts, showToast, removeToast } = useToast()
+  const hasPreFilledRef = useRef(false)
+  const { toasts, showToast, removeToast, clearAllToasts } = useToast()
   
   useEffect(() => {
     params.then(setResolvedParams)
@@ -1272,8 +1274,9 @@ export default function ApplicationPage({ params }: ApplicationPageProps) {
       const parsedUser = JSON.parse(userData)
       setUser(parsedUser)
       
-      // AI pre-fill for users with resume
-      if (parsedUser.isResumeAvailable) {
+      // AI pre-fill for users with resume (only once)
+      if (parsedUser.isResumeAvailable && !hasPreFilledRef.current) {
+        hasPreFilledRef.current = true
         setFormData(prev => ({
           ...prev,
           personalInfo: {
@@ -1363,7 +1366,13 @@ export default function ApplicationPage({ params }: ApplicationPageProps) {
           step: currentStep
         })
         
-        showToast.success('Information saved successfully!')
+        // Clear the "Saving..." toast before showing success
+        clearAllToasts()
+        // Show success toast after a brief delay to ensure proper sequencing
+        setTimeout(() => {
+          showToast.success('Information saved successfully!')
+        }, 100)
+        
         if (currentStep < steps.length) {
           setCurrentStep(currentStep + 1)
         }
@@ -1415,12 +1424,37 @@ export default function ApplicationPage({ params }: ApplicationPageProps) {
         jobId: resolvedParams.jobId
       })
       
-      showToast.success('Application submitted successfully!')
+      // Clear the "Submitting..." toast before showing success
+      clearAllToasts()
+      setTimeout(() => {
+        showToast.success('Application submitted successfully!')
+      }, 100)
+      
       setTimeout(() => {
         setIsSubmitting(false)
         
-        // Simulate AI evaluation logic - 70% chance of being interview eligible
+        // Simulate AI evaluation logic - 70% chance of being eligible
         const isEligible = Math.random() > 0.3
+        
+        // Update user state with new application
+        if (user && resolvedParams) {
+          const newApplication = {
+            jobId: resolvedParams.jobId,
+            qualified: isEligible,
+            status: isEligible ? 'ELIGIBLE' : undefined, // Set status based on eligibility
+            interviewSession: isEligible ? `session-${Date.now()}` : undefined,
+            appliedAt: new Date().toISOString()
+          }
+          
+          const updatedUser = {
+            ...user,
+            applications: [...(user.applications || []), newApplication]
+          }
+          
+          localStorage.setItem('user', JSON.stringify(updatedUser))
+        }
+        
+        // Use the eligibility result for redirect
         const resultType = isEligible ? 'eligible' : 'under-review'
         
         // Redirect to results page with result type
@@ -1430,7 +1464,7 @@ export default function ApplicationPage({ params }: ApplicationPageProps) {
   }
 
   const isGuest = !user
-  const userState = isGuest ? "guest" : (user.isResumeAvailable ? "has-resume" : "authenticated")
+  const userState = isGuest ? "guest" : (user.isResumeAvailable ? "has-resume" : "no-resume")
 
   if (!user) {
     return (
@@ -1440,12 +1474,12 @@ export default function ApplicationPage({ params }: ApplicationPageProps) {
           <div className="text-center py-20">
             <h1 className="text-2xl font-bold text-gray-900 mb-4">Please Log In</h1>
             <p className="text-gray-600 mb-6">You need to be logged in to apply for this position.</p>
-            <WireframeButton 
+            <Button 
               variant="primary" 
               onClick={() => resolvedParams && router.push(`/login?redirect=/apply/${resolvedParams.jobId}`)}
             >
               Log In to Apply
-            </WireframeButton>
+            </Button>
           </div>
         </main>
       </div>
@@ -1555,21 +1589,21 @@ export default function ApplicationPage({ params }: ApplicationPageProps) {
 {/* Navigation Buttons - only show for non-review steps */}
           {currentStep !== steps.length && (
             <div className="flex justify-between items-center mt-12 pt-8 border-t border-gray-200">
-              <WireframeButton 
+              <Button 
                 variant="secondary" 
                 onClick={handleBack}
                 className="px-6 py-3 text-base bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-gray-900 shadow-sm"
               >
                 Back
-              </WireframeButton>
+              </Button>
               
-              <WireframeButton 
+              <Button 
                 variant="primary" 
                 onClick={handleNext}
                 className="px-6 py-3 text-base"
               >
                 Next: {steps[currentStep]?.title || 'Continue'}
-              </WireframeButton>
+              </Button>
             </div>
           )}
         </div>

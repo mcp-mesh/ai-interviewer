@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react'
 import { Navigation } from '@/components/navigation'
 import { JobCard } from '@/components/job-card'
-import { WireframeButton } from '@/components/wireframe'
+import { Button } from '@/components/ui/button'
 import { jobsApi } from '@/lib/api'
 import { Job, User } from '@/lib/types'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { MapPin, Clock, Search, Zap, Target } from 'lucide-react'
 
 // Mock job data matching wireframe
 const mockJobs: Job[] = [
@@ -145,7 +146,7 @@ function FilterSection({ title, filterId, options, selectedValues, onChange, sho
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
-              <span className="absolute right-3 top-2.5 text-gray-400">🔍</span>
+              <Search className="absolute right-3 top-2.5 w-4 h-4 text-gray-400" />
             </div>
           )}
           
@@ -173,9 +174,9 @@ function FilterSection({ title, filterId, options, selectedValues, onChange, sho
 export default function JobsPage() {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
-  const [jobs, setJobs] = useState<Job[]>(mockJobs)
-  const [filteredJobs, setFilteredJobs] = useState<Job[]>(mockJobs)
-  const [loading, setLoading] = useState(false)
+  const [jobs, setJobs] = useState<Job[]>([])
+  const [filteredJobs, setFilteredJobs] = useState<Job[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState('relevance')
   
@@ -186,18 +187,36 @@ export default function JobsPage() {
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
 
   useEffect(() => {
-    // Get user from localStorage
-    const userData = localStorage.getItem('user')
-    if (userData) {
-      const parsedUser = JSON.parse(userData)
-      setUser(parsedUser)
+    const loadData = async () => {
+      setLoading(true)
       
-      // Redirect users with resume to matched jobs page
-      if (parsedUser.isResumeAvailable) {
-        router.push('/jobs/matched')
-        return
+      // Get user from localStorage
+      const userData = localStorage.getItem('user')
+      if (userData) {
+        const parsedUser = JSON.parse(userData)
+        setUser(parsedUser)
+        
+        // Redirect users with resume to matched jobs page
+        if (parsedUser.isResumeAvailable) {
+          router.push('/jobs/matched')
+          return
+        }
       }
+      
+      // Fetch jobs from API
+      try {
+        const jobsResponse = await jobsApi.getAll()
+        if (jobsResponse.data) {
+          setJobs(jobsResponse.data)
+        }
+      } catch (error) {
+        console.error('Failed to fetch jobs:', error)
+      }
+      
+      setLoading(false)
     }
+    
+    loadData()
   }, [])
 
   // Filter jobs based on selected filters and search
@@ -233,7 +252,7 @@ export default function JobsPage() {
   }, [jobs, selectedCategories, selectedStates, selectedCountries, selectedTypes, searchTerm])
 
   const isGuest = !user
-  const userState = isGuest ? "guest" : (user.isResumeAvailable ? "has-resume" : "authenticated")
+  const userState = isGuest ? "guest" : (user.isResumeAvailable ? "has-resume" : "no-resume")
 
   return (
     <div className="page-light min-h-screen">
@@ -251,9 +270,9 @@ export default function JobsPage() {
                 </span>
               </div>
               <Link href="/login?redirect=/jobs">
-                <WireframeButton variant="primary" size="md">
+                <Button variant="primary" size="default">
                   Login to Get Matched
-                </WireframeButton>
+                </Button>
               </Link>
             </div>
           </div>
@@ -264,15 +283,15 @@ export default function JobsPage() {
           <div className="bg-[#f0f9ff] border border-[#bae6fd] rounded-xl p-4 mb-8">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
-                <strong className="text-[#0c4a6e]">⚡ Get AI-Powered Matching:</strong>
+                <strong className="text-[#0c4a6e] flex items-center gap-1"><Zap className="w-4 h-4" /> Get AI-Powered Matching:</strong>
                 <span className="text-[#0c4a6e] ml-2">
                   Upload your resume to see personalized job recommendations
                 </span>
               </div>
               <Link href="/upload">
-                <WireframeButton variant="primary" size="md">
+                <Button variant="primary" size="default">
                   Upload Resume
-                </WireframeButton>
+                </Button>
               </Link>
             </div>
           </div>
@@ -385,10 +404,10 @@ export default function JobsPage() {
                     </Link>
                     <div className="flex items-center gap-6 text-sm text-gray-600 mb-4">
                       <span className="flex items-center gap-1">
-                        📍 {job.location}
+                        <MapPin className="w-4 h-4" /> {job.location}
                       </span>
                       <span className="flex items-center gap-1">
-                        🕐 {job.type}
+                        <Clock className="w-4 h-4" /> {job.type}
                       </span>
                     </div>
                     <p className="text-gray-700 leading-relaxed">
@@ -399,12 +418,12 @@ export default function JobsPage() {
               ) : (
                 // No results
                 <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
-                  <div className="text-5xl mb-4">🔍</div>
+                  <div className="text-5xl mb-4"><Search className="w-12 h-12 mx-auto text-gray-400" /></div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">No jobs found</h3>
                   <p className="text-gray-600 mb-6">
                     Try adjusting your filters or search criteria
                   </p>
-                  <WireframeButton
+                  <Button
                     variant="primary"
                     onClick={() => {
                       setSelectedCategories([])
@@ -415,7 +434,7 @@ export default function JobsPage() {
                     }}
                   >
                     Clear All Filters
-                  </WireframeButton>
+                  </Button>
                 </div>
               )}
             </div>
@@ -423,9 +442,9 @@ export default function JobsPage() {
             {/* Load More */}
             {filteredJobs.length > 0 && (
               <div className="text-center mt-12">
-                <WireframeButton variant="secondary" onClick={() => {/* Load more */}}>
+                <Button variant="secondary" onClick={() => {/* Load more */}}>
                   Load More Positions
-                </WireframeButton>
+                </Button>
               </div>
             )}
           </div>

@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { UserState, User } from "@/lib/types"
+import { jobsApi } from "@/lib/api"
 
 interface NavigationProps {
   userState?: UserState
@@ -16,14 +17,46 @@ interface NavigationProps {
 
 export function Navigation({ userState = "guest", user, className, theme = "dark" }: NavigationProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [jobsCount, setJobsCount] = useState<number>(0)
 
   const isLoggedIn = userState !== "guest" && user
 
   const handleLogout = () => {
+    // Complete cleanup - remove all auth-related data
     localStorage.removeItem('auth_token')
     localStorage.removeItem('user')
+    localStorage.clear() // Clear any other cached data
+    
+    // Redirect to landing page for clean slate
     window.location.href = '/'
   }
+
+  // Fetch jobs count based on user state
+  useEffect(() => {
+    const fetchJobsCount = async () => {
+      if (!isLoggedIn) {
+        setJobsCount(0)
+        return
+      }
+
+      try {
+        if (user?.isResumeAvailable) {
+          // User has resume - get matched jobs count
+          const response = await jobsApi.getMatched(user.id)
+          setJobsCount(response.data?.length || 0)
+        } else {
+          // User logged in but no resume - get all jobs count
+          const response = await jobsApi.getAll()
+          setJobsCount(response.data?.length || 0)
+        }
+      } catch (error) {
+        console.error('Failed to fetch jobs count:', error)
+        setJobsCount(0)
+      }
+    }
+
+    fetchJobsCount()
+  }, [isLoggedIn, user?.isResumeAvailable, user?.id])
 
   // Determine nav styling based on theme and user state
   const getNavStyles = () => {
@@ -107,17 +140,29 @@ export function Navigation({ userState = "guest", user, className, theme = "dark
                   Dashboard
                 </Link>
                 <Link 
-                  href="/jobs"
-                  className="text-text-secondary hover:text-primary-500 font-medium transition-colors"
+                  href={user?.isResumeAvailable ? "/jobs/matched" : "/jobs"}
+                  className="text-text-secondary hover:text-primary-500 font-medium transition-colors relative pr-6"
                 >
                   Jobs
+                  {/* Show badge with dynamic count */}
+                  {jobsCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center leading-none">
+                      {jobsCount}
+                    </span>
+                  )}
                 </Link>
-                <Link 
-                  href="/applications"
-                  className="text-text-secondary hover:text-primary-500 font-medium transition-colors"
-                >
-                  Applications
-                </Link>
+                {/* Show Applications only when user has applications */}
+                {user?.applications && user.applications.length > 0 && (
+                  <Link 
+                    href="/applications"
+                    className="text-text-secondary hover:text-primary-500 font-medium transition-colors relative pr-6"
+                  >
+                    Applications
+                    <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center leading-none">
+                      {user.applications.length}
+                    </span>
+                  </Link>
+                )}
               </>
             )}
           </nav>
@@ -137,7 +182,7 @@ export function Navigation({ userState = "guest", user, className, theme = "dark
                 </Link>
                 <Link href="/register">
                   <Button 
-                    variant={userState === "guest" ? "glass" : "default"}
+                    variant={userState === "guest" ? "glass" : "primary"}
                     size="sm"
                   >
                     Get Started
@@ -161,10 +206,6 @@ export function Navigation({ userState = "guest", user, className, theme = "dark
                 </div>
 
                 {/* Action Buttons */}
-                <Link href="/applications">
-                  <Button variant="outline" size="sm">My Applications</Button>
-                </Link>
-                
                 <Button variant="ghost" size="sm" onClick={handleLogout}>
                   Logout
                 </Button>
@@ -227,12 +268,28 @@ export function Navigation({ userState = "guest", user, className, theme = "dark
                   <Link href="/dashboard" className="block py-2 text-foreground hover:text-primary-500">
                     Dashboard
                   </Link>
-                  <Link href="/jobs" className="block py-2 text-foreground hover:text-primary-500">
-                    Jobs
-                  </Link>
-                  <Link href="/applications" className="block py-2 text-foreground hover:text-primary-500">
-                    My Applications
-                  </Link>
+                  <div className="block py-2 text-foreground hover:text-primary-500 relative">
+                    <Link href={user?.isResumeAvailable ? "/jobs/matched" : "/jobs"} className="block pr-6">
+                      Jobs
+                      {/* Show badge with dynamic count */}
+                      {jobsCount > 0 && (
+                        <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center leading-none">
+                          {jobsCount}
+                        </span>
+                      )}
+                    </Link>
+                  </div>
+                  {/* Show Applications only when user has applications */}
+                  {user?.applications && user.applications.length > 0 && (
+                    <div className="block py-2 text-foreground hover:text-primary-500 relative">
+                      <Link href="/applications" className="block pr-6">
+                        Applications
+                        <span className="absolute top-0 right-0 bg-green-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center leading-none">
+                          {user.applications.length}
+                        </span>
+                      </Link>
+                    </div>
+                  )}
                   <div className="pt-4 border-t border-border">
                     <Button variant="ghost" size="sm" className="w-full" onClick={handleLogout}>
                       Logout
