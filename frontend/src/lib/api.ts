@@ -42,7 +42,6 @@ export const authApi = API_CONFIG.mode === 'real' ? realApi.authApi : {
           resume_url: null
         },
         hasResume: false,
-        isResumeAvailable: false,
         availableJobs: 0,
         matchedJobs: 0,
         applications: [],
@@ -89,7 +88,6 @@ export const authApi = API_CONFIG.mode === 'real' ? realApi.authApi : {
           resume_url: null
         },
         hasResume: false,
-        isResumeAvailable: false,
         availableJobs: 0,
         matchedJobs: 0,
         applications: [],
@@ -195,6 +193,24 @@ export const jobsApi = API_CONFIG.mode === 'real' ? realApi.jobsApi : {
       return { data: response.data }
     } catch (error) {
       return { data: [], error: 'Failed to fetch matched jobs' }
+    }
+  },
+
+  getFilters: async (): Promise<{ data: { categories: string[]; job_types: string[]; cities: string[]; states: string[]; countries: string[] } | null; error?: string }> => {
+    try {
+      // Mock filter values based on our mock jobs
+      const mockFilters = {
+        categories: ['Engineering', 'Operations', 'Finance', 'Marketing', 'Sales'],
+        job_types: ['Full-time', 'Part-time', 'Contract'],
+        cities: ['San Francisco', 'Austin', 'New York', 'Seattle', 'Boston'],
+        states: ['California', 'Texas', 'New York', 'Washington', 'Massachusetts'],
+        countries: ['United States of America', 'Remote']
+      }
+      
+      const response = await mockApiResponse(mockFilters)
+      return { data: response.data }
+    } catch (error) {
+      return { data: null, error: 'Failed to fetch job filters' }
     }
   }
 }

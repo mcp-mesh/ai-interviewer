@@ -4,7 +4,10 @@ def get_job_data():
     return {
         'title': 'EMEA Sales Executive - Private Equity Fund Administration',
         'company': 'S. Corp',
-        'location': 'Luxembourg City, Luxembourg',
+        'location': 'Luxembourg City, Luxembourg',  # Keep for display
+        'city': 'Luxembourg City',
+        'state': None,
+        'country': 'Luxembourg',
         'job_type': 'Full-time',
         'category': 'Finance',
         'remote': False,
@@ -16,7 +19,6 @@ def get_job_data():
         'salary_min': None,
         'salary_max': None,
         'salary_currency': 'USD',
-        'is_featured': False,
         'posted_date': datetime.fromisoformat('2025-05-29T00:00:00+00:00'),
         'is_active': True
     }

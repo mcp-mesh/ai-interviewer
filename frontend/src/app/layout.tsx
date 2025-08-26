@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ReactQueryProvider } from "@/components/providers/react-query-provider";
+import { RecaptchaProvider } from "@/components/providers/recaptcha-provider";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 export const metadata: Metadata = {
@@ -75,7 +76,9 @@ export default function RootLayout({
       <body className="antialiased">
         <ErrorBoundary>
           <ReactQueryProvider>
-            {children}
+            <RecaptchaProvider>
+              {children}
+            </RecaptchaProvider>
           </ReactQueryProvider>
         </ErrorBoundary>
       </body>

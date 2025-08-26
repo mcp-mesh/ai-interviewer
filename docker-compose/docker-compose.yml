@@ -50,10 +50,9 @@ services:
     ports:
       - "3000:3000"  # Development port (accessible externally)
     volumes:
-      # Development mode - mount source for hot reload
-      - ../frontend:/app:ro
+      # Development mode - mount source for hot reload  
+      - ../frontend:/app
       - /app/node_modules
-      - /app/.next
     environment:
       - NODE_ENV=development
       - NEXT_PUBLIC_API_BASE_URL=http://fastapi:8080
@@ -87,6 +86,10 @@ services:
       - REDIS_URL=redis://redis:6379
       - CLAUDE_API_KEY=${CLAUDE_API_KEY:-}
       - DEV_MODE=${DEV_MODE:-false}
+      
+      # reCAPTCHA configuration
+      - RECAPTCHA_SITE_KEY=${RECAPTCHA_SITE_KEY:-6LdqG7MrAAAAAKPhdPx1E9QoeS7KajZsbJhazPxm}
+      - RECAPTCHA_SECRET_KEY=${RECAPTCHA_SECRET_KEY:-6LdqG7MrAAAAAJq9InU1QUWlpryk-T80MY9ZOyAZ}
       
       # PostgreSQL configuration for application data
       - POSTGRES_URL=postgresql://${POSTGRES_USER:-mcpmesh}:${POSTGRES_PASSWORD:-mcpmesh123}@postgres:5432/ai_interviewer
@@ -746,7 +749,7 @@ services:
       # Persistent data
       - grafana_data:/var/lib/grafana
     ports:
-      - "3000:3000"
+      - "3001:3000"
     networks:
       - ai-interviewer-network
     depends_on:

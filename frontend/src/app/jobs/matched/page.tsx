@@ -8,37 +8,11 @@ import { jobsApi } from '@/lib/api'
 import Link from 'next/link'
 import { Search, Target, Calendar, MapPin, Clock } from 'lucide-react'
 
-// Filter categories matching wireframe
-const filterCategories = [
-  { value: 'Engineering', count: 45 },
-  { value: 'Operations', count: 32 },
-  { value: 'Finance', count: 18 },
-  { value: 'Marketing', count: 12 },
-  { value: 'Sales', count: 8 }
-]
-
-const filterStates = [
-  { value: 'California', count: 28 },
-  { value: 'New York', count: 22 },
-  { value: 'Texas', count: 15 }
-]
-
-const filterCountries = [
-  { value: 'United States', count: 115 },
-  { value: 'Remote', count: 12 }
-]
-
-const filterTypes = [
-  { value: 'Full-time', count: 98 },
-  { value: 'Contract', count: 15 },
-  { value: 'Part-time', count: 8 },
-  { value: 'Internship', count: 6 }
-]
 
 interface FilterSectionProps {
   title: string
   filterId: string
-  options: { value: string; count: number }[]
+  options: string[]
   selectedValues: string[]
   onChange: (values: string[]) => void
   showSearch?: boolean
@@ -49,7 +23,7 @@ function FilterSection({ title, filterId, options, selectedValues, onChange, sho
   const [searchTerm, setSearchTerm] = useState('')
 
   const filteredOptions = showSearch 
-    ? options.filter(option => option.value.toLowerCase().includes(searchTerm.toLowerCase()))
+    ? options.filter(option => option.toLowerCase().includes(searchTerm.toLowerCase()))
     : options
 
   const toggleExpanded = () => setIsExpanded(!isExpanded)
@@ -91,15 +65,15 @@ function FilterSection({ title, filterId, options, selectedValues, onChange, sho
           
           <div className="space-y-2">
             {filteredOptions.map((option) => (
-              <label key={option.value} className="flex items-center gap-2 cursor-pointer">
+              <label key={option} className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={selectedValues.includes(option.value)}
-                  onChange={(e) => handleCheckboxChange(option.value, e.target.checked)}
+                  checked={selectedValues.includes(option)}
+                  onChange={(e) => handleCheckboxChange(option, e.target.checked)}
                   className="rounded border-gray-300"
                 />
                 <span className="text-sm text-gray-700">
-                  {option.value} <span className="text-gray-500">({option.count})</span>
+                  {option}
                 </span>
               </label>
             ))}
@@ -118,17 +92,34 @@ export default function MatchedJobsPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState('relevance')
-  const [activeTab, setActiveTab] = useState<'recommended' | 'all'>('recommended')
+  const [activeTab, setActiveTab] = useState<'recommended' | 'all'>('all')
   
   // Filter states
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [selectedCities, setSelectedCities] = useState<string[]>([])
   const [selectedStates, setSelectedStates] = useState<string[]>([])
   const [selectedCountries, setSelectedCountries] = useState<string[]>([])
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
+  
+  // Filter options from API
+  const [filterOptions, setFilterOptions] = useState<{
+    categories: string[]
+    job_types: string[]
+    cities: string[]
+    states: string[]
+    countries: string[]
+  } | null>(null)
 
   // "Recommended" tab shows matched jobs, "All Positions" shows all available jobs
   const recommendedJobs = useMemo(() => jobs, [jobs])
   const allJobs = useMemo(() => allAvailableJobs, [allAvailableJobs])
+
+  // Set default tab based on matched jobs count
+  useEffect(() => {
+    if (user && (user.matchedJobs || 0) === 0) {
+      setActiveTab('all')
+    }
+  }, [user])
 
   useEffect(() => {
     const loadData = async () => {
@@ -143,23 +134,39 @@ export default function MatchedJobsPage() {
         setUser(parsedUser)
       }
       
-      // Fetch both matched and all available jobs
+      // Fetch matched jobs, all available jobs, and filters
       try {
-        if (parsedUser?.id && parsedUser?.isResumeAvailable) {
-          // Get matched jobs for the user
-          const matchedJobsResponse = await jobsApi.getMatched(parsedUser.id)
-          if (matchedJobsResponse.data) {
-            setJobs(matchedJobsResponse.data)
-          }
-          
-          // Get all available jobs for "All Positions" tab
-          const allJobsResponse = await jobsApi.getAll()
-          if (allJobsResponse.data) {
-            setAllAvailableJobs(allJobsResponse.data)
-          }
+        const promises: Promise<any>[] = [
+          jobsApi.getFilters() // Always fetch filters
+        ]
+        
+        if (parsedUser?.id && parsedUser?.hasResume) {
+          promises.push(
+            jobsApi.getMatched(parsedUser.id),
+            jobsApi.getJobs() // Use new unified method
+          )
+        } else {
+          promises.push(
+            Promise.resolve({ data: [] }), // No matched jobs
+            jobsApi.getJobs() // Use new unified method
+          )
+        }
+        
+        const [filtersResponse, matchedJobsResponse, allJobsResponse] = await Promise.all(promises)
+        
+        if (filtersResponse.data) {
+          setFilterOptions(filtersResponse.data)
+        }
+        
+        if (matchedJobsResponse.data) {
+          setJobs(matchedJobsResponse.data)
+        }
+        
+        if (allJobsResponse.data) {
+          setAllAvailableJobs(allJobsResponse.data)
         }
       } catch (error) {
-        console.error('Failed to fetch jobs:', error)
+        console.error('Failed to fetch data:', error)
       }
       
       setLoading(false)
@@ -168,77 +175,125 @@ export default function MatchedJobsPage() {
     loadData()
   }, [])
 
-  // Filter jobs based on selected filters, search, and active tab
+  // Refetch jobs when filters change - now using API filtering for 'all' tab
   useEffect(() => {
-    let filtered = activeTab === 'recommended' ? recommendedJobs : allJobs
+    const fetchFilteredJobs = async () => {
+      if (!filterOptions) return // Wait for filter options to load
+      
+      const filters = {
+        categories: selectedCategories.length > 0 ? selectedCategories : undefined,
+        job_types: selectedTypes.length > 0 ? selectedTypes : undefined,
+        cities: selectedCities.length > 0 ? selectedCities : undefined,
+        states: selectedStates.length > 0 ? selectedStates : undefined,
+        countries: selectedCountries.length > 0 ? selectedCountries : undefined
+      }
+      
+      if (activeTab === 'all') {
+        // For 'all' tab, use API filtering
+        try {
+          const jobsResponse = await jobsApi.getJobs(filters)
+          if (jobsResponse.data) {
+            let filtered = jobsResponse.data
+            
+            // Apply search filter (done on frontend for now)
+            if (searchTerm) {
+              filtered = filtered.filter(job =>
+                job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                job.description.toLowerCase().includes(searchTerm.toLowerCase())
+              )
+            }
+            
+            setFilteredJobs(filtered)
+          }
+        } catch (error) {
+          console.error('Failed to fetch filtered jobs:', error)
+        }
+      } else {
+        // For 'recommended' tab, filter the existing matched jobs on frontend
+        let filtered = recommendedJobs
 
-    // Apply category filter
-    if (selectedCategories.length > 0) {
-      filtered = filtered.filter(job => selectedCategories.includes(job.category))
+        // Apply filters
+        if (selectedCategories.length > 0) {
+          filtered = filtered.filter(job => selectedCategories.includes(job.category))
+        }
+        if (selectedCities.length > 0) {
+          filtered = filtered.filter(job => 
+            selectedCities.some(city => job.city === city)
+          )
+        }
+        if (selectedStates.length > 0) {
+          filtered = filtered.filter(job => 
+            selectedStates.some(state => job.state === state)
+          )
+        }
+        if (selectedCountries.length > 0) {
+          filtered = filtered.filter(job => 
+            selectedCountries.some(country => job.country === country)
+          )
+        }
+        if (selectedTypes.length > 0) {
+          filtered = filtered.filter(job => selectedTypes.includes(job.type))
+        }
+        
+        // Apply search filter
+        if (searchTerm) {
+          filtered = filtered.filter(job =>
+            job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            job.description.toLowerCase().includes(searchTerm.toLowerCase())
+          )
+        }
+
+        setFilteredJobs(filtered)
+      }
     }
 
-    // Apply location filters (simplified)
-    if (selectedStates.length > 0) {
-      filtered = filtered.filter(job => 
-        selectedStates.some(state => job.location.includes(state))
-      )
-    }
+    fetchFilteredJobs()
+  }, [recommendedJobs, allJobs, selectedCategories, selectedCities, selectedStates, selectedCountries, selectedTypes, searchTerm, activeTab, filterOptions])
 
-    // Apply type filter
-    if (selectedTypes.length > 0) {
-      filtered = filtered.filter(job => selectedTypes.includes(job.type))
-    }
-
-    // Apply search filter
-    if (searchTerm) {
-      filtered = filtered.filter(job =>
-        job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        job.description.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    }
-
-    setFilteredJobs(filtered)
-  }, [recommendedJobs, allJobs, selectedCategories, selectedStates, selectedCountries, selectedTypes, searchTerm, activeTab])
-
-  const userState = user?.isResumeAvailable ? "has-resume" : "no-resume"
+  const userState = user?.hasResume ? "has-resume" : "no-resume"
 
   return (
     <div className="page-light min-h-screen">
       <Navigation userState={userState} user={user} theme="light" />
       
       <main className="container max-w-[1400px] mx-auto px-6 pt-20">
-        {/* AI Insights Banner for users with resume */}
-        <div className="bg-primary-50 border border-primary-200 rounded-xl p-4 mb-8">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div>
-              <strong className="text-primary-900"><Target className="w-5 h-5 inline mr-2" />AI Recommendations:</strong>
-              <span className="text-primary-900 ml-2">
-                We found <strong>{jobs.length} position{jobs.length === 1 ? '' : 's'}</strong> that match your profile
-              </span>
+        {/* AI Insights Banner for users with resume - only show if there are matched jobs */}
+        {(user?.matchedJobs || 0) > 0 && (
+          <div className="bg-primary-50 border border-primary-200 rounded-xl p-4 mb-8">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <strong className="text-primary-900"><Target className="w-5 h-5 inline mr-2" />AI Recommendations:</strong>
+                <span className="text-primary-900 ml-2">
+                  We found <strong>{user?.matchedJobs || 0} position{(user?.matchedJobs || 0) === 1 ? '' : 's'}</strong> that match your profile
+                </span>
+              </div>
+              <Button 
+                variant="primary" 
+                size="default"
+                onClick={() => setActiveTab('recommended')}
+              >
+                View Matches
+              </Button>
             </div>
-            <Button 
-              variant="primary" 
-              size="default"
-              onClick={() => setActiveTab('recommended')}
-            >
-              View Matches
-            </Button>
           </div>
-        </div>
+        )}
 
         {/* Results Tabs */}
         <div className="mb-8">
           <div className="flex border-b border-gray-200">
-            <button
-              onClick={() => setActiveTab('recommended')}
-              className={`px-6 py-3 font-semibold border-b-2 transition-colors ${
-                activeTab === 'recommended' 
-                  ? 'border-blue-600 text-blue-600 bg-blue-50' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Recommended for You ({jobs.length})
-            </button>
+            {/* Only show Recommended tab if there are matched jobs */}
+            {(user?.matchedJobs || 0) > 0 && (
+              <button
+                onClick={() => setActiveTab('recommended')}
+                className={`px-6 py-3 font-semibold border-b-2 transition-colors ${
+                  activeTab === 'recommended' 
+                    ? 'border-blue-600 text-blue-600 bg-blue-50' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Recommended for You ({user?.matchedJobs || 0})
+              </button>
+            )}
             <button
               onClick={() => setActiveTab('all')}
               className={`px-6 py-3 font-semibold border-b-2 transition-colors ${
@@ -247,7 +302,7 @@ export default function MatchedJobsPage() {
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              All Positions ({allAvailableJobs.length})
+              All Positions ({user?.availableJobs || allAvailableJobs.length})
             </button>
           </div>
         </div>
@@ -271,38 +326,51 @@ export default function MatchedJobsPage() {
             <div className="bg-white border border-gray-200 rounded-b-xl border-t-0 p-4">
               <h4 className="text-lg font-semibold text-gray-900 mb-4">Refine your search</h4>
               
-              <FilterSection
-                title="Category"
-                filterId="category"
-                options={filterCategories}
-                selectedValues={selectedCategories}
-                onChange={setSelectedCategories}
-                showSearch={true}
-              />
+              {filterOptions && (
+                <>
+                  <FilterSection
+                    title="Category"
+                    filterId="category"
+                    options={filterOptions.categories}
+                    selectedValues={selectedCategories}
+                    onChange={setSelectedCategories}
+                    showSearch={true}
+                  />
 
-              <FilterSection
-                title="State"
-                filterId="state"
-                options={filterStates}
-                selectedValues={selectedStates}
-                onChange={setSelectedStates}
-              />
+                  <FilterSection
+                    title="City"
+                    filterId="city"
+                    options={filterOptions.cities}
+                    selectedValues={selectedCities}
+                    onChange={setSelectedCities}
+                    showSearch={true}
+                  />
 
-              <FilterSection
-                title="Country"
-                filterId="country"
-                options={filterCountries}
-                selectedValues={selectedCountries}
-                onChange={setSelectedCountries}
-              />
+                  <FilterSection
+                    title="State"
+                    filterId="state"
+                    options={filterOptions.states}
+                    selectedValues={selectedStates}
+                    onChange={setSelectedStates}
+                  />
 
-              <FilterSection
-                title="Type"
-                filterId="type"
-                options={filterTypes}
-                selectedValues={selectedTypes}
-                onChange={setSelectedTypes}
-              />
+                  <FilterSection
+                    title="Country"
+                    filterId="country"
+                    options={filterOptions.countries}
+                    selectedValues={selectedCountries}
+                    onChange={setSelectedCountries}
+                  />
+
+                  <FilterSection
+                    title="Type"
+                    filterId="type"
+                    options={filterOptions.job_types}
+                    selectedValues={selectedTypes}
+                    onChange={setSelectedTypes}
+                  />
+                </>
+              )}
             </div>
           </aside>
 
@@ -389,6 +457,7 @@ export default function MatchedJobsPage() {
                     variant="primary"
                     onClick={() => {
                       setSelectedCategories([])
+                      setSelectedCities([])
                       setSelectedStates([])
                       setSelectedCountries([])
                       setSelectedTypes([])

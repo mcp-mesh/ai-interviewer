@@ -4,7 +4,10 @@ def get_job_data():
     return {
         'title': 'Software Engineer I - SQL Developer',
         'company': 'S. Corp',
-        'location': 'Kolkata, India',
+        'location': 'Kolkata, India',  # Keep for display
+        'city': 'Kolkata',
+        'state': None,
+        'country': 'India',
         'job_type': 'Full-time',
         'category': 'Engineering',
         'remote': False,
@@ -16,7 +19,6 @@ def get_job_data():
         'salary_min': None,
         'salary_max': None,
         'salary_currency': 'USD',
-        'is_featured': False,
         'posted_date': datetime.fromisoformat('2025-05-09T00:00:00+00:00'),
         'is_active': True
     }

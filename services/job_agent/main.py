@@ -53,22 +53,16 @@ else:
     logger.error("❌ PostgreSQL connection failed")
 
 
-@app.tool()
-@mesh.tool(
-    capability="jobs_all_listing",
-    tags=["job-management", "listing", "search"],
-    description="List all available jobs with optional filtering and pagination"
-)
-async def jobs_all_listing(
-    filters: Optional[Dict[str, Any]] = None,
+async def _search_jobs_with_filters(
+    filters: Optional[Dict[str, List[str]]] = None,
     page: int = 1,
     limit: int = 20
 ) -> Dict[str, Any]:
     """
-    List all jobs with optional filtering.
+    Internal function to search jobs with advanced filtering.
     
     Args:
-        filters: Optional filters (category, location, experience_level, job_type)
+        filters: Dict where keys are field names and values are lists of allowed values
         page: Page number for pagination (1-based)
         limit: Number of jobs per page
         
@@ -76,24 +70,46 @@ async def jobs_all_listing(
         Dict with jobs list, total count, and pagination info
     """
     try:
-        logger.info(f"Listing jobs - page {page}, limit {limit}, filters: {filters}")
+        logger.info(f"Searching jobs - page {page}, limit {limit}, filters: {filters}")
         
         with get_db_session() as db:
             # Build query with filters
             query = db.query(Job).filter(Job.is_active == True)
             
             if filters:
+                # Multiple values within same field = OR condition
+                # Multiple fields = AND condition across fields
+                
                 if filters.get("category"):
-                    query = query.filter(Job.category.ilike(f"%{filters['category']}%"))
-                    
-                if filters.get("location"):
-                    query = query.filter(Job.location.ilike(f"%{filters['location']}%"))
-                    
-                if filters.get("experience_level"):
-                    query = query.filter(Job.experience_level.ilike(f"%{filters['experience_level']}%"))
+                    query = query.filter(Job.category.in_(filters["category"]))
                     
                 if filters.get("job_type"):
-                    query = query.filter(Job.job_type == filters['job_type'])
+                    query = query.filter(Job.job_type.in_(filters["job_type"]))
+                    
+                if filters.get("city"):
+                    query = query.filter(Job.city.in_(filters["city"]))
+                    
+                if filters.get("state"):
+                    # Handle None/null values for international jobs
+                    state_values = filters["state"]
+                    if "null" in state_values or None in state_values:
+                        # Include jobs where state is in list OR state is null
+                        query = query.filter(or_(
+                            Job.state.in_([s for s in state_values if s and s != "null"]),
+                            Job.state.is_(None)
+                        ))
+                    else:
+                        query = query.filter(Job.state.in_(state_values))
+                    
+                if filters.get("country"):
+                    query = query.filter(Job.country.in_(filters["country"]))
+                    
+                # Legacy filters for backward compatibility
+                if filters.get("location"):
+                    query = query.filter(Job.location.ilike(f"%{filters['location'][0]}%"))
+                    
+                if filters.get("experience_level"):
+                    query = query.filter(Job.experience_level.ilike(f"%{filters['experience_level'][0]}%"))
             
             # Get total count
             total_jobs = query.count()
@@ -120,6 +136,9 @@ async def jobs_all_listing(
                     "title": job.title,
                     "company": job.company,
                     "location": job.location,
+                    "city": job.city,
+                    "state": job.state,
+                    "country": job.country,
                     "type": job.job_type,
                     "category": job.category,
                     "description": job.short_description,
@@ -128,7 +147,7 @@ async def jobs_all_listing(
                     "salaryRange": salary_range,
                     "remote": job.remote,
                     "postedAt": job.posted_date.isoformat() if job.posted_date else None,
-                    "matchScore": 85 if job.is_featured else 75  # Mock match score based on featured status
+                    "matchScore": 0  # Will be implemented with matching algorithm
                 }
                 jobs.append(job_dict)
         
@@ -143,8 +162,90 @@ async def jobs_all_listing(
         return result
         
     except Exception as e:
-        logger.error(f"Error in jobs_all_listing: {str(e)}")
+        logger.error(f"Error in _search_jobs_with_filters: {str(e)}")
         return {"jobs": [], "total": 0, "page": page, "limit": limit, "error": str(e)}
+
+
+@app.tool()
+@mesh.tool(
+    capability="jobs_all_listing",
+    tags=["job-management", "listing", "search"],
+    description="List all available jobs with optional filtering and pagination"
+)
+async def jobs_all_listing(
+    filters: Optional[Dict[str, Any]] = None,
+    page: int = 1,
+    limit: int = 20
+) -> Dict[str, Any]:
+    """
+    List all jobs with optional filtering.
+    
+    Args:
+        filters: Optional filters (category, location, experience_level, job_type)
+        page: Page number for pagination (1-based)
+        limit: Number of jobs per page
+        
+    Returns:
+        Dict with jobs list, total count, and pagination info
+    """
+    # Convert legacy filter format to new format
+    parsed_filters = {}
+    if filters:
+        for key, value in filters.items():
+            if value:  # Only add non-empty filters
+                # Convert single values to arrays for consistency
+                parsed_filters[key] = [value] if isinstance(value, str) else value
+    
+    # Delegate to internal filtering function
+    return await _search_jobs_with_filters(parsed_filters, page, limit)
+
+
+@app.tool()
+@mesh.tool(
+    capability="jobs_search_filtered",
+    tags=["job-management", "search", "advanced-filtering"],
+    description="Search jobs with advanced multi-value filtering"
+)
+async def jobs_search_filtered(
+    category: Optional[str] = None,
+    job_type: Optional[str] = None,
+    city: Optional[str] = None,
+    state: Optional[str] = None,
+    country: Optional[str] = None,
+    page: int = 1,
+    limit: int = 20
+) -> Dict[str, Any]:
+    """
+    Search jobs with advanced filtering supporting multiple values per field.
+    
+    Args:
+        category: Comma-separated categories (e.g., "Engineering,Sales")
+        job_type: Comma-separated job types (e.g., "Full-time,Contract")
+        city: Comma-separated cities (e.g., "London,Remote")
+        state: Comma-separated states (e.g., "Pennsylvania,California")
+        country: Comma-separated countries (e.g., "United States of America,United Kingdom")
+        page: Page number for pagination (1-based)
+        limit: Number of jobs per page
+        
+    Returns:
+        Dict with jobs list, total count, and pagination info
+    """
+    filters = {}
+    
+    # Parse comma-separated values into arrays
+    if category:
+        filters["category"] = [c.strip() for c in category.split(",") if c.strip()]
+    if job_type:
+        filters["job_type"] = [j.strip() for j in job_type.split(",") if j.strip()]
+    if city:
+        filters["city"] = [c.strip() for c in city.split(",") if c.strip()]
+    if state:
+        filters["state"] = [s.strip() for s in state.split(",") if s.strip()]
+    if country:
+        filters["country"] = [c.strip() for c in country.split(",") if c.strip()]
+    
+    # Delegate to internal filtering function
+    return await _search_jobs_with_filters(filters, page, limit)
 
 
 @app.tool()
@@ -279,6 +380,65 @@ async def jobs_categories_list() -> Dict[str, Any]:
 
 @app.tool()
 @mesh.tool(
+    capability="jobs_filters_all",
+    tags=["job-management", "filters", "metadata"],
+    description="Get all unique filter values for job filtering (categories, locations, types)"
+)
+async def jobs_filters_all() -> Dict[str, Any]:
+    """
+    Get all unique filter values from active jobs.
+    
+    Returns:
+        Dict with unique values for category, job_type, city, state, country
+    """
+    try:
+        logger.info("Getting all unique job filter values")
+        
+        with get_db_session() as db:
+            # Get unique categories
+            categories = db.query(Job.category).filter(
+                and_(Job.is_active == True, Job.category.isnot(None))
+            ).distinct().all()
+            
+            # Get unique job types
+            job_types = db.query(Job.job_type).filter(
+                and_(Job.is_active == True, Job.job_type.isnot(None))
+            ).distinct().all()
+            
+            # Get unique cities
+            cities = db.query(Job.city).filter(
+                and_(Job.is_active == True, Job.city.isnot(None))
+            ).distinct().all()
+            
+            # Get unique states (excluding None values)
+            states = db.query(Job.state).filter(
+                and_(Job.is_active == True, Job.state.isnot(None))
+            ).distinct().all()
+            
+            # Get unique countries
+            countries = db.query(Job.country).filter(
+                and_(Job.is_active == True, Job.country.isnot(None))
+            ).distinct().all()
+            
+            # Convert to simple lists
+            result = {
+                "categories": [cat[0] for cat in categories],
+                "job_types": [jt[0] for jt in job_types],
+                "cities": [city[0] for city in cities],
+                "states": [state[0] for state in states],
+                "countries": [country[0] for country in countries]
+            }
+        
+        logger.info(f"Returning filters: {len(result['categories'])} categories, {len(result['job_types'])} types, {len(result['cities'])} cities, {len(result['states'])} states, {len(result['countries'])} countries")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error in jobs_filters_all: {str(e)}")
+        return {"categories": [], "job_types": [], "cities": [], "states": [], "countries": [], "error": str(e)}
+
+
+@app.tool()
+@mesh.tool(
     capability="jobs_search",
     tags=["job-management", "search", "full-text"],
     description="Search jobs by title, description, or company"
@@ -321,7 +481,6 @@ async def jobs_search(
             # Get paginated results
             offset = (page - 1) * limit
             jobs_rows = search_query.order_by(
-                Job.is_featured.desc(), 
                 Job.posted_date.desc()
             ).offset(offset).limit(limit).all()
             
@@ -372,6 +531,8 @@ class JobAgent(McpAgent):
         "job_details_get", 
         "jobs_featured_listing",
         "jobs_categories_list",
+        "jobs_filters_all",
+        "jobs_search_filtered",
         "jobs_search"
     ]
     

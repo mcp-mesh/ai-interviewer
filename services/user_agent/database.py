@@ -7,8 +7,8 @@ import logging
 import json
 from typing import Optional, Dict, Any
 from datetime import datetime
-from sqlalchemy import create_engine, Column, String, DateTime, Boolean, Text, Integer, text
-from sqlalchemy.orm import declarative_base
+from sqlalchemy import create_engine, Column, String, DateTime, Boolean, Text, Integer, text, ForeignKey, Float, ARRAY
+from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 import uuid
@@ -67,6 +67,14 @@ class User(Base):
     # Store basic preferences as JSONB
     basic_preferences = Column(JSONB, nullable=True)
     
+    # Resume relationship (One-to-One)
+    resume = relationship("Resume", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    
+    @property
+    def has_resume(self) -> bool:
+        """Check if user has a resume"""
+        return self.resume is not None
+    
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API responses"""
         return {
@@ -78,9 +86,107 @@ class User(Base):
             "profile_completed": self.profile_completed,
             "onboarding_completed": self.onboarding_completed,
             "basic_preferences": self.basic_preferences or {},
+            # Resume fields
+            "has_resume": self.has_resume,
+            # Timestamps
             "created_at": self.created_at.isoformat() + "Z" if self.created_at else None,
             "updated_at": self.updated_at.isoformat() + "Z" if self.updated_at else None,
             "last_active_at": self.last_active_at.isoformat() + "Z" if self.last_active_at else None,
+        }
+
+
+class Resume(Base):
+    """
+    Resume table - contains structured resume data with proper relational design.
+    Linked to User table via foreign key relationship.
+    """
+    __tablename__ = "resumes"
+    __table_args__ = {"schema": "user_agent"}
+    
+    # Primary identifiers
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("user_agent.users.id"), nullable=False, unique=True)
+    
+    # File information
+    filename = Column(String(255), nullable=False)
+    file_path = Column(Text, nullable=False)  # MinIO path
+    file_size = Column(Integer, nullable=False)  # File size in bytes
+    minio_url = Column(Text, nullable=False)  # MinIO URL for agent access
+    
+    # Processing status
+    uploaded_at = Column(DateTime, nullable=False)
+    processed_at = Column(DateTime, nullable=True)
+    
+    # Core profile fields from AI analysis (matching profile_analysis_tool schema)
+    categories = Column(ARRAY(String), nullable=True)  # Business categories (max 3)
+    experience_level = Column(String(20), nullable=True)  # intern, junior, mid, senior, lead, principal
+    years_experience = Column(Integer, nullable=True)  # 0-50 years
+    tags = Column(ARRAY(String), nullable=True)  # Skills, technologies, tools (max 20)
+    professional_summary = Column(Text, nullable=True)  # Max 300 chars
+    education_level = Column(String(100), nullable=True)
+    confidence_score = Column(Float, nullable=True)  # 0.0-1.0 LLM confidence
+    profile_strength = Column(String(20), nullable=True)  # excellent, good, average, needs_improvement
+    
+    # AI processing metadata
+    ai_provider = Column(String(50), nullable=True)  # openai, claude, etc.
+    ai_model = Column(String(100), nullable=True)  # gpt-4o, claude-3-5-sonnet, etc.
+    analysis_enhanced = Column(Boolean, default=False)  # Whether LLM analysis succeeded
+    
+    # Raw content and basic sections (fallback data)
+    text_content = Column(Text, nullable=True)  # Raw extracted text
+    basic_sections = Column(JSONB, nullable=True)  # Basic section parsing results
+    text_stats = Column(JSONB, nullable=True)  # Text statistics (word count, etc.)
+    
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationship back to user
+    user = relationship("User", back_populates="resume")
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for API responses"""
+        return {
+            "id": str(self.id),
+            "user_id": str(self.user_id),
+            "filename": self.filename,
+            "file_path": self.file_path,
+            "file_size": self.file_size,
+            "minio_url": self.minio_url,
+            # AI Analysis Results
+            "categories": self.categories or [],
+            "experience_level": self.experience_level,
+            "years_experience": self.years_experience,
+            "tags": self.tags or [],
+            "professional_summary": self.professional_summary,
+            "education_level": self.education_level,
+            "confidence_score": self.confidence_score,
+            "profile_strength": self.profile_strength,
+            # AI Metadata
+            "ai_provider": self.ai_provider,
+            "ai_model": self.ai_model,
+            "analysis_enhanced": self.analysis_enhanced,
+            # Processing status
+            "uploaded_at": self.uploaded_at.isoformat() + "Z" if self.uploaded_at else None,
+            "processed_at": self.processed_at.isoformat() + "Z" if self.processed_at else None,
+            # Timestamps
+            "created_at": self.created_at.isoformat() + "Z" if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() + "Z" if self.updated_at else None,
+        }
+    
+    def to_structured_analysis(self) -> Dict[str, Any]:
+        """Convert to structured_analysis format compatible with existing frontend"""
+        return {
+            "categories": self.categories or [],
+            "experience_level": self.experience_level,
+            "years_experience": self.years_experience or 0,
+            "tags": self.tags or [],
+            "professional_summary": self.professional_summary or "",
+            "education_level": self.education_level,
+            "confidence_score": self.confidence_score,
+            "profile_strength": self.profile_strength,
+            "ai_provider": self.ai_provider,
+            "ai_model": self.ai_model
         }
 
 

@@ -1266,7 +1266,7 @@ export default function ApplicationPage({ params }: ApplicationPageProps) {
   }, [params])
   
   const jobTitle = resolvedParams ? (jobTitles[resolvedParams.jobId] || 'Unknown Position') : 'Loading...'
-  const hasResume = user?.isResumeAvailable || false
+  const hasResume = user?.hasResume || false
 
   useEffect(() => {
     // Get user from localStorage
@@ -1276,7 +1276,7 @@ export default function ApplicationPage({ params }: ApplicationPageProps) {
       setUser(parsedUser)
       
       // AI pre-fill for users with resume (only once)
-      if (parsedUser.isResumeAvailable && !hasPreFilledRef.current) {
+      if (parsedUser.hasResume && !hasPreFilledRef.current) {
         hasPreFilledRef.current = true
         setFormData(prev => ({
           ...prev,
@@ -1465,7 +1465,7 @@ export default function ApplicationPage({ params }: ApplicationPageProps) {
   }
 
   const isGuest = !user
-  const userState = isGuest ? "guest" : (user.isResumeAvailable ? "has-resume" : "no-resume")
+  const userState = isGuest ? "guest" : (user.hasResume ? "has-resume" : "no-resume")
 
   if (!user) {
     return (

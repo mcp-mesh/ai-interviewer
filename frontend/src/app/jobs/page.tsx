@@ -70,37 +70,11 @@ const mockJobs: Job[] = [
 ]
 */
 
-// Filter categories matching wireframe
-const filterCategories = [
-  { value: 'Engineering', count: 45 },
-  { value: 'Operations', count: 32 },
-  { value: 'Finance', count: 18 },
-  { value: 'Marketing', count: 12 },
-  { value: 'Sales', count: 8 }
-]
-
-const filterStates = [
-  { value: 'California', count: 28 },
-  { value: 'New York', count: 22 },
-  { value: 'Texas', count: 15 }
-]
-
-const filterCountries = [
-  { value: 'United States', count: 115 },
-  { value: 'Remote', count: 12 }
-]
-
-const filterTypes = [
-  { value: 'Full-time', count: 98 },
-  { value: 'Contract', count: 15 },
-  { value: 'Part-time', count: 8 },
-  { value: 'Internship', count: 6 }
-]
 
 interface FilterSectionProps {
   title: string
   filterId: string
-  options: { value: string; count: number }[]
+  options: string[]
   selectedValues: string[]
   onChange: (values: string[]) => void
   showSearch?: boolean
@@ -111,7 +85,7 @@ function FilterSection({ title, filterId, options, selectedValues, onChange, sho
   const [searchTerm, setSearchTerm] = useState('')
 
   const filteredOptions = showSearch 
-    ? options.filter(option => option.value.toLowerCase().includes(searchTerm.toLowerCase()))
+    ? options.filter(option => option.toLowerCase().includes(searchTerm.toLowerCase()))
     : options
 
   const toggleExpanded = () => setIsExpanded(!isExpanded)
@@ -153,15 +127,15 @@ function FilterSection({ title, filterId, options, selectedValues, onChange, sho
           
           <div className="space-y-2">
             {filteredOptions.map((option) => (
-              <label key={option.value} className="flex items-center gap-2 cursor-pointer">
+              <label key={option} className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={selectedValues.includes(option.value)}
-                  onChange={(e) => handleCheckboxChange(option.value, e.target.checked)}
+                  checked={selectedValues.includes(option)}
+                  onChange={(e) => handleCheckboxChange(option, e.target.checked)}
                   className="rounded border-gray-300"
                 />
                 <span className="text-sm text-gray-700">
-                  {option.value} <span className="text-gray-500">({option.count})</span>
+                  {option}
                 </span>
               </label>
             ))}
@@ -183,9 +157,19 @@ export default function JobsPage() {
   
   // Filter states
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [selectedCities, setSelectedCities] = useState<string[]>([])
   const [selectedStates, setSelectedStates] = useState<string[]>([])
   const [selectedCountries, setSelectedCountries] = useState<string[]>([])
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
+  
+  // Filter options from API
+  const [filterOptions, setFilterOptions] = useState<{
+    categories: string[]
+    job_types: string[]
+    cities: string[]
+    states: string[]
+    countries: string[]
+  } | null>(null)
 
   useEffect(() => {
     const loadData = async () => {
@@ -198,20 +182,28 @@ export default function JobsPage() {
         setUser(parsedUser)
         
         // Redirect users with resume to matched jobs page
-        if (parsedUser.isResumeAvailable) {
+        if (parsedUser.hasResume) {
           router.push('/jobs/matched')
           return
         }
       }
       
-      // Fetch jobs from API
+      // Fetch jobs and filters from API
       try {
-        const jobsResponse = await jobsApi.getAll()
+        const [jobsResponse, filtersResponse] = await Promise.all([
+          jobsApi.getJobs(), // Use new unified method
+          jobsApi.getFilters()
+        ])
+        
         if (jobsResponse.data) {
           setJobs(jobsResponse.data)
         }
+        
+        if (filtersResponse.data) {
+          setFilterOptions(filtersResponse.data)
+        }
       } catch (error) {
-        console.error('Failed to fetch jobs:', error)
+        console.error('Failed to fetch data:', error)
       }
       
       setLoading(false)
@@ -220,40 +212,44 @@ export default function JobsPage() {
     loadData()
   }, [])
 
-  // Filter jobs based on selected filters and search
+  // Refetch jobs when filters change - now using API filtering
   useEffect(() => {
-    let filtered = jobs
-
-    // Apply category filter
-    if (selectedCategories.length > 0) {
-      filtered = filtered.filter(job => selectedCategories.includes(job.category))
+    const fetchFilteredJobs = async () => {
+      if (!filterOptions) return // Wait for filter options to load
+      
+      const filters = {
+        categories: selectedCategories.length > 0 ? selectedCategories : undefined,
+        job_types: selectedTypes.length > 0 ? selectedTypes : undefined,
+        cities: selectedCities.length > 0 ? selectedCities : undefined,
+        states: selectedStates.length > 0 ? selectedStates : undefined,
+        countries: selectedCountries.length > 0 ? selectedCountries : undefined
+      }
+      
+      try {
+        const jobsResponse = await jobsApi.getJobs(filters)
+        if (jobsResponse.data) {
+          let filtered = jobsResponse.data
+          
+          // Apply search filter (done on frontend for now)
+          if (searchTerm) {
+            filtered = filtered.filter(job =>
+              job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              job.description.toLowerCase().includes(searchTerm.toLowerCase())
+            )
+          }
+          
+          setFilteredJobs(filtered)
+        }
+      } catch (error) {
+        console.error('Failed to fetch filtered jobs:', error)
+      }
     }
 
-    // Apply location filters (simplified)
-    if (selectedStates.length > 0) {
-      filtered = filtered.filter(job => 
-        selectedStates.some(state => job.location.includes(state))
-      )
-    }
-
-    // Apply type filter
-    if (selectedTypes.length > 0) {
-      filtered = filtered.filter(job => selectedTypes.includes(job.type))
-    }
-
-    // Apply search filter
-    if (searchTerm) {
-      filtered = filtered.filter(job =>
-        job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        job.description.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    }
-
-    setFilteredJobs(filtered)
-  }, [jobs, selectedCategories, selectedStates, selectedCountries, selectedTypes, searchTerm])
+    fetchFilteredJobs()
+  }, [selectedCategories, selectedCities, selectedStates, selectedCountries, selectedTypes, searchTerm, filterOptions])
 
   const isGuest = !user
-  const userState = isGuest ? "guest" : (user.isResumeAvailable ? "has-resume" : "no-resume")
+  const userState = isGuest ? "guest" : (user.hasResume ? "has-resume" : "no-resume")
 
   return (
     <div className="page-light min-h-screen">
@@ -283,7 +279,7 @@ export default function JobsPage() {
         )}
 
         {/* Upload Resume Banner for Logged In Users Without Resume */}
-        {!isGuest && user && !user.isResumeAvailable && (
+        {!isGuest && user && !user.hasResume && (
           <div className="bg-primary-50 border border-primary-200 rounded-xl p-4 mb-8">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
@@ -320,38 +316,51 @@ export default function JobsPage() {
             <div className="bg-white border border-gray-200 rounded-b-xl border-t-0 p-4">
               <h4 className="text-lg font-semibold text-gray-900 mb-4">Refine your search</h4>
               
-              <FilterSection
-                title="Category"
-                filterId="category"
-                options={filterCategories}
-                selectedValues={selectedCategories}
-                onChange={setSelectedCategories}
-                showSearch={true}
-              />
+              {filterOptions && (
+                <>
+                  <FilterSection
+                    title="Category"
+                    filterId="category"
+                    options={filterOptions.categories}
+                    selectedValues={selectedCategories}
+                    onChange={setSelectedCategories}
+                    showSearch={true}
+                  />
 
-              <FilterSection
-                title="State"
-                filterId="state"
-                options={filterStates}
-                selectedValues={selectedStates}
-                onChange={setSelectedStates}
-              />
+                  <FilterSection
+                    title="City"
+                    filterId="city"
+                    options={filterOptions.cities}
+                    selectedValues={selectedCities}
+                    onChange={setSelectedCities}
+                    showSearch={true}
+                  />
 
-              <FilterSection
-                title="Country"
-                filterId="country"
-                options={filterCountries}
-                selectedValues={selectedCountries}
-                onChange={setSelectedCountries}
-              />
+                  <FilterSection
+                    title="State"
+                    filterId="state"
+                    options={filterOptions.states}
+                    selectedValues={selectedStates}
+                    onChange={setSelectedStates}
+                  />
 
-              <FilterSection
-                title="Type"
-                filterId="type"
-                options={filterTypes}
-                selectedValues={selectedTypes}
-                onChange={setSelectedTypes}
-              />
+                  <FilterSection
+                    title="Country"
+                    filterId="country"
+                    options={filterOptions.countries}
+                    selectedValues={selectedCountries}
+                    onChange={setSelectedCountries}
+                  />
+
+                  <FilterSection
+                    title="Type"
+                    filterId="type"
+                    options={filterOptions.job_types}
+                    selectedValues={selectedTypes}
+                    onChange={setSelectedTypes}
+                  />
+                </>
+              )}
             </div>
           </aside>
 
@@ -431,6 +440,7 @@ export default function JobsPage() {
                     variant="primary"
                     onClick={() => {
                       setSelectedCategories([])
+                      setSelectedCities([])
                       setSelectedStates([])
                       setSelectedCountries([])
                       setSelectedTypes([])

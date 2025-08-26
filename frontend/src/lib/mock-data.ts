@@ -7,7 +7,6 @@ export const mockUsers: User[] = [
     name: 'John Doe',
     email: 'john@example.com',
     hasResume: false,
-    isResumeAvailable: false,
     profile: {
       skills: [],
       experience_years: 0,
@@ -25,7 +24,6 @@ export const mockUsers: User[] = [
     name: 'Sarah Smith',
     email: 'sarah@example.com',
     hasResume: false,
-    isResumeAvailable: false,
     profile: {
       skills: [],
       experience_years: 0,

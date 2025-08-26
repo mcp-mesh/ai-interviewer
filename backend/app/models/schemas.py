@@ -25,6 +25,9 @@ class JobSummary(BaseModel):
     title: str
     company: str
     location: str
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
     type: str  # "Full-time", "Part-time", "Contract", "Remote"
     category: str
     description: Optional[str] = None
@@ -42,6 +45,9 @@ class JobDetail(BaseModel):
     title: str
     company: str
     location: str
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
     job_type: str
     experience_level: Optional[str] = None
     category: str
@@ -53,7 +59,6 @@ class JobDetail(BaseModel):
     responsibilities: List[str] = []
     benefits: List[str] = []
     skills_required: List[str] = []
-    is_featured: bool = False
     company_info: Optional[Dict[str, Any]] = None
 
 
@@ -81,6 +86,21 @@ class JobDetailResponse(BaseModel):
 class JobCategoriesResponse(BaseModel):
     """Job categories API response"""
     data: List[JobCategory]
+    success: bool = True
+
+
+class JobFiltersData(BaseModel):
+    """Job filters data structure"""
+    categories: List[str]
+    job_types: List[str]
+    cities: List[str]
+    states: List[str]
+    countries: List[str]
+
+
+class JobFiltersResponse(BaseModel):
+    """Job filters API response"""
+    data: JobFiltersData
     success: bool = True
 
 
@@ -172,15 +192,27 @@ class UserPreferences(BaseModel):
     categories: List[str] = []
 
 
+class ResumeAnalysis(BaseModel):
+    """Resume analysis data from AI processing"""
+    years_experience: Optional[int] = None
+    experience_level: Optional[str] = None
+    professional_summary: Optional[str] = None
+    education_level: Optional[str] = None
+    ai_provider: Optional[str] = None
+    ai_model: Optional[str] = None
+    profile_strength: Optional[str] = None
+    confidence_score: Optional[float] = None
+
+
 class UserData(BaseModel):
     """Complete user data"""
     id: str
     name: str
     email: str
     hasResume: bool = False
-    isResumeAvailable: bool = False
     profile: UserProfile
     preferences: Optional[UserPreferences] = None
+    resume_analysis: Optional[ResumeAnalysis] = None
     availableJobs: int = 0
     matchedJobs: int = 0
     applications: List[str] = []
@@ -207,6 +239,12 @@ class FileUploadData(BaseModel):
     filename: str
     file_size: int
     content_type: str = "application/pdf"
+
+
+class ResumeUploadRequest(BaseModel):
+    """Resume upload request with reCAPTCHA verification"""
+    recaptcha_token: str
+    process_with_ai: bool = True
 
 
 class ProcessedResumeData(BaseModel):

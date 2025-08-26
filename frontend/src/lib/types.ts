@@ -23,7 +23,6 @@ export interface User {
     location: string
     resume_url: string | null
   }
-  isResumeAvailable?: boolean
   isApplicationsAvailable?: boolean
   availableJobs?: number
   matchedJobs?: number
@@ -38,6 +37,9 @@ export interface Job {
   title: string
   company: string
   location: string
+  city?: string
+  state?: string
+  country?: string
   type: 'Full-time' | 'Part-time' | 'Contract' | 'Internship'
   category: 'Engineering' | 'Operations' | 'Finance' | 'Marketing' | 'Sales' | 'Other'
   remote?: boolean

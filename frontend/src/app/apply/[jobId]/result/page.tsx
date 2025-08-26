@@ -63,7 +63,7 @@ export default function ApplicationResultPage({ params }: ApplicationResultProps
   }
 
   const isGuest = !user
-  const userState = isGuest ? "guest" : (user?.isResumeAvailable ? "has-resume" : "no-resume")
+  const userState = isGuest ? "guest" : (user?.hasResume ? "has-resume" : "no-resume")
 
   if (!user || !resolvedParams) {
     return (

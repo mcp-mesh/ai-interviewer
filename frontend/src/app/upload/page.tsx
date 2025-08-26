@@ -2,20 +2,21 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useGoogleReCaptcha } from 'react-google-recaptcha-v3'
 import { Navigation } from '@/components/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ToastContainer, useToast } from '@/components/wireframe'
 import { User } from '@/lib/types'
-import { FileText, Upload, RefreshCw, CheckCircle, XCircle } from 'lucide-react'
+import { FileText, Upload, CheckCircle, Shield, RefreshCw, XCircle } from 'lucide-react'
 
 export default function UploadPage() {
   const router = useRouter()
+  const { executeRecaptcha } = useGoogleReCaptcha()
   const [user, setUser] = useState<User | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [captchaText, setCaptchaText] = useState('7B4K9')
-  const [captchaInput, setCaptchaInput] = useState('')
-  const [captchaValid, setCaptchaValid] = useState(false)
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null)
+  const [recaptchaLoading, setRecaptchaLoading] = useState(false)
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const { toasts, showToast, removeToast, clearAllToasts } = useToast()
@@ -31,20 +32,25 @@ export default function UploadPage() {
     }
   }, [router])
 
-  const generateCaptcha = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-    let result = ''
-    for (let i = 0; i < 5; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length))
+  const executeReCaptcha = async () => {
+    if (!executeRecaptcha) {
+      showToast.error('reCAPTCHA not available')
+      return false
     }
-    return result
-  }
 
-  const refreshCaptcha = () => {
-    const newCaptcha = generateCaptcha()
-    setCaptchaText(newCaptcha)
-    setCaptchaInput('')
-    setCaptchaValid(false)
+    setRecaptchaLoading(true)
+    try {
+      const token = await executeRecaptcha('upload_resume')
+      setRecaptchaToken(token)
+      showToast.success('Security verification completed')
+      return true
+    } catch (error) {
+      showToast.error('Security verification failed')
+      console.error('reCAPTCHA error:', error)
+      return false
+    } finally {
+      setRecaptchaLoading(false)
+    }
   }
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -63,10 +69,6 @@ export default function UploadPage() {
     }
   }
 
-  const handleCaptchaChange = (value: string) => {
-    setCaptchaInput(value.toUpperCase())
-    setCaptchaValid(value.toUpperCase() === captchaText)
-  }
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes'
@@ -76,31 +78,71 @@ export default function UploadPage() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  const isFormValid = selectedFile && captchaValid && termsAccepted
+  const isFormValid = selectedFile && recaptchaToken && termsAccepted
 
   const handleUpload = async () => {
-    if (!isFormValid) return
+    if (!selectedFile || !termsAccepted) {
+      showToast.error('Please complete all required fields')
+      return
+    }
+
+    // Execute reCAPTCHA if not already done
+    if (!recaptchaToken) {
+      const success = await executeReCaptcha()
+      if (!success) return
+    }
 
     setIsUploading(true)
     showToast.info('Uploading resume...')
 
-    // Simulate upload process
-    setTimeout(() => {
-      // Update user state with resume flag and job counts
-      if (user) {
-        const updatedUser = { 
-          ...user, 
-          isResumeAvailable: true,
-          hasResume: true,
-          // Set realistic job match counts when resume is uploaded
-          availableJobs: 5,
-          matchedJobs: 2,
-          profile: {
-            ...user.profile,
-            resume_url: '/uploaded-resume.pdf'
-          }
+    try {
+      // Create form data for file upload with reCAPTCHA token
+      const formData = new FormData()
+      formData.append('file', selectedFile)
+      formData.append('recaptcha_token', recaptchaToken)
+      formData.append('process_with_ai', 'true')
+
+      // Make API call to backend
+      const response = await fetch('/api/files/resume', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.detail || 'Upload failed')
+      }
+
+      if (!result.success) {
+        throw new Error(result.error || 'Upload failed')
+      }
+
+      // Fetch updated user profile with resume analysis data
+      try {
+        const { userApi } = await import('@/lib/api')
+        const profileResult = await userApi.getProfile()
+        
+        if (profileResult.data) {
+          // Update user state with fresh profile data including resume analysis
+          setUser(profileResult.data)
+          localStorage.setItem('user', JSON.stringify(profileResult.data))
         }
-        localStorage.setItem('user', JSON.stringify(updatedUser))
+      } catch (profileError) {
+        console.error('Failed to fetch updated profile:', profileError)
+        // Fallback to manual update if profile fetch fails
+        if (user) {
+          const updatedUser = { 
+            ...user, 
+            hasResume: true,
+            profile: {
+              ...user.profile,
+              resume_url: result.upload?.file_path || '/uploaded-resume.pdf'
+            }
+          }
+          setUser(updatedUser)
+          localStorage.setItem('user', JSON.stringify(updatedUser))
+        }
       }
 
       // Clear the "Uploading..." toast before showing success
@@ -111,13 +153,20 @@ export default function UploadPage() {
           router.push('/dashboard')
         }, 1500)
       }, 100)
-    }, 2000)
+
+    } catch (error) {
+      setIsUploading(false)
+      clearAllToasts()
+      const errorMessage = error instanceof Error ? error.message : 'Upload failed'
+      showToast.error(errorMessage)
+      console.error('Resume upload failed:', error)
+    }
   }
 
   const getMissingRequirements = () => {
     const missing = []
     if (!selectedFile) missing.push('select a PDF file')
-    if (!captchaValid) missing.push('complete the captcha')
+    if (!recaptchaToken) missing.push('complete security verification')
     if (!termsAccepted) missing.push('accept terms')
     return missing
   }
@@ -211,44 +260,47 @@ export default function UploadPage() {
             </p>
           </div>
 
-          {/* CAPTCHA Section */}
+          {/* Security Verification Section */}
           <div className="bg-white border border-light-border rounded-xl p-8 mb-12">
             <h4 className="text-[1.125rem] font-semibold text-light-text-primary mb-6">Security Verification</h4>
             
             <div className="border-2 border-light-border rounded-lg p-8 bg-light-surface text-center">
-              <div className="flex items-center justify-center gap-4 mb-4">
-                <div className="bg-white border border-light-border p-4 rounded font-mono text-[1.5rem] tracking-[0.1em] text-light-text-primary min-w-[150px]">
-                  {captchaText}
-                </div>
-                <Button 
-                  onClick={refreshCaptcha}
-                  variant="secondary"
-                  size="sm"
-                  className="!p-2 !min-h-[2rem]"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </Button>
-              </div>
-              <div className="mb-2">
-                <input
-                  type="text"
-                  placeholder="Enter the characters above"
-                  value={captchaInput}
-                  onChange={(e) => handleCaptchaChange(e.target.value)}
-                  className="px-3 py-3 border border-light-border rounded text-center w-48 text-base"
-                />
-              </div>
-              <div className="text-sm min-h-[20px]">
-                {captchaInput.length === captchaText.length && (
-                  <span className={captchaValid ? "text-green-600" : "text-red-600"}>
-                    {captchaValid ? (
-                      <><CheckCircle className="w-4 h-4 inline mr-1" /> Verified</>
-                    ) : (
-                      <><XCircle className="w-4 h-4 inline mr-1" /> Incorrect</>
-                    )}
-                  </span>
+              <Shield className="w-12 h-12 text-light-text-muted mb-4 mx-auto" />
+              <p className="text-light-text-secondary mb-6">
+                Click the button below to verify you're human using Google's security system.
+              </p>
+              
+              <Button 
+                onClick={executeReCaptcha}
+                disabled={recaptchaLoading || !!recaptchaToken}
+                variant={recaptchaToken ? "outline" : "primary"}
+                size="default"
+                className="mb-4"
+              >
+                {recaptchaLoading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Verifying...
+                  </>
+                ) : recaptchaToken ? (
+                  <>
+                    <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                    Verified
+                  </>
+                ) : (
+                  <>
+                    <Shield className="w-4 h-4 mr-2" />
+                    Verify Security
+                  </>
                 )}
-              </div>
+              </Button>
+              
+              {recaptchaToken && (
+                <div className="text-sm text-green-600">
+                  <CheckCircle className="w-4 h-4 inline mr-1" /> 
+                  Security verification completed successfully
+                </div>
+              )}
             </div>
           </div>
 

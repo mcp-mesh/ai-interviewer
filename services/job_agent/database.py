@@ -43,10 +43,12 @@ class Job(Base):
         # Indexes for performance (SQLAlchemy will create these)
         Index('idx_jobs_category', 'category'),
         Index('idx_jobs_location', 'location'), 
+        Index('idx_jobs_city', 'city'),
+        Index('idx_jobs_state', 'state'),
+        Index('idx_jobs_country', 'country'),
         Index('idx_jobs_job_type', 'job_type'),
         Index('idx_jobs_posted_date', 'posted_date'),
         Index('idx_jobs_is_active', 'is_active'),
-        Index('idx_jobs_is_featured', 'is_featured'),
         
         # Schema must be last in tuple
         {"schema": "job_agent"}
@@ -56,7 +58,12 @@ class Job(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     title = Column(String(255), nullable=False)
     company = Column(String(255), nullable=False)
-    location = Column(String(255), nullable=False)
+    location = Column(String(255), nullable=False)  # Keep for backward compatibility/display
+    
+    # Location breakdown for filtering
+    city = Column(String(100), nullable=False)
+    state = Column(String(100), nullable=True)  # Nullable for international locations
+    country = Column(String(100), nullable=False)
     
     # Job details with constraints
     job_type = Column(String(50), nullable=False)  # CHECK constraint handled in create_tables()
@@ -77,7 +84,6 @@ class Job(Base):
     salary_currency = Column(String(10), default='USD')
     
     # Status and metadata
-    is_featured = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
     posted_date = Column(DateTime(timezone=True), default=func.now())
     application_deadline = Column(DateTime(timezone=True), nullable=True)
@@ -98,6 +104,9 @@ class Job(Base):
             "title": self.title,
             "company": self.company,
             "location": self.location,
+            "city": self.city,
+            "state": self.state,
+            "country": self.country,
             "job_type": self.job_type,
             "category": self.category,
             "experience_level": self.experience_level,
@@ -110,7 +119,6 @@ class Job(Base):
             "salary_min": self.salary_min,
             "salary_max": self.salary_max,
             "salary_currency": self.salary_currency,
-            "is_featured": self.is_featured,
             "is_active": self.is_active,
             "posted_date": self.posted_date.isoformat() if self.posted_date else None,
             "application_deadline": self.application_deadline.isoformat() if self.application_deadline else None,

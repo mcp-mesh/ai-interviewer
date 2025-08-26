@@ -4,7 +4,10 @@ def get_job_data():
     return {
         'title': 'Supervisor - Private Equity / Hedge Funds (REMOTE)',
         'company': 'S. Corp',
-        'location': 'Remote, Pennsylvania, United States of America',
+        'location': 'Remote, Pennsylvania, United States of America',  # Keep for display
+        'city': 'Remote',
+        'state': 'Pennsylvania',
+        'country': 'United States of America',
         'job_type': 'Full-time',
         'category': 'Operations',
         'remote': True,
@@ -16,7 +19,6 @@ def get_job_data():
         'salary_min': 70000,
         'salary_max': 112000,
         'salary_currency': 'USD',
-        'is_featured': False,
         'posted_date': datetime.fromisoformat('2025-05-28T00:00:00+00:00'),
         'is_active': True
     }

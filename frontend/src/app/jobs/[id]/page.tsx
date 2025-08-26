@@ -137,7 +137,7 @@ export default function JobDetailPage({ params }: JobDetailProps) {
   }
 
   const isGuest = !user
-  const userState = isGuest ? "guest" : (user.isResumeAvailable ? "has-resume" : "no-resume")
+  const userState = isGuest ? "guest" : (user.hasResume ? "has-resume" : "no-resume")
 
   const handleApplyNow = () => {
     if (!job?.id) return
@@ -152,7 +152,7 @@ export default function JobDetailPage({ params }: JobDetailProps) {
   }
 
   const handleBackToSearch = () => {
-    if (user?.isResumeAvailable) {
+    if (user?.hasResume) {
       router.push('/jobs/matched')
     } else {
       router.push('/jobs')

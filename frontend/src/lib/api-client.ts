@@ -102,6 +102,9 @@ function mapBackendJobToFrontend(backendJob: any): Job {
     title: backendJob.title,
     company: backendJob.company,
     location: backendJob.location,
+    city: backendJob.city,
+    state: backendJob.state,
+    country: backendJob.country,
     type: backendJob.type,
     category: backendJob.category,
     remote: backendJob.remote,
@@ -114,17 +117,54 @@ function mapBackendJobToFrontend(backendJob: any): Job {
   } as Job
 }
 
-// Jobs API - matches our backend endpoints
+// Job filter interface
+interface JobFilters {
+  categories?: string[]
+  job_types?: string[]
+  cities?: string[]
+  states?: string[]
+  countries?: string[]
+  // Legacy filters for backward compatibility
+  location?: string
+  type?: string
+  remote?: boolean
+}
+
+// Jobs API - unified filtering approach
 export const jobsApi = {
-  getAll: async (filters?: { location?: string; type?: string; remote?: boolean }): Promise<{ data: Job[]; error?: string }> => {
+  // Primary method - always uses search endpoint
+  getJobs: async (filters: JobFilters = {}, page = 1, limit = 20): Promise<{ data: Job[]; error?: string }> => {
     try {
       const queryParams = new URLSearchParams()
-      if (filters?.location) queryParams.append('location', filters.location)
-      if (filters?.type) queryParams.append('job_type', filters.type)
-      if (filters?.remote !== undefined) queryParams.append('remote', filters.remote.toString())
       
-      const endpoint = `/jobs${queryParams.toString() ? '?' + queryParams.toString() : ''}`
-      const response = await apiClient.get<ApiResponse<any[]>>(endpoint)
+      // New multi-value filters
+      if (filters.categories?.length) {
+        queryParams.set('category', filters.categories.join(','))
+      }
+      if (filters.job_types?.length) {
+        queryParams.set('job_type', filters.job_types.join(','))
+      }
+      if (filters.cities?.length) {
+        queryParams.set('city', filters.cities.join(','))
+      }
+      if (filters.states?.length) {
+        queryParams.set('state', filters.states.join(','))
+      }
+      if (filters.countries?.length) {
+        queryParams.set('country', filters.countries.join(','))
+      }
+      
+      // Legacy filters for backward compatibility
+      if (filters.location) queryParams.set('location', filters.location)
+      if (filters.type) queryParams.set('job_type', filters.type)
+      if (filters.remote !== undefined) queryParams.set('remote', filters.remote.toString())
+      
+      queryParams.set('page', page.toString())
+      queryParams.set('limit', limit.toString())
+      
+      const response = await apiClient.get<ApiResponse<any[]>>(
+        `/jobs/search?${queryParams.toString()}`
+      )
       
       // Map backend format to frontend format
       const mappedJobs = response.data.map(mapBackendJobToFrontend)
@@ -134,6 +174,11 @@ export const jobsApi = {
       console.error('Failed to fetch jobs:', error)
       return { data: [], error: 'Failed to fetch jobs' }
     }
+  },
+
+  // Legacy method - delegates to getJobs
+  getAll: async (filters?: { location?: string; type?: string; remote?: boolean }): Promise<{ data: Job[]; error?: string }> => {
+    return jobsApi.getJobs(filters || {})
   },
 
   getById: async (id: string): Promise<{ data: Job | null; error?: string }> => {
@@ -149,12 +194,11 @@ export const jobsApi = {
 
   getFeatured: async (): Promise<{ data: Job[]; error?: string }> => {
     try {
-      // For now, get all jobs and filter featured on the frontend
-      // Backend could implement a /jobs/featured endpoint later
-      const response = await apiClient.get<ApiResponse<any[]>>('/jobs')
-      const mappedJobs = response.data.map(mapBackendJobToFrontend)
-      const featuredJobs = mappedJobs.filter(job => job.is_featured).slice(0, 3)
+      // Use the unified getJobs method and filter featured on frontend
+      const result = await jobsApi.getJobs({}, 1, 10)
+      if (result.error) return result
       
+      const featuredJobs = result.data.filter(job => job.is_featured).slice(0, 3)
       return { data: featuredJobs }
     } catch (error) {
       console.error('Failed to fetch featured jobs:', error)
@@ -164,24 +208,28 @@ export const jobsApi = {
 
   getMatched: async (userId: string, filters?: { location?: string; type?: string; remote?: boolean }): Promise<{ data: Job[]; error?: string }> => {
     try {
-      // Backend could implement a /jobs/matched endpoint later
-      // For now, get all jobs - they should include matchScore from backend
-      const queryParams = new URLSearchParams()
-      if (filters?.location) queryParams.append('location', filters.location)
-      if (filters?.type) queryParams.append('job_type', filters.type)
-      if (filters?.remote !== undefined) queryParams.append('remote', filters.remote.toString())
+      // Use the unified getJobs method 
+      const result = await jobsApi.getJobs(filters || {})
+      if (result.error) return result
       
-      const endpoint = `/jobs${queryParams.toString() ? '?' + queryParams.toString() : ''}`
-      const response = await apiClient.get<ApiResponse<any[]>>(endpoint)
-      
-      const mappedJobs = response.data.map(mapBackendJobToFrontend)
-      // Filter for jobs with high match scores
-      const matchedJobs = mappedJobs.filter(job => job.matchScore && job.matchScore > 70)
+      // Filter for jobs with high match scores (when matching algorithm is implemented)
+      // For now, return all jobs since matchScore is 0
+      const matchedJobs = result.data.filter(job => job.matchScore === undefined || job.matchScore >= 0)
       
       return { data: matchedJobs }
     } catch (error) {
       console.error('Failed to fetch matched jobs:', error)
       return { data: [], error: 'Failed to fetch matched jobs' }
+    }
+  },
+
+  getFilters: async (): Promise<{ data: { categories: string[]; job_types: string[]; cities: string[]; states: string[]; countries: string[] } | null; error?: string }> => {
+    try {
+      const response = await apiClient.get<ApiResponse<{ categories: string[]; job_types: string[]; cities: string[]; states: string[]; countries: string[] }>>('/jobs/filters')
+      return { data: response.data }
+    } catch (error) {
+      console.error('Failed to fetch job filters:', error)
+      return { data: null, error: 'Failed to fetch job filters' }
     }
   }
 }

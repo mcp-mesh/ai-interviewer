@@ -40,7 +40,7 @@ export function Navigation({ userState = "guest", user, className, theme = "dark
       }
 
       try {
-        if (user?.isResumeAvailable) {
+        if (user?.hasResume) {
           // User has resume - get matched jobs count
           const response = await jobsApi.getMatched(user.id)
           setJobsCount(response.data?.length || 0)
@@ -56,7 +56,7 @@ export function Navigation({ userState = "guest", user, className, theme = "dark
     }
 
     fetchJobsCount()
-  }, [isLoggedIn, user?.isResumeAvailable, user?.id])
+  }, [isLoggedIn, user?.hasResume, user?.id])
 
   // Determine nav styling based on theme and user state
   const getNavStyles = () => {
@@ -140,7 +140,7 @@ export function Navigation({ userState = "guest", user, className, theme = "dark
                   Dashboard
                 </Link>
                 <Link 
-                  href={user?.isResumeAvailable ? "/jobs/matched" : "/jobs"}
+                  href={user?.hasResume ? "/jobs/matched" : "/jobs"}
                   className="text-text-secondary hover:text-primary-500 font-medium transition-colors relative pr-6"
                 >
                   Jobs
@@ -269,7 +269,7 @@ export function Navigation({ userState = "guest", user, className, theme = "dark
                     Dashboard
                   </Link>
                   <div className="block py-2 text-foreground hover:text-primary-500 relative">
-                    <Link href={user?.isResumeAvailable ? "/jobs/matched" : "/jobs"} className="block pr-6">
+                    <Link href={user?.hasResume ? "/jobs/matched" : "/jobs"} className="block pr-6">
                       Jobs
                       {/* Show badge with dynamic count */}
                       {jobsCount > 0 && (

@@ -4,7 +4,10 @@ def get_job_data():
     return {
         'title': 'Senior Business Analyst - Wealth Platform Implementation',
         'company': 'S. Corp',
-        'location': 'London, United Kingdom',
+        'location': 'London, United Kingdom',  # Keep for display
+        'city': 'London',
+        'state': None,
+        'country': 'United Kingdom',
         'job_type': 'Full-time',
         'category': 'Operations',
         'remote': False,
@@ -16,7 +19,6 @@ def get_job_data():
         'salary_min': None,
         'salary_max': None,
         'salary_currency': 'USD',
-        'is_featured': False,
         'posted_date': datetime.fromisoformat('2025-06-16T00:00:00+00:00'),
         'is_active': True
     }

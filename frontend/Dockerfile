@@ -13,6 +13,9 @@ RUN npm install
 # Copy source code
 COPY . .
 
+# Create .next directory for Next.js build cache
+RUN mkdir -p .next && chown -R node:node .next
+
 # Expose port
 EXPOSE 3000
 

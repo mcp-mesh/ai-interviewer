@@ -4,7 +4,10 @@ def get_job_data():
     return {
         'title': 'Supervisor - Alternative Investment Funds (HYBRID)',
         'company': 'S. Corp',
-        'location': 'Oaks, Pennsylvania, United States of America',
+        'location': 'Oaks, Pennsylvania, United States of America',  # Keep for display
+        'city': 'Oaks',
+        'state': 'Pennsylvania',
+        'country': 'United States of America',
         'job_type': 'Full-time',
         'category': 'Operations',
         'remote': False,
@@ -16,7 +19,6 @@ def get_job_data():
         'salary_min': None,
         'salary_max': None,
         'salary_currency': 'USD',
-        'is_featured': False,
         'posted_date': datetime.fromisoformat('2025-05-28T00:00:00+00:00'),
         'is_active': True
     }

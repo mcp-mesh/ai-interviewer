@@ -23,7 +23,6 @@ export default function InterviewPreparePage({ params }: PreparePageProps) {
     name: "Dhyan Raj",
     email: "dhyan.raj@gmail.com",
     hasResume: true,
-    isResumeAvailable: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   })

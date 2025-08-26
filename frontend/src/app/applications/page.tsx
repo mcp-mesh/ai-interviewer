@@ -177,7 +177,7 @@ export default function ApplicationsPage() {
     )
   }
 
-  const userState = user?.isResumeAvailable ? "has-resume" : "no-resume"
+  const userState = user?.hasResume ? "has-resume" : "no-resume"
 
   return (
     <div className="page-light min-h-screen">

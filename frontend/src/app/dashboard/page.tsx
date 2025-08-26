@@ -43,7 +43,7 @@ export default function DashboardPage() {
   }, [])
 
   // Show different dashboard based on user state
-  const hasResume = user?.isResumeAvailable || false
+  const hasResume = user?.hasResume || false
   const hasApplications = user?.isApplicationsAvailable || false
 
   // Dynamic profile status calculations
@@ -56,7 +56,7 @@ export default function DashboardPage() {
         text: 'Profile complete - actively applying!',
         color: 'text-green-600'
       }
-    } else if (user.isResumeAvailable) {
+    } else if (user.hasResume) {
       return { 
         percentage: 60, 
         text: 'Great! Start applying to boost to 100%',
@@ -74,7 +74,7 @@ export default function DashboardPage() {
   const getJobMatchesCount = () => {
     if (!user) return 0
     // If user has resume, show matched jobs count, otherwise show available jobs
-    if (user.isResumeAvailable) {
+    if (user.hasResume) {
       return user.matchedJobs || 0
     } else {
       return user.availableJobs || 0
@@ -258,49 +258,104 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {/* Profile Summary Card */}
-          <div className="bg-white border border-[#e5e7eb] rounded-xl p-8 mb-12">
-            <div className="flex justify-between items-start mb-8">
-              <h3 className="text-[1.5rem] font-semibold text-[#1f2937] flex items-center gap-2">
-                <FileText className="w-6 h-6 text-primary-600" /> Your Profile Summary
-              </h3>
-              <Button 
-                onClick={handleUploadResume}
-                variant="secondary"
-                size="sm"
-                className="text-sm"
-              >
-                Update Resume
-              </Button>
-            </div>
-            
-            <div className="grid md:grid-cols-4 gap-8">
-              <div>
-                <h4 className="font-semibold text-[#1f2937] mb-2">Experience Level</h4>
-                <p className="text-[#6b7280] text-sm">Senior (5+ years)</p>
-              </div>
-              
-              <div>
-                <h4 className="font-semibold text-[#1f2937] mb-2">Primary Skills</h4>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">JavaScript</span>
-                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">React</span>
-                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">Node.js</span>
-                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">AWS</span>
+          {/* Conditional Content Based on Resume Status */}
+          {!hasResume ? (
+            <>
+              {/* Upload Resume CTA - Main Focus */}
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-12 mb-12 text-center">
+                <div className="max-w-2xl mx-auto">
+                  <FileText className="w-16 h-16 mb-4 mx-auto text-primary-500" />
+                  <h2 className="text-3xl font-bold mb-4">
+                    Upload Your Resume to Unlock AI-Powered Matching
+                  </h2>
+                  <p className="text-lg mb-8 leading-relaxed text-gray-600">
+                    Get personalized job recommendations, instant match scores, and AI-powered application assistance by uploading your resume.
+                  </p>
+                  <Button 
+                    onClick={handleUploadResume}
+                    variant="primary"
+                    size="lg"
+                    className="px-8 py-3 text-base"
+                  >
+                    Upload Resume Now
+                  </Button>
                 </div>
               </div>
-              
-              <div>
-                <h4 className="font-semibold text-[#1f2937] mb-2">Preferred Location</h4>
-                <p className="text-[#6b7280] text-sm">San Francisco, CA (Remote OK)</p>
+            </>
+          ) : (
+            <>
+              {/* AI Resume Analysis Card */}
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-8 mb-12">
+                <div className="flex justify-between items-start mb-6">
+                  <h3 className="text-[1.5rem] font-semibold text-[#1f2937] flex items-center gap-2">
+                    <Bot className="w-6 h-6 text-blue-600" /> AI Profile Analysis
+                  </h3>
+                  <Button 
+                    onClick={handleUploadResume}
+                    variant="gray"
+                    size="sm"
+                    className="text-sm"
+                  >
+                    Update Resume
+                  </Button>
+                </div>
+                
+                {/* Professional Summary */}
+                <div className="mb-8">
+                  <p className="text-[#374151] leading-relaxed text-base">
+                    {user?.resume_analysis?.professional_summary || "Professional summary will appear here after AI analysis."}
+                  </p>
+                </div>
+                
+                {/* Key Stats */}
+                <div className="grid md:grid-cols-3 gap-6 mb-6">
+                  <div className="bg-white rounded-lg p-4 border border-blue-100">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Target className="w-5 h-5 text-green-600" />
+                      <span className="font-semibold text-[#1f2937]">Experience</span>
+                    </div>
+                    <p className="text-2xl font-bold text-green-600">{user?.resume_analysis?.years_experience || 0}</p>
+                    <p className="text-sm text-gray-600">Years</p>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg p-4 border border-blue-100">
+                    <div className="flex items-center gap-2 mb-2">
+                      <UserIcon className="w-5 h-5 text-purple-600" />
+                      <span className="font-semibold text-[#1f2937]">Level</span>
+                    </div>
+                    <p className="text-xl font-bold text-purple-600 capitalize">{user?.resume_analysis?.experience_level || "Not specified"}</p>
+                    <p className="text-sm text-gray-600">Career Level</p>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg p-4 border border-blue-100">
+                    <div className="flex items-center gap-2 mb-2">
+                      <FileText className="w-5 h-5 text-indigo-600" />
+                      <span className="font-semibold text-[#1f2937]">Education</span>
+                    </div>
+                    <p className="text-lg font-bold text-indigo-600">{user?.resume_analysis?.education_level || "Not specified"}</p>
+                    <p className="text-sm text-gray-600">Highest Level</p>
+                  </div>
+                </div>
+                
+                {/* AI Analysis Info */}
+                <div className="bg-white/80 rounded-lg p-4 border border-blue-100">
+                  <p className="text-sm text-[#6b7280] mb-3">
+                    🤖 Your resume was automatically analyzed by AI to extract this structured information.
+                  </p>
+                  <div className="flex items-center gap-6 text-xs text-[#6b7280]">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                      <span>Provider: <span className="font-semibold capitalize">{user?.resume_analysis?.ai_provider || "Unknown"}</span></span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                      <span>Model: <span className="font-semibold">{user?.resume_analysis?.ai_model || "Unknown"}</span></span>
+                    </div>
+                  </div>
+                </div>
               </div>
-              
-              <div>
-                <h4 className="font-semibold text-[#1f2937] mb-2">Salary Range</h4>
-                <p className="text-[#6b7280] text-sm">$120k - $180k</p>
-              </div>
-            </div>
-          </div>
+            </>
+          )}
 
           {/* Current Status Card */}
           <div className="bg-white border border-[#e5e7eb] rounded-xl p-8 mb-12">
@@ -351,7 +406,7 @@ export default function DashboardPage() {
           </div>
 
           {/* AI Matches Section - Only show if resume is available */}
-          {user?.isResumeAvailable && (
+          {user?.hasResume && (
             <div className="bg-blue-50 border border-blue-200 rounded-2xl p-10 mb-12 text-center">
               <div className="max-w-2xl mx-auto">
                 <Target className="w-16 h-16 mb-4 mx-auto text-blue-500" />
