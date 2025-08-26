@@ -1,0 +1,8 @@
+# User Agent - MCP Mesh Agent Dependencies
+fastmcp
+pydantic
+typing-extensions
+redis
+sqlalchemy
+psycopg2-binary
+asyncpg

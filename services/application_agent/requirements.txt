@@ -1,0 +1,4 @@
+# Application Agent - MCP Mesh Agent Dependencies
+fastmcp
+pydantic
+typing-extensions

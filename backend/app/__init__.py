@@ -1,1 +1,1 @@
-# AI Interviewer Backend Application Package
+# Phase 2 Backend App Package

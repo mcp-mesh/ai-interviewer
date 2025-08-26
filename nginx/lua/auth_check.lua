@@ -12,12 +12,33 @@ if dev_mode == "true" then
     return  -- Skip authentication in dev mode
 end
 
+-- Allowlist of unprotected routes that don't require authentication
+local unprotected_routes = {
+    "^/api/jobs/?$",                    -- GET /api/jobs (list all jobs)
+    "^/api/jobs/categories/?$",         -- GET /api/jobs/categories (job categories)
+    "^/api/jobs/featured/?$",           -- GET /api/jobs/featured (featured jobs)
+    "^/api/jobs/[^/]+/?$",             -- GET /api/jobs/{id} (job details)
+    "^/api/health/?$"                   -- GET /api/health (health check)
+}
+
+-- Check if current URI matches any unprotected route
+local uri = ngx.var.uri
+for _, pattern in ipairs(unprotected_routes) do
+    if string.match(uri, pattern) then
+        ngx.log(ngx.INFO, "Unprotected route accessed: ", uri)
+        ngx.var.bearer_token = ""  -- Set empty bearer token for unprotected routes
+        return  -- Skip authentication for unprotected routes
+    end
+end
+
+ngx.log(ngx.INFO, "Protected route accessed: ", uri, " - authentication required")
+
 -- Get session cookie
 local session_cookie = ngx.var.cookie_session_id
 ngx.log(ngx.ERR, "Auth check - session cookie received: ", session_cookie or "nil")
 if not session_cookie then
     ngx.log(ngx.INFO, "No session cookie found, redirecting to login")
-    return ngx.redirect("/login.html")
+    return ngx.redirect("/login")
 end
 
 -- Connect to Redis
@@ -26,7 +47,7 @@ red:set_timeout(1000) -- 1 second
 local ok, err = red:connect("redis", 6379)
 if not ok then
     ngx.log(ngx.ERR, "Failed to connect to Redis: ", err)
-    return ngx.redirect("/login.html?error=redis_connection")
+    return ngx.redirect("/login?error=redis_connection")
 end
 
 -- Validate session
@@ -36,7 +57,7 @@ ngx.log(ngx.ERR, "Auth check - Redis get result: ", session_data or "nil", ", er
 if not session_data or session_data == ngx.null then
     ngx.log(ngx.INFO, "Invalid or expired session: ", session_cookie)
     red:close()
-    return ngx.redirect("/login.html?error=invalid_session")
+    return ngx.redirect("/login?error=invalid_session")
 end
 
 -- Parse session data
@@ -46,7 +67,7 @@ if not ok or type(session) ~= "table" then
     ngx.log(ngx.ERR, "Session data: ", string.sub(session_data, 1, 200))
     red:del("session:" .. session_cookie)
     red:close()
-    return ngx.redirect("/login.html?error=invalid_session_data")
+    return ngx.redirect("/login?error=invalid_session_data")
 end
 
 local current_time = ngx.time()
@@ -56,7 +77,7 @@ if session.expires_at and session.expires_at < current_time then
     ngx.log(ngx.INFO, "Session expired for user: ", session.user_email or "unknown")
     red:del("session:" .. session_cookie)
     red:close()
-    return ngx.redirect("/login.html?error=session_expired")
+    return ngx.redirect("/login?error=session_expired")
 end
 
 -- Set bearer token variable for Authorization header (use id_token JWT for local parsing)
