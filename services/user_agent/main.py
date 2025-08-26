@@ -296,6 +296,54 @@ def user_profile_update(
 
 @app.tool()
 @mesh.tool(
+    capability="get_resume_text",
+    tags=["user-management", "resume-processing", "text-content"],
+    description="Get raw resume text content for LLM processing"
+)
+def get_resume_text(user_email: str) -> Dict[str, Any]:
+    """
+    Get raw resume text content for LLM processing.
+    Separate from user_profile_get to avoid unnecessary bandwidth usage.
+    
+    Args:
+        user_email: User's email address
+        
+    Returns:
+        Dict with resume text content and metadata
+    """
+    try:
+        logger.info(f"Getting resume text for user: {user_email}")
+        
+        with get_db_session() as db:
+            db_user = db.query(User).filter(User.email == user_email).first()
+            
+            if not db_user or not db_user.resume:
+                return {
+                    "success": True,
+                    "has_resume": False,
+                    "text_content": "",
+                    "message": "No resume found"
+                }
+            
+            resume = db_user.resume
+            
+            return {
+                "success": True,
+                "has_resume": True,
+                "text_content": resume.text_content or "",
+                "filename": resume.filename,
+                "processed_at": resume.processed_at.isoformat() + "Z" if resume.processed_at else None,
+                "analysis_enhanced": resume.analysis_enhanced,
+                "message": "Resume text retrieved successfully"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error getting resume text: {str(e)}")
+        return {"success": False, "error": str(e)}
+
+
+@app.tool()
+@mesh.tool(
     capability="process_resume_upload",
     tags=["user-management", "resume-processing", "file-processing"],
     description="Process uploaded resume file and update user profile",

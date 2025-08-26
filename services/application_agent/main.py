@@ -2,19 +2,33 @@
 """
 Application Agent - MCP Mesh Agent for Application Management
 
-Handles all application-related operations with static mock data matching frontend expectations.
-Phase 2A implementation with capabilities: application_submit, applications_user_list, application_status_update
+Modular Phase 2 implementation with step-specific handlers and smart resume logic.
+Clean architecture with separated concerns: main.py orchestrates, steps/ handle details.
 """
 
 import logging
 import os
 from typing import Any, Dict, List, Optional
 from datetime import datetime
-import uuid
 
 import mesh
 from fastmcp import FastMCP
-from mesh.types import McpAgent
+from mesh.types import McpAgent, McpMeshAgent
+
+# Import database components
+from .database import create_tables, test_connections
+
+# Import modular components
+from .utils import (
+    get_or_create_application, 
+    update_application_step,
+    format_prefill_response,
+    format_step_save_response,
+    format_error_response,
+    get_next_step,
+    is_final_step
+)
+from .steps import get_step_handler
 
 # Create FastMCP app instance
 app = FastMCP("Application Management Agent")
@@ -26,231 +40,364 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Static Mock Data - Matching frontend/src/lib/mock-data.ts
-STATIC_APPLICATIONS = [
-    {
-        "id": "app-1",
-        "userId": "user-1",
-        "jobId": "1",
-        "status": "submitted",
-        "submittedAt": "2024-03-02T14:00:00Z",
-        "notes": "I am excited to apply for the Senior Frontend Developer position..."
-    },
-    {
-        "id": "app-2", 
-        "userId": "user-1",
-        "jobId": "2",
-        "status": "under-review",
-        "submittedAt": "2024-03-01T10:30:00Z",
-        "notes": "Looking forward to contributing to your startup..."
-    }
-]
+# Initialize database at startup
+logger.info("🚀 Initializing Application Agent v3.0 (Modular Architecture)")
 
-# Additional complete applications for better testing
-EXTENDED_APPLICATIONS = [
-    {
-        "id": "app-3",
-        "userId": "user-1", 
-        "jobId": "3",
-        "status": "interview_scheduled",
-        "submittedAt": "2024-02-28T16:30:00Z",
-        "notes": "I would love to join your backend team...",
-        "interview_date": "2024-03-05T10:00:00Z"
-    },
-    {
-        "id": "app-4",
-        "userId": "user-1",
-        "jobId": "4", 
-        "status": "rejected",
-        "submittedAt": "2024-02-25T09:15:00Z",
-        "notes": "My DevOps experience aligns perfectly with your needs...",
-        "rejection_reason": "Position filled by another candidate"
-    }
-]
+# Test database connections
+connections = test_connections()
+if connections["postgres"]:
+    logger.info("✅ PostgreSQL connection successful")
+    if create_tables():
+        logger.info("✅ Database schema initialized")
+    else:
+        logger.error("❌ Failed to initialize database schema")
+else:
+    logger.error("❌ PostgreSQL connection failed")
+    
+if connections["redis"]:
+    logger.info("✅ Redis connection successful")
+else:
+    logger.error("❌ Redis connection failed")
 
-# Combine all applications
-ALL_APPLICATIONS = STATIC_APPLICATIONS + EXTENDED_APPLICATIONS
+logger.info("✅ Application Agent ready with modular step processing")
 
 
 @app.tool()
 @mesh.tool(
-    capability="application_submit",
-    tags=["application-management", "submission", "workflow"],
-    description="Submit a new job application"
+    capability="application_start_with_prefill",
+    dependencies=[
+        {"capability": "get_resume_text"},
+        {"capability": "process_with_tools", "tags": ["+openai"]},
+        {"capability": "convert_tool_format", "tags": ["+openai"]},
+        {"capability": "job_details_get"}
+    ],
+    tags=["application-management", "step-specific-llm", "intelligent-autofill"],
+    description="Start application with smart resume logic - returns target step with prefill data"
 )
-def application_submit(
-    user_email: str,
+async def application_start_with_prefill(
     job_id: str,
-    application_data: Dict[str, Any]
-) -> Dict[str, Any]:
-    """
-    Submit a new job application.
-    
-    Args:
-        user_email: User's email address
-        job_id: Job ID to apply for
-        application_data: Application details (notes, cover letter, etc.)
-        
-    Returns:
-        Dict with application details and success status
-    """
-    try:
-        logger.info(f"Submitting application for user {user_email} to job {job_id}")
-        
-        # Generate new application ID
-        app_id = f"app-{uuid.uuid4().hex[:8]}"
-        
-        # Create new application
-        new_application = {
-            "id": app_id,
-            "userId": user_email,  # Using email as user ID for simplicity
-            "jobId": job_id,
-            "status": "submitted",
-            "submittedAt": datetime.utcnow().isoformat() + "Z",
-            "notes": application_data.get("notes", ""),
-            "cover_letter": application_data.get("cover_letter", ""),
-            "resume_url": application_data.get("resume_url", ""),
-            "additional_info": application_data.get("additional_info", {})
-        }
-        
-        # In a real system, this would be saved to database
-        # For now, we'll just return the created application
-        
-        result = {
-            "application": new_application,
-            "success": True,
-            "message": "Application submitted successfully"
-        }
-        
-        logger.info(f"Application {app_id} submitted successfully for job {job_id}")
-        return result
-        
-    except Exception as e:
-        logger.error(f"Error in application_submit: {str(e)}")
-        return {"success": False, "error": str(e)}
-
-
-@app.tool()
-@mesh.tool(
-    capability="applications_user_list",
-    tags=["application-management", "listing", "user-specific"],
-    description="Get all applications for a specific user"
-)
-def applications_user_list(
     user_email: str,
-    page: int = 1,
-    limit: int = 20,
-    status_filter: Optional[str] = None
+    user_agent: McpMeshAgent = None,
+    llm_service: McpMeshAgent = None,
+    convert_tool_format: McpMeshAgent = None,
+    job_agent: McpMeshAgent = None
 ) -> Dict[str, Any]:
     """
-    Get all applications for a specific user.
+    Start application with smart resume logic:
+    - Check for existing application (implements user's resume feature)
+    - Return target step based on current progress
+    - Generate prefill data for target step using appropriate handler
     
     Args:
+        job_id: Job ID to apply for
         user_email: User's email address
-        page: Page number for pagination
-        limit: Number of applications per page
-        status_filter: Optional status filter ("submitted", "under-review", "interview_scheduled", "rejected")
+        user_agent: MCP Mesh agent for user operations
+        llm_service: MCP Mesh agent for LLM processing
+        convert_tool_format: Tool format converter for LLM compatibility
+        job_agent: MCP Mesh agent for job operations
         
     Returns:
-        Dict with user's applications list and metadata
+        Dict with application details and target step prefill data
     """
     try:
-        logger.info(f"Getting applications for user {user_email}, page {page}, limit {limit}")
+        logger.info(f"Starting application: user={user_email}, job={job_id}")
         
-        # Filter applications by user (using email as user ID)
-        user_applications = [app for app in ALL_APPLICATIONS if app["userId"] == user_email]
+        # 1. Get or create application (implements smart resume logic)
+        application = await get_or_create_application(user_email, job_id)
+        target_step_str = application["step"]
         
-        # Apply status filter if provided
-        if status_filter:
-            user_applications = [app for app in user_applications if app["status"] == status_filter]
+        # Convert step string to integer for handler (STEP_1 -> 1)
+        target_step = int(target_step_str.replace("STEP_", ""))
         
-        total_applications = len(user_applications)
+        logger.info(f"Target step for user: {target_step} (status: {application['status']})")
         
-        # Apply pagination
-        start_idx = (page - 1) * limit
-        end_idx = start_idx + limit
-        paginated_applications = user_applications[start_idx:end_idx]
+        # 2. Get resume text for LLM processing
+        resume_text = ""
+        if user_agent:
+            try:
+                resume_result = await user_agent(user_email=user_email)
+                if resume_result.get("success") and resume_result.get("text_content"):
+                    resume_text = resume_result["text_content"]
+                    logger.info(f"Retrieved resume text: {len(resume_text)} characters")
+                else:
+                    logger.info("No resume text available for prefill generation")
+            except Exception as resume_error:
+                logger.warning(f"Failed to get resume text: {resume_error}")
         
-        result = {
-            "applications": paginated_applications,
-            "total": total_applications,
-            "page": page,
-            "limit": limit,
-            "success": True
+        # 3. Generate prefill data using appropriate step handler
+        step_handler = get_step_handler(target_step)
+        
+        # Prepare handler arguments
+        handler_args = {
+            "application_id": application["id"],
+            "resume_text": resume_text,
+            "llm_service": llm_service,
+            "convert_tool_format": convert_tool_format,
+            "save_data": False  # Don't save on start, only generate prefill
         }
         
-        logger.info(f"Returning {len(paginated_applications)} applications for user {user_email}")
-        return result
+        # Add job_agent for step 6 (review) which needs job details
+        if target_step == 6 and job_agent:
+            handler_args["job_agent"] = job_agent
+        
+        step_result = await step_handler(**handler_args)
+        
+        if not step_result.get("success"):
+            logger.error(f"Step {target_step} processing failed: {step_result.get('error')}")
+            return format_error_response(
+                error=f"Failed to generate prefill for step {target_step}",
+                details={"step_error": step_result.get("error")}
+            )
+        
+        # 4. Format successful response
+        step_info = {
+            "step_number": target_step,
+            "step_name": step_result.get("step_name"),
+            "step_title": step_result.get("step_title"),
+            "step_description": step_result.get("step_description")
+        }
+        
+        logger.info(f"Successfully generated prefill for step {target_step}")
+        
+        return format_prefill_response(
+            target_step=target_step,
+            prefill_data=step_result.get("prefill_data", {}),
+            application_id=application["id"],
+            step_info=step_info,
+            message=f"Application ready for step {target_step}"
+        )
         
     except Exception as e:
-        logger.error(f"Error in applications_user_list: {str(e)}")
-        return {"applications": [], "total": 0, "page": page, "limit": limit, "error": str(e)}
+        logger.error(f"Application start failed: {e}")
+        return format_error_response(
+            error="Failed to start application",
+            details={"exception": str(e)}
+        )
 
 
 @app.tool()
 @mesh.tool(
-    capability="application_status_update",
-    tags=["application-management", "status", "workflow"],
-    description="Update application status"
+    capability="application_step_save_with_next_prefill",
+    dependencies=[
+        {"capability": "get_resume_text"},
+        {"capability": "process_with_tools", "tags": ["+openai"]},
+        {"capability": "convert_tool_format", "tags": ["+openai"]},
+        {"capability": "job_details_get"}
+    ],
+    tags=["application-management", "step-management", "intelligent-autofill"],
+    description="Save current step data and return next step prefill data"
 )
-def application_status_update(
+async def application_step_save_with_next_prefill(
     application_id: str,
-    new_status: str,
-    admin_notes: Optional[str] = None
+    step_number: int,
+    step_data: Dict[str, Any],
+    user_email: str,
+    user_agent: McpMeshAgent = None,
+    llm_service: McpMeshAgent = None,
+    convert_tool_format: McpMeshAgent = None,
+    job_agent: McpMeshAgent = None
 ) -> Dict[str, Any]:
     """
-    Update the status of an application.
+    Save current step data and return next step prefill data.
     
     Args:
-        application_id: Application ID to update
-        new_status: New status ("submitted", "under-review", "interview_scheduled", "rejected", "hired")
-        admin_notes: Optional admin notes about the status change
+        application_id: Application ID
+        step_number: Current step number (1-6)
+        step_data: Data to save for current step
+        user_email: User email for resume lookup
+        user_agent: MCP Mesh agent for user operations
+        llm_service: MCP Mesh agent for LLM processing
+        convert_tool_format: Tool format converter
+        job_agent: MCP Mesh agent for job operations
         
     Returns:
-        Dict with updated application details
+        Dict with save status and next step prefill data
     """
     try:
-        logger.info(f"Updating application {application_id} status to {new_status}")
+        logger.info(f"Saving step {step_number} for application {application_id}")
         
-        # Find application (in real system, this would be a database update)
-        application = None
-        for app in ALL_APPLICATIONS:
-            if app["id"] == application_id:
-                application = app.copy()
-                break
+        # 1. Get current step handler and save data
+        current_step_handler = get_step_handler(step_number)
         
-        if not application:
-            logger.warning(f"Application not found: {application_id}")
-            return {"success": False, "error": f"Application {application_id} not found"}
-        
-        # Update status
-        application["status"] = new_status
-        application["status_updated_at"] = datetime.utcnow().isoformat() + "Z"
-        
-        if admin_notes:
-            application["admin_notes"] = admin_notes
-        
-        # Add status-specific fields
-        if new_status == "interview_scheduled":
-            application["interview_date"] = (datetime.utcnow()).isoformat() + "Z"  # Mock future date
-        elif new_status == "rejected" and not admin_notes:
-            application["rejection_reason"] = "Position filled by another candidate"
-        
-        result = {
-            "application": application,
-            "success": True,
-            "message": f"Application status updated to {new_status}"
+        # Save current step 
+        save_handler_args = {
+            "application_id": application_id,
+            "resume_text": "",  # Not needed for saving
+            "step_data": step_data,  # Pass the data to save
+            "save_data": True
         }
         
-        logger.info(f"Application {application_id} status updated to {new_status}")
-        return result
+        # Add required MCP agents for step 6 (review) which needs them for submission
+        if step_number == 6:
+            save_handler_args.update({
+                "job_agent": job_agent,
+                "user_agent": user_agent, 
+                "llm_service": llm_service,
+                "convert_tool_format": convert_tool_format
+            })
+        
+        save_result = await current_step_handler(**save_handler_args)
+        
+        if not save_result.get("success"):
+            logger.error(f"Failed to save step {step_number}: {save_result.get('error')}")
+            return format_error_response(
+                error=f"Failed to save step {step_number}",
+                details={"save_error": save_result.get("error")}
+            )
+        
+        # 2. Update application to next step
+        next_step_number = get_next_step(step_number)
+        
+        if next_step_number is None:
+            # Final step reached - mark as completed
+            await update_application_step(
+                application_id=application_id,
+                new_step=step_number,
+                status="COMPLETED"
+            )
+            
+            logger.info(f"Application {application_id} completed successfully")
+            
+            return format_step_save_response(
+                next_step=None,
+                prefill_data=None,
+                application_id=application_id,
+                saved_step=step_number,
+                is_final=True,
+                message="Application completed successfully"
+            )
+        
+        # 3. Update application to next step
+        await update_application_step(
+            application_id=application_id,
+            new_step=next_step_number,
+            status="STARTED"
+        )
+        
+        # 4. Get resume text for next step prefill
+        resume_text = ""
+        if user_agent:
+            try:
+                resume_result = await user_agent(user_email=user_email)
+                if resume_result.get("success") and resume_result.get("text_content"):
+                    resume_text = resume_result["text_content"]
+                    logger.info(f"Retrieved resume for next step prefill: {len(resume_text)} chars")
+            except Exception as resume_error:
+                logger.warning(f"Failed to get resume for next step: {resume_error}")
+        
+        # 5. Generate prefill for next step
+        next_step_handler = get_step_handler(next_step_number)
+        
+        # Prepare handler arguments
+        handler_args = {
+            "application_id": application_id,
+            "resume_text": resume_text,
+            "llm_service": llm_service,
+            "convert_tool_format": convert_tool_format,
+            "save_data": False  # Don't save, just generate prefill
+        }
+        
+        # Add job_agent for step 6 (review) which needs job details
+        if next_step_number == 6 and job_agent:
+            handler_args["job_agent"] = job_agent
+        
+        next_step_result = await next_step_handler(**handler_args)
+        
+        if not next_step_result.get("success"):
+            logger.warning(f"Next step prefill failed: {next_step_result.get('error')}")
+            # Still return success for save, but with empty prefill
+            next_step_prefill = {}
+        else:
+            next_step_prefill = next_step_result.get("prefill_data", {})
+            logger.info(f"Generated prefill for step {next_step_number}")
+        
+        return format_step_save_response(
+            next_step=next_step_number,
+            prefill_data=next_step_prefill,
+            application_id=application_id,
+            saved_step=step_number,
+            message=f"Step {step_number} saved, ready for step {next_step_number}"
+        )
         
     except Exception as e:
-        logger.error(f"Error in application_status_update: {str(e)}")
-        return {"success": False, "error": str(e)}
+        logger.error(f"Step save failed: {e}")
+        return format_error_response(
+            error="Failed to save step data",
+            details={"exception": str(e)}
+        )
 
 
-# Agent class definition - MCP Mesh pattern
+@app.tool()
+@mesh.tool(
+    capability="application_get_status",
+    tags=["application-management", "status-check"],
+    description="Get current application status and progress"
+)
+async def application_get_status(
+    application_id: str
+) -> Dict[str, Any]:
+    """
+    Get current application status and progress.
+    
+    Args:
+        application_id: Application ID
+        
+    Returns:
+        Dict with application status and progress information
+    """
+    try:
+        from .utils.application_state import get_application_state
+        from .utils.response_formatting import format_application_status_response
+        
+        # This would need to be implemented to get by ID instead of user+job
+        # For now, return a placeholder
+        logger.info(f"Getting status for application {application_id}")
+        
+        return {
+            "success": True,
+            "message": "Status check not yet implemented",
+            "application_id": application_id
+        }
+        
+    except Exception as e:
+        logger.error(f"Status check failed: {e}")
+        return format_error_response(
+            error="Failed to get application status",
+            details={"exception": str(e)}
+        )
+
+
+@app.tool()
+@mesh.tool(
+    capability="health_check",
+    tags=["application-management", "monitoring"],
+    description="Application agent health check"
+)
+def get_agent_status() -> Dict[str, Any]:
+    """Get agent health status."""
+    return {
+        "agent_name": "application-agent",
+        "version": "3.0.0",
+        "status": "healthy",
+        "architecture": "modular",
+        "capabilities": [
+            "application_start_with_prefill",
+            "application_step_save_with_next_prefill", 
+            "application_get_status"
+        ],
+        "step_handlers": [
+            "personal_info",
+            "experience", 
+            "questions",
+            "disclosures",
+            "identity",
+            "review"
+        ],
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+# MCP Mesh Agent Class for registration
 @mesh.agent(
     name="application-agent",
     auto_run=True
@@ -259,15 +406,25 @@ class ApplicationAgent(McpAgent):
     """
     Application Agent for AI Interviewer Phase 2
     
-    Handles all application-related operations with static mock data.
-    Capabilities: application_submit, applications_user_list, application_status_update
+    Modular architecture with step-specific handlers:
+    - Smart resume logic (checks existing progress)
+    - Step-specific LLM extraction with dedicated handlers
+    - Clean separation of concerns (utils, steps, tool_specs)
+    - Comprehensive database persistence with PostgreSQL + Redis
+    - Standardized response formatting
+    
+    Key Features:
+    1. Intelligent application resume - returns user to correct step
+    2. Step-specific LLM extraction using dedicated tool specifications
+    3. Modular handler architecture for maintainability
+    4. Database persistence with upsert logic
+    5. Comprehensive error handling and logging
     """
     
     def __init__(self):
-        logger.info("🚀 Initializing Application Agent v2.0")
-        logger.info(f"📋 Loaded {len(ALL_APPLICATIONS)} applications")
-        logger.info("✅ Application Agent ready to serve requests")
+        logger.info("Application Agent v3.0 initialized with modular architecture")
+        logger.info("Ready for intelligent application processing with step-specific handlers")
 
 
 if __name__ == "__main__":
-    logger.info("Application Agent starting...")
+    logger.info("Application Agent v3.0 starting with modular architecture...")

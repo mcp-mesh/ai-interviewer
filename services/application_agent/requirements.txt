@@ -2,3 +2,7 @@
 fastmcp
 pydantic
 typing-extensions
+redis
+sqlalchemy
+psycopg2-binary
+asyncpg
