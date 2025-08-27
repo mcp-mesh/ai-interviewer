@@ -54,21 +54,62 @@ else:
 logger.info("✅ User Agent ready to serve requests")
 
 
+async def get_user_applications(user_email: str, application_agent: McpMeshAgent = None) -> list:
+    """
+    Helper function to get user applications from application agent.
+    
+    Args:
+        user_email: User's email address
+        application_agent: MCP Mesh agent for applications
+        
+    Returns:
+        List of user applications or empty list if failed
+    """
+    if not application_agent:
+        logger.warning("application_agent is None - returning empty applications list")
+        return []
+    
+    try:
+        logger.info(f"Fetching applications for user: {user_email}")
+        result = await application_agent(user_email=user_email)
+        
+        if result and result.get("success") and "applications" in result:
+            applications = result["applications"]
+            logger.info(f"Successfully fetched {len(applications)} applications for user: {user_email}")
+            return applications
+        else:
+            logger.warning(f"Failed to fetch applications: {result}")
+            return []
+            
+    except Exception as e:
+        logger.error(f"Error fetching applications for user {user_email}: {e}")
+        return []
+
+
 @app.tool()
 @mesh.tool(
     capability="user_profile_get",
+    dependencies=[
+        {"capability": "user_applications_get"}
+    ],
     tags=["user-management", "profiles", "data-retrieval"],
     description="Get user profile and preferences by email"
 )
-def user_profile_get(user_email: str, first_name: str = "", last_name: str = "") -> Dict[str, Any]:
+async def user_profile_get(
+    user_email: str, 
+    first_name: str = "", 
+    last_name: str = "",
+    application_agent: McpMeshAgent = None
+) -> Dict[str, Any]:
     """
     Get user profile information with cache-first, postgres-backed storage.
-    Creates user if doesn't exist.
+    Creates user if doesn't exist. Includes applications from application agent.
     
     Args:
         user_email: User's email address
         first_name: First name from OAuth token
         last_name: Last name from OAuth token
+        application_agent: MCP Mesh agent for applications
         
     Returns:
         Dict with user profile data in frontend-expected format
@@ -97,6 +138,10 @@ def user_profile_get(user_email: str, first_name: str = "", last_name: str = "")
                 
                 # Convert to frontend format
                 profile = build_frontend_user_profile(db_user)
+                
+                # Get applications from application agent
+                user_applications = await get_user_applications(user_email, application_agent)
+                profile["applications"] = user_applications
                 
                 # Cache the profile
                 UserCache.set(user_email, profile)
@@ -138,6 +183,10 @@ def user_profile_get(user_email: str, first_name: str = "", last_name: str = "")
             
             # Convert to frontend format
             profile = build_frontend_user_profile(new_user)
+            
+            # Get applications from application agent
+            user_applications = await get_user_applications(user_email, application_agent)
+            profile["applications"] = user_applications
             
             # Cache the profile
             UserCache.set(user_email, profile)
@@ -210,7 +259,7 @@ def build_frontend_user_profile(db_user: User) -> Dict[str, Any]:
             "confidence_score": resume.confidence_score if resume else None,
         } if resume else {},
         
-        # Will be populated by other agents
+        # Will be populated by the main function
         "applications": [],
         
         # Timestamps
@@ -447,38 +496,77 @@ async def process_resume_upload(
                 # Extract structured analysis from PDF processing result
                 profile_analysis = extraction_result.get("profile_analysis", {})
                 
-                # Create new Resume record with structured fields
-                new_resume = Resume(
-                    user_id=db_user.id,
-                    filename=filename,
-                    file_path=file_path,
-                    file_size=file_size,
-                    minio_url=minio_url,
-                    uploaded_at=datetime.fromisoformat(uploaded_at.replace('Z', '+00:00')),
-                    processed_at=datetime.utcnow(),
-                    
-                    # AI analysis structured fields
-                    categories=profile_analysis.get("categories"),
-                    experience_level=profile_analysis.get("experience_level"),
-                    years_experience=profile_analysis.get("years_experience"),
-                    tags=profile_analysis.get("tags"),
-                    professional_summary=profile_analysis.get("professional_summary"),
-                    education_level=profile_analysis.get("education_level"),
-                    confidence_score=profile_analysis.get("confidence_score"),
-                    profile_strength=profile_analysis.get("profile_strength"),
-                    
-                    # AI processing metadata
-                    ai_provider=profile_analysis.get("ai_provider"),
-                    ai_model=profile_analysis.get("ai_model"),
-                    analysis_enhanced=extraction_result.get("analysis_enhanced", False),
-                    
-                    # Raw content for fallback
-                    text_content=extraction_result.get("text_content"),
-                    basic_sections=extraction_result.get("sections"),
-                    text_stats=extraction_result.get("text_stats")
-                )
+                # Check if resume already exists for this user (upsert logic)
+                existing_resume = db.query(Resume).filter_by(user_id=db_user.id).first()
+                is_update = existing_resume is not None
                 
-                db.add(new_resume)
+                if existing_resume:
+                    # Update existing resume
+                    logger.info(f"Updating existing resume for user: {user_email}")
+                    existing_resume.filename = filename
+                    existing_resume.file_path = file_path
+                    existing_resume.file_size = file_size
+                    existing_resume.minio_url = minio_url
+                    existing_resume.uploaded_at = datetime.fromisoformat(uploaded_at.replace('Z', '+00:00'))
+                    existing_resume.processed_at = datetime.utcnow()
+                    
+                    # Update AI analysis structured fields
+                    existing_resume.categories = profile_analysis.get("categories")
+                    existing_resume.experience_level = profile_analysis.get("experience_level")
+                    existing_resume.years_experience = profile_analysis.get("years_experience")
+                    existing_resume.tags = profile_analysis.get("tags")
+                    existing_resume.professional_summary = profile_analysis.get("professional_summary")
+                    existing_resume.education_level = profile_analysis.get("education_level")
+                    existing_resume.confidence_score = profile_analysis.get("confidence_score")
+                    existing_resume.profile_strength = profile_analysis.get("profile_strength")
+                    
+                    # Update AI processing metadata
+                    existing_resume.ai_provider = profile_analysis.get("ai_provider")
+                    existing_resume.ai_model = profile_analysis.get("ai_model")
+                    existing_resume.analysis_enhanced = extraction_result.get("analysis_enhanced", False)
+                    
+                    # Update raw content
+                    existing_resume.text_content = extraction_result.get("text_content")
+                    existing_resume.basic_sections = extraction_result.get("sections")
+                    existing_resume.text_stats = extraction_result.get("text_stats")
+                    existing_resume.updated_at = datetime.utcnow()
+                    
+                    resume_record = existing_resume
+                else:
+                    # Create new Resume record
+                    logger.info(f"Creating new resume for user: {user_email}")
+                    new_resume = Resume(
+                        user_id=db_user.id,
+                        filename=filename,
+                        file_path=file_path,
+                        file_size=file_size,
+                        minio_url=minio_url,
+                        uploaded_at=datetime.fromisoformat(uploaded_at.replace('Z', '+00:00')),
+                        processed_at=datetime.utcnow(),
+                        
+                        # AI analysis structured fields
+                        categories=profile_analysis.get("categories"),
+                        experience_level=profile_analysis.get("experience_level"),
+                        years_experience=profile_analysis.get("years_experience"),
+                        tags=profile_analysis.get("tags"),
+                        professional_summary=profile_analysis.get("professional_summary"),
+                        education_level=profile_analysis.get("education_level"),
+                        confidence_score=profile_analysis.get("confidence_score"),
+                        profile_strength=profile_analysis.get("profile_strength"),
+                        
+                        # AI processing metadata
+                        ai_provider=profile_analysis.get("ai_provider"),
+                        ai_model=profile_analysis.get("ai_model"),
+                        analysis_enhanced=extraction_result.get("analysis_enhanced", False),
+                        
+                        # Raw content for fallback
+                        text_content=extraction_result.get("text_content"),
+                        basic_sections=extraction_result.get("sections"),
+                        text_stats=extraction_result.get("text_stats")
+                    )
+                    
+                    db.add(new_resume)
+                    resume_record = new_resume
                 
                 # Update user profile completion status
                 db_user.profile_completed = True
@@ -486,12 +574,15 @@ async def process_resume_upload(
                 
                 # Commit changes
                 db.commit()
-                db.refresh(new_resume)
                 
-                logger.info(f"Resume record created successfully for: {db_user.full_name}")
-                logger.info(f"Resume ID: {new_resume.id}")
-                logger.info(f"Categories: {new_resume.categories}")
-                logger.info(f"Experience level: {new_resume.experience_level}")
+                # Only refresh new records to get generated IDs
+                if not is_update:
+                    db.refresh(resume_record)
+                
+                logger.info(f"Resume record processed successfully for: {db_user.full_name}")
+                logger.info(f"Resume ID: {resume_record.id}")
+                logger.info(f"Categories: {resume_record.categories}")
+                logger.info(f"Experience level: {resume_record.experience_level}")
                 
         except Exception as db_error:
             logger.error(f"Database error creating resume record: {str(db_error)}")
@@ -508,8 +599,8 @@ async def process_resume_upload(
         
         return {
             "success": True,
-            "resume_data": new_resume.to_dict(),
-            "processed_data": new_resume.to_structured_analysis(),
+            "resume_data": resume_record.to_dict(),
+            "processed_data": resume_record.to_structured_analysis(),
             "profile_updated": True,
             "message": f"Resume processed and profile updated successfully. AI analysis: {'enhanced' if extraction_result.get('analysis_enhanced') else 'basic'}"
         }

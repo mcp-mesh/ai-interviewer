@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { User, UserApplication } from '@/lib/types'
 import { jobsApi } from '@/lib/api'
 import Link from 'next/link'
-import { MapPin, Clock, Calendar, RotateCw, Target, CheckCircle, FileText } from 'lucide-react'
+import { MapPin, Clock, Calendar, RotateCw, Target, CheckCircle, FileText, Edit } from 'lucide-react'
 
 interface ApplicationWithJob extends UserApplication {
   job?: any // Will be populated from API
@@ -59,11 +59,12 @@ export default function ApplicationsPage() {
     loadData()
   }, [router])
 
-  // Group applications by status
+  // Group applications by server status directly
   const inProgressApplications = applications.filter(app => app.status === 'INPROGRESS')
-  const eligibleApplications = applications.filter(app => app.status === 'ELIGIBLE')
+  const qualifiedApplications = applications.filter(app => app.status === 'QUALIFIED')
+  const startedApplications = applications.filter(app => app.status === 'STARTED')
+  const appliedApplications = applications.filter(app => app.status === 'APPLIED')
   const completedApplications = applications.filter(app => app.status === 'COMPLETED')
-  const appliedApplications = applications.filter(app => !app.status) // undefined status = just applied
 
   const handleStartInterview = (application: ApplicationWithJob) => {
     // Update status to INPROGRESS and redirect to interview
@@ -85,6 +86,36 @@ export default function ApplicationsPage() {
   const handleContinueInterview = (application: ApplicationWithJob) => {
     // Redirect to interview page to continue
     router.push(`/interview/${application.jobId}/prepare`)
+  }
+
+  const handleContinueApplication = async (application: ApplicationWithJob) => {
+    try {
+      // Call API to get/resume application - this will return existing application ID and current step
+      const { applicationsApi } = await import('@/lib/api')
+      const result = await applicationsApi.startApplication(application.jobId)
+      
+      if (result.data) {
+        // Set current application data in localStorage so apply page can pick it up
+        const applicationData = {
+          applicationId: result.data.data?.application_id,
+          jobId: application.jobId,
+          currentStep: result.data.data?.target_step || result.data.data?.step_info?.step_number || 1,
+          prefillData: result.data.data?.prefill_data
+        }
+        localStorage.setItem('currentApplication', JSON.stringify(applicationData))
+        
+        // Now redirect to application flow
+        router.push(`/apply/${application.jobId}`)
+      } else {
+        console.error('Failed to continue application:', result.error)
+        // Fallback - redirect without API data
+        router.push(`/apply/${application.jobId}`)
+      }
+    } catch (error) {
+      console.error('Error continuing application:', error)
+      // Fallback - redirect without API data  
+      router.push(`/apply/${application.jobId}`)
+    }
   }
 
   const renderJobCard = (application: ApplicationWithJob, actionButton?: React.ReactNode) => {
@@ -109,7 +140,6 @@ export default function ApplicationsPage() {
                   {job.title}
                 </h3>
               </Link>
-              <p className="text-gray-600 mb-2">{job.company}</p>
               <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
                 <span className="flex items-center gap-1">
                   <MapPin className="w-4 h-4 text-primary-600" /> {job.location}
@@ -122,7 +152,7 @@ export default function ApplicationsPage() {
                 </span>
               </div>
               <p className="text-gray-700 text-sm line-clamp-2">
-                {job.description}
+                {job.short_description || job.description}
               </p>
             </div>
             <div className="ml-4 flex flex-col items-end gap-2">
@@ -217,13 +247,13 @@ export default function ApplicationsPage() {
           )}
 
           {/* Section 2: Ready for Interview */}
-          {eligibleApplications.length > 0 && (
+          {qualifiedApplications.length > 0 && (
             <div className="mb-12">
               <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
                 <Target className="w-5 h-5 text-primary-600" /> Ready for Interview
               </h2>
               <p className="text-gray-600 mb-6">Congratulations! You're eligible to start your interviews</p>
-              {eligibleApplications.map(app => 
+              {qualifiedApplications.map(app => 
                 renderJobCard(app, 
                   <Button 
                     onClick={() => handleStartInterview(app)}
@@ -237,18 +267,22 @@ export default function ApplicationsPage() {
             </div>
           )}
 
-          {/* Section 3: Completed Interviews */}
-          {completedApplications.length > 0 && (
+          {/* Section 3: Applications In Progress */}
+          {startedApplications.length > 0 && (
             <div className="mb-12">
               <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-success-600" /> Completed Interviews
+                <Edit className="w-5 h-5 text-orange-600" /> Applications In Progress
               </h2>
-              <p className="text-gray-600 mb-6">You've completed these interviews</p>
-              {completedApplications.map(app => 
+              <p className="text-gray-600 mb-6">You have applications that are not submitted yet. Continue where you left off.</p>
+              {startedApplications.map(app => 
                 renderJobCard(app, 
-                  <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                    Completed
-                  </span>
+                  <Button 
+                    onClick={() => handleContinueApplication(app)}
+                    variant="primary"
+                    size="sm"
+                  >
+                    Continue Application
+                  </Button>
                 )
               )}
             </div>
@@ -265,6 +299,23 @@ export default function ApplicationsPage() {
                 renderJobCard(app, 
                   <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
                     Applied
+                  </span>
+                )
+              )}
+            </div>
+          )}
+
+          {/* Section 5: Completed Interviews */}
+          {completedApplications.length > 0 && (
+            <div className="mb-12">
+              <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-success-600" /> Completed Interviews
+              </h2>
+              <p className="text-gray-600 mb-6">You've completed these interviews</p>
+              {completedApplications.map(app => 
+                renderJobCard(app, 
+                  <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                    Completed
                   </span>
                 )
               )}

@@ -259,6 +259,7 @@ async def handle_review_step(
     user_agent=None, 
     llm_service=None,
     convert_tool_format=None,
+    cache_agent=None,
     save_data: bool = True
 ) -> Dict[str, Any]:
     """
@@ -276,6 +277,7 @@ async def handle_review_step(
         user_agent: MCP agent for resume text
         llm_service: LLM agent for qualification assessment
         convert_tool_format: Tool format converter
+        cache_agent: MCP agent for cache invalidation
         save_data: Whether to save assessment data
         
     Returns:
@@ -365,7 +367,7 @@ async def handle_review_step(
                 final_status = "QUALIFIED"
                 result_param = "eligible"
             else:
-                final_status = "SUBMITTED" 
+                final_status = "APPLIED" 
                 result_param = "under-review"
             
             # 6. Save assessment to database
@@ -386,6 +388,20 @@ async def handle_review_step(
                     
                     db_session.commit()
                     logger.info(f"Application {application_id} finalized - Status: {final_status}, Score: {qualification_score}")
+            
+            # 6.5. Invalidate user cache to refresh applications list
+            if cache_agent:
+                try:
+                    logger.info(f"Invalidating user cache for: {user_email}")
+                    cache_result = await cache_agent(user_email=user_email)
+                    if cache_result and cache_result.get("success"):
+                        logger.info(f"User cache successfully invalidated for: {user_email}")
+                    else:
+                        logger.warning(f"Cache invalidation failed: {cache_result}")
+                except Exception as cache_error:
+                    logger.warning(f"Failed to invalidate user cache: {cache_error}")
+            else:
+                logger.warning("cache_agent is None - user cache will not be invalidated")
             
             # 7. Return response with UI redirect
             redirect_url = f"/apply/{job_id}/result?result={result_param}"

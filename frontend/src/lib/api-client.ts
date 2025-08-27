@@ -109,6 +109,7 @@ function mapBackendJobToFrontend(backendJob: any): Job {
     category: backendJob.category,
     remote: backendJob.remote,
     description: backendJob.description || '',
+    short_description: backendJob.short_description,
     requirements: backendJob.requirements || [],
     benefits: backendJob.benefits || [],
     salaryRange: backendJob.salaryRange,
@@ -236,41 +237,64 @@ export const jobsApi = {
 
 // Applications API - matches our backend endpoints
 export const applicationsApi = {
-  create: async (jobId: string, userId: string, coverLetter: string, additionalInfo?: any): Promise<{ data: Application | null; error?: string }> => {
+  // Start new application with job ID - returns application_id and step 1 prefill
+  startApplication: async (jobId: string): Promise<{ data: any | null; error?: string }> => {
     try {
-      const applicationData = {
-        job_id: jobId,
-        notes: coverLetter,
-        cover_letter: coverLetter,
-        additional_info: additionalInfo
-      }
-      
-      const response = await apiClient.post<ApiResponse<Application>>('/applications', applicationData)
-      return { data: response.data }
+      const response = await apiClient.post<any>(`/applications/new/steps/1`, { job_id: jobId })
+      return { data: response }
     } catch (error) {
-      console.error('Failed to create application:', error)
-      return { data: null, error: 'Failed to create application' }
+      console.error('Failed to start application:', error)
+      return { data: null, error: 'Failed to start application' }
     }
+  },
+
+  // Save current step and get next step prefill
+  saveStep: async (applicationId: string, stepNumber: number, stepData: any): Promise<{ data: any | null; error?: string }> => {
+    try {
+      const response = await apiClient.post<any>(`/applications/${applicationId}/steps/${stepNumber}`, { step_data: stepData })
+      return { data: response }
+    } catch (error) {
+      console.error('Failed to save application step:', error)
+      return { data: null, error: 'Failed to save application step' }
+    }
+  },
+
+  // Get application status
+  getStatus: async (applicationId: string): Promise<{ data: any | null; error?: string }> => {
+    try {
+      const response = await apiClient.get<any>(`/applications/${applicationId}/status`)
+      return { data: response }
+    } catch (error) {
+      console.error('Failed to get application status:', error)
+      return { data: null, error: 'Failed to get application status' }
+    }
+  },
+
+  // Get complete review data for Step 6
+  getReviewData: async (applicationId: string): Promise<{ data: any | null; error?: string }> => {
+    try {
+      const response = await apiClient.get<any>(`/applications/${applicationId}/review`)
+      return { data: response }
+    } catch (error) {
+      console.error('Failed to get application review data:', error)
+      return { data: null, error: 'Failed to get application review data' }
+    }
+  },
+
+  // Legacy methods for backward compatibility (can be removed later)
+  create: async (jobId: string, userId: string, coverLetter: string, additionalInfo?: any): Promise<{ data: Application | null; error?: string }> => {
+    console.warn('applicationsApi.create is deprecated, use startApplication instead')
+    return { data: null, error: 'Method deprecated' }
   },
 
   getByUserId: async (userId: string): Promise<{ data: Application[]; error?: string }> => {
-    try {
-      const response = await apiClient.get<ApiResponse<Application[]>>('/applications')
-      return { data: response.data }
-    } catch (error) {
-      console.error('Failed to fetch applications:', error)
-      return { data: [], error: 'Failed to fetch applications' }
-    }
+    console.warn('applicationsApi.getByUserId is deprecated')
+    return { data: [], error: 'Method deprecated' }
   },
 
   updateStatus: async (id: string, status: Application['status']): Promise<{ data: Application | null; error?: string }> => {
-    try {
-      const response = await apiClient.put<ApiResponse<Application>>(`/applications/${id}/status`, { status })
-      return { data: response.data }
-    } catch (error) {
-      console.error('Failed to update application status:', error)
-      return { data: null, error: 'Failed to update application status' }
-    }
+    console.warn('applicationsApi.updateStatus is deprecated')
+    return { data: null, error: 'Method deprecated' }
   }
 }
 

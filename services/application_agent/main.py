@@ -182,7 +182,8 @@ async def application_start_with_prefill(
         {"capability": "get_resume_text"},
         {"capability": "process_with_tools", "tags": ["+openai"]},
         {"capability": "convert_tool_format", "tags": ["+openai"]},
-        {"capability": "job_details_get"}
+        {"capability": "job_details_get"},
+        {"capability": "cache_invalidate"}
     ],
     tags=["application-management", "step-management", "intelligent-autofill"],
     description="Save current step data and return next step prefill data"
@@ -195,7 +196,8 @@ async def application_step_save_with_next_prefill(
     user_agent: McpMeshAgent = None,
     llm_service: McpMeshAgent = None,
     convert_tool_format: McpMeshAgent = None,
-    job_agent: McpMeshAgent = None
+    job_agent: McpMeshAgent = None,
+    cache_agent: McpMeshAgent = None
 ) -> Dict[str, Any]:
     """
     Save current step data and return next step prefill data.
@@ -209,6 +211,7 @@ async def application_step_save_with_next_prefill(
         llm_service: MCP Mesh agent for LLM processing
         convert_tool_format: Tool format converter
         job_agent: MCP Mesh agent for job operations
+        cache_agent: MCP Mesh agent for cache invalidation
         
     Returns:
         Dict with save status and next step prefill data
@@ -233,7 +236,8 @@ async def application_step_save_with_next_prefill(
                 "job_agent": job_agent,
                 "user_agent": user_agent, 
                 "llm_service": llm_service,
-                "convert_tool_format": convert_tool_format
+                "convert_tool_format": convert_tool_format,
+                "cache_agent": cache_agent
             })
         
         save_result = await current_step_handler(**save_handler_args)
@@ -249,12 +253,10 @@ async def application_step_save_with_next_prefill(
         next_step_number = get_next_step(step_number)
         
         if next_step_number is None:
-            # Final step reached - mark as completed
-            await update_application_step(
-                application_id=application_id,
-                new_step=step_number,
-                status="COMPLETED"
-            )
+            # Final step reached - application submitted
+            # Step 6 already sets status to QUALIFIED or APPLIED based on AI assessment
+            # Application agent's job is done - interview agent will handle INPROGRESS/COMPLETED later
+            pass
             
             logger.info(f"Application {application_id} completed successfully")
             
@@ -369,6 +371,236 @@ async def application_get_status(
 
 @app.tool()
 @mesh.tool(
+    capability="application_get_review_data",
+    dependencies=[
+        {"capability": "job_details_get"}
+    ],
+    tags=["application-management", "review"],
+    description="Get complete application review data aggregated from all steps"
+)
+async def get_application_review_data(
+    application_id: str,
+    job_agent: McpMeshAgent = None
+) -> Dict[str, Any]:
+    """
+    Get complete application review data for Step 6 (Review Your Application).
+    
+    Aggregates data from all database tables:
+    - Personal information (application_personal)
+    - Experience & skills (application_experience) 
+    - Application preferences (application_questions)
+    - Resume metadata (from user_agent schema)
+    - Job details (via job_agent)
+    
+    Args:
+        application_id: Application ID to fetch data for
+        job_agent: Job agent for fetching job details
+        
+    Returns:
+        Dict with complete review data organized by sections
+    """
+    try:
+        logger.info(f"Getting complete review data for application {application_id}")
+        
+        from .database import get_db_session, Application, ApplicationPersonalInfo, ApplicationExperience, ApplicationQuestions
+        from sqlalchemy import text
+        
+        with get_db_session() as db_session:
+            # 1. Get main application record
+            application = db_session.query(Application).filter(
+                Application.id == application_id
+            ).first()
+            
+            if not application:
+                return {
+                    "success": False,
+                    "error": "Application not found"
+                }
+            
+            # 2. Get personal information
+            personal = db_session.query(ApplicationPersonalInfo).filter(
+                ApplicationPersonalInfo.application_id == application_id
+            ).first()
+            
+            # 3. Get experience information  
+            experience = db_session.query(ApplicationExperience).filter(
+                ApplicationExperience.application_id == application_id
+            ).first()
+            
+            # 4. Get questions/preferences information
+            questions = db_session.query(ApplicationQuestions).filter(
+                ApplicationQuestions.application_id == application_id
+            ).first()
+            
+            # 5. Get resume information from user_agent schema
+            resume_data = None
+            try:
+                # First get user_id from user_agent.users using email
+                user_query = text("""
+                    SELECT u.id as user_id, r.filename, r.file_size, r.uploaded_at 
+                    FROM user_agent.users u 
+                    LEFT JOIN user_agent.resumes r ON u.id = r.user_id 
+                    WHERE u.email = :user_email
+                """)
+                user_result = db_session.execute(user_query, {"user_email": application.user_email}).first()
+                if user_result and user_result.filename:
+                    resume_data = {
+                        "filename": user_result.filename,
+                        "file_size": user_result.file_size,
+                        "uploaded_at": user_result.uploaded_at.isoformat() + "Z" if user_result.uploaded_at else None
+                    }
+            except Exception as e:
+                logger.warning(f"Could not fetch resume data: {e}")
+            
+            # 6. Get job details via job_agent
+            job_title = "Position Title"  # Default fallback
+            if job_agent:
+                try:
+                    logger.info(f"Calling job_agent to get details for job {application.job_id}")
+                    job_result = await job_agent(job_id=application.job_id)
+                    logger.info(f"Job agent returned: {type(job_result)} - {str(job_result)[:200]}...")
+                    if job_result and not job_result.get("error"):
+                        job_title = job_result.get("title") or job_result.get("job_title", job_title)
+                        logger.info(f"Successfully fetched job title: {job_title}")
+                    else:
+                        logger.warning(f"Job not found or error: {job_result.get('error', 'Unknown error')}")
+                except Exception as e:
+                    logger.warning(f"Could not fetch job details: {e}")
+            else:
+                logger.warning("job_agent is None - job details will not be fetched")
+            
+            # 7. Aggregate review data by sections
+            review_data = {
+                "position": {
+                    "job_title": job_title,
+                    "job_id": application.job_id
+                },
+                "personal_information": {
+                    "name": f"{personal.first_name} {personal.last_name}".strip() if personal else "",
+                    "first_name": personal.first_name if personal else "",
+                    "last_name": personal.last_name if personal else "",
+                    "email": personal.email if personal else "",
+                    "phone": personal.phone if personal else "",
+                    "location": {
+                        "city": personal.city if personal else "",
+                        "state": personal.state if personal else "",
+                        "country": personal.country if personal else ""
+                    }
+                },
+                "experience_and_skills": {
+                    "professional_summary": experience.summary if experience else "",
+                    "current_position": {
+                        "job_title": "",
+                        "company": ""
+                    },
+                    "technical_skills": experience.technical_skills if experience else ""
+                },
+                "application_preferences": {
+                    "work_authorization": questions.work_authorization if questions else "unknown",
+                    "relocate": questions.relocate if questions else "unknown", 
+                    "remote_work": questions.remote_work if questions else "unknown",
+                    "availability": questions.availability if questions else ""
+                },
+                "attached_documents": {
+                    "resume": resume_data
+                }
+            }
+            
+            # Extract current position from work experience if available
+            if experience and experience.work_experience:
+                work_exp = experience.work_experience
+                if isinstance(work_exp, list) and len(work_exp) > 0:
+                    current_exp = work_exp[0]  # First entry should be most recent
+                    review_data["experience_and_skills"]["current_position"] = {
+                        "job_title": current_exp.get("job_title", ""),
+                        "company": current_exp.get("company_name", "")
+                    }
+            
+            logger.info(f"Successfully aggregated review data for application {application_id}")
+            
+            return {
+                "success": True,
+                "application_id": application_id,
+                "data": review_data,
+                "metadata": {
+                    "application_status": application.status,
+                    "current_step": application.step,
+                    "updated_at": application.updated_at.isoformat() + "Z" if application.updated_at else None,
+                    "has_personal": personal is not None,
+                    "has_experience": experience is not None,
+                    "has_questions": questions is not None,
+                    "has_resume": resume_data is not None
+                }
+            }
+        
+    except Exception as e:
+        logger.error(f"Failed to get review data for application {application_id}: {e}")
+        return {
+            "success": False,
+            "error": f"Failed to get review data: {str(e)}"
+        }
+
+
+@app.tool()
+@mesh.tool(
+    capability="user_applications_get",
+    tags=["application-management", "user-applications"],
+    description="Get all applications for a specific user"
+)
+async def get_user_applications(
+    user_email: str
+) -> Dict[str, Any]:
+    """
+    Get all applications for a specific user.
+    
+    Args:
+        user_email: User's email address
+        
+    Returns:
+        Dict with applications list in UserApplication format
+    """
+    try:
+        logger.info(f"Getting applications for user: {user_email}")
+        
+        from .database import get_db_session, Application
+        
+        with get_db_session() as db_session:
+            # Get all applications for this user
+            applications = db_session.query(Application).filter(
+                Application.user_email == user_email
+            ).order_by(Application.created_at.desc()).all()
+            
+            # Transform to UserApplication format
+            user_applications = []
+            for app in applications:
+                # Return raw database status directly (no mapping)
+                user_app = {
+                    "jobId": app.job_id,
+                    "qualified": app.status == "QUALIFIED",
+                    "status": app.status,
+                    "appliedAt": app.created_at.isoformat() + "Z",
+                    "completedAt": app.submitted_at.isoformat() + "Z" if app.submitted_at else None
+                }
+                user_applications.append(user_app)
+            
+            logger.info(f"Found {len(user_applications)} applications for user: {user_email}")
+            
+            return {
+                "success": True,
+                "applications": user_applications
+            }
+            
+    except Exception as e:
+        logger.error(f"Failed to get user applications: {e}")
+        return {
+            "success": False,
+            "error": f"Failed to get user applications: {str(e)}",
+            "applications": []
+        }
+
+
+@app.tool()
+@mesh.tool(
     capability="health_check",
     tags=["application-management", "monitoring"],
     description="Application agent health check"
@@ -383,7 +615,9 @@ def get_agent_status() -> Dict[str, Any]:
         "capabilities": [
             "application_start_with_prefill",
             "application_step_save_with_next_prefill", 
-            "application_get_status"
+            "application_get_status",
+            "application_get_review_data",
+            "user_applications_get"
         ],
         "step_handlers": [
             "personal_info",

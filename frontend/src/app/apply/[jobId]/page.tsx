@@ -9,6 +9,24 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { FileText, Bot, CheckCircle2, Eye } from 'lucide-react'
 
+// Utility function to convert date from "MM/YYYY" or "YYYY" to "YYYY-MM" format for HTML input type="month"
+function convertDateFormat(dateStr: string): string {
+  if (!dateStr || dateStr.toLowerCase() === 'present') return ''
+  
+  // Handle "MM/YYYY" format
+  if (dateStr.includes('/')) {
+    const [month, year] = dateStr.split('/')
+    return `${year}-${month.padStart(2, '0')}`
+  }
+  
+  // Handle "YYYY" format - assume January
+  if (dateStr.length === 4) {
+    return `${dateStr}-01`
+  }
+  
+  return ''
+}
+
 // Application form data types
 interface WorkExperience {
   company: string
@@ -1055,15 +1073,68 @@ function SelfIdentityStep({ data, onChange }: {
 }
 
 // Step 6: Review Step  
-function ReviewStep({ data, jobTitle, onSubmit, onBack, isSubmitting }: { 
+function ReviewStep({ data, jobTitle, onSubmit, onBack, isSubmitting, applicationId }: { 
   data: ApplicationData, 
   jobTitle: string,
   onSubmit: () => void,
   onBack: () => void,
-  isSubmitting: boolean
+  isSubmitting: boolean,
+  applicationId?: string
 }) {
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [dataConsent, setDataConsent] = useState(true)
+  const [reviewData, setReviewData] = useState<any>(null)
+  const [isLoadingReview, setIsLoadingReview] = useState(true)
+
+  // Fetch review data from API when component mounts
+  useEffect(() => {
+    const fetchReviewData = async () => {
+      if (!applicationId) {
+        setIsLoadingReview(false)
+        return
+      }
+
+      try {
+        const { applicationsApi } = await import('@/lib/api')
+        const result = await applicationsApi.getReviewData(applicationId)
+        
+        if (result.data) {
+          setReviewData(result.data)
+        } else {
+          console.error('Failed to fetch review data:', result.error)
+        }
+      } catch (error) {
+        console.error('Error fetching review data:', error)
+      } finally {
+        setIsLoadingReview(false)
+      }
+    }
+
+    fetchReviewData()
+  }, [applicationId])
+
+  // Show loading state while fetching review data
+  if (isLoadingReview) {
+    return (
+      <div className="space-y-8">
+        <div className="text-center mb-12">
+          <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Eye className="w-8 h-8 text-primary-100" />
+          </div>
+          <h2 className="text-3xl font-semibold text-gray-900 mb-3">Review Your Application</h2>
+          <p className="text-gray-600 max-w-lg mx-auto">
+            Loading your application data...
+          </p>
+        </div>
+        <div className="flex justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    )
+  }
+
+  // Use review data from API if available, otherwise fall back to form data
+  const displayData = reviewData?.data || data
 
   return (
     <div className="space-y-8">
@@ -1085,7 +1156,7 @@ function ReviewStep({ data, jobTitle, onSubmit, onBack, isSubmitting }: {
             Edit
           </button>
         </div>
-        <p className="text-gray-700 font-medium">{jobTitle}</p>
+        <p className="text-gray-700 font-medium">{displayData?.position?.job_title || jobTitle}</p>
       </div>
         
       {/* Personal Information */}
@@ -1099,19 +1170,31 @@ function ReviewStep({ data, jobTitle, onSubmit, onBack, isSubmitting }: {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <span className="text-sm text-gray-600">Name:</span>
-            <p className="font-medium text-gray-900">{data.personalInfo.firstName} {data.personalInfo.lastName}</p>
+            <p className="font-medium text-gray-900">
+              {displayData?.personal_information?.name || 
+               `${data.personalInfo.firstName} ${data.personalInfo.lastName}`}
+            </p>
           </div>
           <div>
             <span className="text-sm text-gray-600">Email:</span>
-            <p className="font-medium text-gray-900">{data.personalInfo.email}</p>
+            <p className="font-medium text-gray-900">
+              {displayData?.personal_information?.email || data.personalInfo.email}
+            </p>
           </div>
           <div>
             <span className="text-sm text-gray-600">Phone:</span>
-            <p className="font-medium text-gray-900">{data.personalInfo.phone}</p>
+            <p className="font-medium text-gray-900">
+              {displayData?.personal_information?.phone || data.personalInfo.phone}
+            </p>
           </div>
           <div>
             <span className="text-sm text-gray-600">Location:</span>
-            <p className="font-medium text-gray-900">{data.addressInfo.city}, {data.addressInfo.state}, {data.addressInfo.country}</p>
+            <p className="font-medium text-gray-900">
+              {displayData?.personal_information?.location ? 
+                `${displayData.personal_information.location.city}, ${displayData.personal_information.location.state}, ${displayData.personal_information.location.country}` :
+                `${data.addressInfo.city}, ${data.addressInfo.state}, ${data.addressInfo.country}`
+              }
+            </p>
           </div>
         </div>
       </div>
@@ -1125,22 +1208,31 @@ function ReviewStep({ data, jobTitle, onSubmit, onBack, isSubmitting }: {
           </button>
         </div>
         <div className="space-y-4">
-          {data.experience.summary && (
+          {(displayData?.experience_and_skills?.professional_summary || data.experience.summary) && (
             <div>
               <span className="text-sm text-gray-600">Professional Summary:</span>
-              <p className="text-gray-900 mt-1">{data.experience.summary}</p>
+              <p className="text-gray-900 mt-1">
+                {displayData?.experience_and_skills?.professional_summary || data.experience.summary}
+              </p>
             </div>
           )}
-          {data.experience.workExperience.length > 0 && (
+          {(displayData?.experience_and_skills?.current_position?.job_title || data.experience.workExperience.length > 0) && (
             <div>
               <span className="text-sm text-gray-600">Current Position:</span>
-              <p className="font-medium text-gray-900">{data.experience.workExperience[0]?.jobTitle} at {data.experience.workExperience[0]?.company}</p>
+              <p className="font-medium text-gray-900">
+                {displayData?.experience_and_skills?.current_position?.job_title ? 
+                  `${displayData.experience_and_skills.current_position.job_title}${displayData.experience_and_skills.current_position.company ? ` at ${displayData.experience_and_skills.current_position.company}` : ''}` :
+                  `${data.experience.workExperience[0]?.jobTitle} at ${data.experience.workExperience[0]?.company}`
+                }
+              </p>
             </div>
           )}
-          {data.experience.technicalSkills && (
+          {(displayData?.experience_and_skills?.technical_skills || data.experience.technicalSkills) && (
             <div>
               <span className="text-sm text-gray-600">Key Skills:</span>
-              <p className="text-gray-900">{data.experience.technicalSkills}</p>
+              <p className="text-gray-900">
+                {displayData?.experience_and_skills?.technical_skills || data.experience.technicalSkills}
+              </p>
             </div>
           )}
         </div>
@@ -1157,19 +1249,27 @@ function ReviewStep({ data, jobTitle, onSubmit, onBack, isSubmitting }: {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <span className="text-sm text-gray-600">Work Authorization:</span>
-            <p className="font-medium text-gray-900">{data.questions.workAuthorization || 'Not specified'}</p>
+            <p className="font-medium text-gray-900">
+              {displayData?.application_preferences?.work_authorization || data.questions.workAuthorization || 'Not specified'}
+            </p>
           </div>
           <div>
             <span className="text-sm text-gray-600">Willing to Relocate:</span>
-            <p className="font-medium text-gray-900">{data.questions.relocate || 'Not specified'}</p>
+            <p className="font-medium text-gray-900">
+              {displayData?.application_preferences?.relocate || data.questions.relocate || 'Not specified'}
+            </p>
           </div>
           <div>
             <span className="text-sm text-gray-600">Remote Work:</span>
-            <p className="font-medium text-gray-900">{data.questions.remoteWork || 'Not specified'}</p>
+            <p className="font-medium text-gray-900">
+              {displayData?.application_preferences?.remote_work || data.questions.remoteWork || 'Not specified'}
+            </p>
           </div>
           <div>
             <span className="text-sm text-gray-600">Availability:</span>
-            <p className="font-medium text-gray-900">{data.questions.availability || 'Not specified'}</p>
+            <p className="font-medium text-gray-900">
+              {displayData?.application_preferences?.availability || data.questions.availability || 'Not specified'}
+            </p>
           </div>
         </div>
       </div>
@@ -1180,8 +1280,15 @@ function ReviewStep({ data, jobTitle, onSubmit, onBack, isSubmitting }: {
         <div className="flex items-center gap-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
           <FileText className="w-8 h-8 text-gray-600" />
           <div>
-            <p className="font-medium text-gray-900">dhyan_raj_resume.pdf</p>
-            <span className="text-sm text-gray-600">Uploaded and analyzed by AI</span>
+            <p className="font-medium text-gray-900">
+              {displayData?.attached_documents?.resume?.filename || 'Resume.pdf'}
+            </p>
+            <span className="text-sm text-gray-600">
+              {displayData?.attached_documents?.resume ? 
+                `Uploaded ${new Date(displayData.attached_documents.resume.uploaded_at).toLocaleDateString()} • ${Math.round(displayData.attached_documents.resume.file_size / 1024)} KB • Analyzed by AI` :
+                'Uploaded and analyzed by AI'
+              }
+            </span>
           </div>
         </div>
       </div>
@@ -1258,6 +1365,8 @@ export default function ApplicationPage({ params }: ApplicationPageProps) {
   const [formData, setFormData] = useState<ApplicationData>(initialFormData)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [resolvedParams, setResolvedParams] = useState<{ jobId: string } | null>(null)
+  const [jobTitle, setJobTitle] = useState<string>('Loading...')
+  const [applicationData, setApplicationData] = useState<any>(null)
   const hasPreFilledRef = useRef(false)
   const { toasts, showToast, removeToast, clearAllToasts } = useToast()
   
@@ -1265,8 +1374,35 @@ export default function ApplicationPage({ params }: ApplicationPageProps) {
     params.then(setResolvedParams)
   }, [params])
   
-  const jobTitle = resolvedParams ? (jobTitles[resolvedParams.jobId] || 'Unknown Position') : 'Loading...'
   const hasResume = user?.hasResume || false
+
+  // Load application data and job info
+  useEffect(() => {
+    const loadApplicationAndJobData = async () => {
+      if (!resolvedParams?.jobId) return
+
+      // Get current application data from localStorage (set by Apply Now button)
+      const currentAppData = localStorage.getItem('currentApplication')
+      if (currentAppData) {
+        const appData = JSON.parse(currentAppData)
+        setApplicationData(appData)
+        setCurrentStep(appData.currentStep || 1)
+      }
+
+      // Fetch job data to get real job title
+      try {
+        const { jobsApi } = await import('@/lib/api')
+        const jobResult = await jobsApi.getById(resolvedParams.jobId)
+        if (jobResult.data) {
+          setJobTitle(jobResult.data.title)
+        }
+      } catch (error) {
+        console.error('Failed to load job data:', error)
+      }
+    }
+
+    loadApplicationAndJobData()
+  }, [resolvedParams])
 
   useEffect(() => {
     // Get user from localStorage
@@ -1275,58 +1411,52 @@ export default function ApplicationPage({ params }: ApplicationPageProps) {
       const parsedUser = JSON.parse(userData)
       setUser(parsedUser)
       
-      // AI pre-fill for users with resume (only once)
-      if (parsedUser.hasResume && !hasPreFilledRef.current) {
+      // AI pre-fill using real backend data (only once)
+      if (parsedUser.hasResume && !hasPreFilledRef.current && applicationData?.prefillData) {
         hasPreFilledRef.current = true
+        const prefill = applicationData.prefillData
+        
+        // Parse full name
+        const nameParts = prefill.full_name ? prefill.full_name.split(' ') : ['', '']
+        const firstName = nameParts[0] || ''
+        const lastName = nameParts.slice(1).join(' ') || ''
+        
         setFormData(prev => ({
           ...prev,
           personalInfo: {
-            firstName: 'Dhyan',
-            lastName: 'Raj', 
-            email: 'dhyan.raj@gmail.com',
-            phone: '+1 (555) 123-4567',
-            linkedIn: 'https://linkedin.com/in/dhyanraj'
+            firstName,
+            lastName,
+            email: prefill.email || parsedUser.email || '',
+            phone: prefill.phone || '',
+            linkedIn: prefill.linkedin_url || ''
           },
           addressInfo: {
-            street: '123 Tech Street',
-            city: 'San Francisco',
-            state: 'CA',
-            zipCode: '94102',
-            country: 'US'
+            street: prefill.address?.street || '',
+            city: prefill.address?.city || '',
+            state: prefill.address?.state || '',
+            zipCode: prefill.address?.postal_code || '',
+            country: prefill.address?.country || 'US'
           },
           experience: {
-            summary: 'Experienced Full Stack Developer with 8+ years in building scalable web applications. Proficient in React, Node.js, Python, and cloud technologies. Strong background in agile development and cross-functional collaboration.',
-            technicalSkills: 'JavaScript, TypeScript, React, Vue.js, Node.js, Python, Django, PostgreSQL, MongoDB, AWS, Docker, Kubernetes, Git, REST APIs, GraphQL',
-            softSkills: 'Leadership, Team Collaboration, Problem Solving, Communication, Agile/Scrum, Project Management',
-            workExperience: [
-              {
-                company: 'TechCorp Inc.',
-                jobTitle: 'Senior Software Engineer',
-                startDate: '2020-03',
-                endDate: '2024-12',
-                isCurrent: true,
-                location: 'San Francisco, CA',
-                responsibilities: '• Lead development of microservices architecture serving 1M+ daily users\n• Mentored 5 junior developers and conducted code reviews\n• Improved application performance by 40% through optimization\n• Implemented CI/CD pipelines reducing deployment time by 60%'
-              },
-              {
-                company: 'StartupXYZ',
-                jobTitle: 'Full Stack Developer',
-                startDate: '2018-06',
-                endDate: '2020-02',
-                isCurrent: false,
-                location: 'Remote',
-                responsibilities: '• Built responsive web applications using React and Node.js\n• Developed RESTful APIs and integrated third-party services\n• Collaborated with design team to implement pixel-perfect UIs\n• Participated in agile development processes and daily standups'
-              }
-            ],
-            education: [
-              {
-                institution: 'Stanford University',
-                degree: 'Master of Science in Computer Science',
-                fieldOfStudy: 'Software Engineering',
-                graduationYear: 2018,
-                gpa: '3.8'
-              }
-            ]
+            summary: prefill.summary || '',
+            technicalSkills: prefill.technical_skills || '',
+            softSkills: prefill.soft_skills || '',
+            workExperience: (prefill.work_experience || []).map((exp: any) => ({
+              company: exp.company_name || '',
+              jobTitle: exp.job_title || '',
+              startDate: exp.start_date ? convertDateFormat(exp.start_date) : '',
+              endDate: exp.is_current ? '' : (exp.end_date ? convertDateFormat(exp.end_date) : ''),
+              isCurrent: exp.is_current || false,
+              location: exp.location || '',
+              responsibilities: Array.isArray(exp.responsibilities) ? exp.responsibilities.join('\n• ') : (exp.responsibilities || '')
+            })),
+            education: (prefill.education || []).map((edu: any) => ({
+              institution: edu.institution || '',
+              degree: edu.degree || '',
+              fieldOfStudy: '', // Not provided by API
+              graduationYear: edu.year ? parseInt(edu.year) : 0,
+              gpa: '' // Not provided by API
+            }))
           }
         }))
         
@@ -1339,10 +1469,10 @@ export default function ApplicationPage({ params }: ApplicationPageProps) {
       // Redirect to login if not authenticated
       router.push(`/login?redirect=/apply/${resolvedParams.jobId}`)
     }
-  }, [resolvedParams, router])
+  }, [resolvedParams, router, applicationData])
 
   const handleNext = async () => {
-    if (!resolvedParams) return
+    if (!resolvedParams || !applicationData?.applicationId) return
     
     // Save current step data with appropriate notification
     const stepMessages = {
@@ -1357,45 +1487,118 @@ export default function ApplicationPage({ params }: ApplicationPageProps) {
       const message = stepMessages[currentStep as keyof typeof stepMessages]
       showToast.info(message)
       
-      // Simulate successful API call to save step data
-      setTimeout(() => {
-        // Mock successful save
-        console.log('Saving step data:', {
-          stepData: getStepData(currentStep),
-          userId: user?.id,
-          jobId: resolvedParams.jobId,
-          step: currentStep
-        })
+      try {
+        // Real API call to save step data
+        const { applicationsApi } = await import('@/lib/api')
+        const stepData = getStepData(currentStep)
         
-        // Clear the "Saving..." toast before showing success
-        clearAllToasts()
-        // Show success toast after a brief delay to ensure proper sequencing
-        setTimeout(() => {
-          showToast.success('Information saved successfully!')
-        }, 100)
+        const result = await applicationsApi.saveStep(
+          applicationData.applicationId,
+          currentStep,
+          stepData
+        )
         
-        if (currentStep < steps.length) {
-          setCurrentStep(currentStep + 1)
+        if (result.data) {
+          // Clear the "Saving..." toast and show success
+          clearAllToasts()
+          setTimeout(() => {
+            showToast.success('Information saved successfully!')
+          }, 100)
+          
+          // Move to next step
+          if (currentStep < steps.length) {
+            setCurrentStep(currentStep + 1)
+            
+            // Update localStorage with new step
+            const updatedAppData = {
+              ...applicationData,
+              currentStep: currentStep + 1,
+              prefillData: result.data.data?.prefill_data
+            }
+            localStorage.setItem('currentApplication', JSON.stringify(updatedAppData))
+            setApplicationData(updatedAppData)
+          }
+        } else {
+          // Handle API error
+          clearAllToasts()
+          showToast.error(result.error || 'Failed to save information')
         }
-      }, 1000)
+      } catch (error) {
+        console.error('Error saving step:', error)
+        clearAllToasts()
+        showToast.error('An error occurred while saving')
+      }
     } else if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1)
     }
   }
   
-  // Helper function to get current step data
+  // Helper function to get current step data in backend format
   const getStepData = (step: number) => {
     switch (step) {
       case 1:
-        return { personalInfo: formData.personalInfo, addressInfo: formData.addressInfo }
+        return {
+          full_name: `${formData.personalInfo.firstName} ${formData.personalInfo.lastName}`.trim(),
+          email: formData.personalInfo.email,
+          phone: formData.personalInfo.phone,
+          address: {
+            street: formData.addressInfo.street,
+            city: formData.addressInfo.city,
+            state: formData.addressInfo.state,
+            country: formData.addressInfo.country,
+            postal_code: formData.addressInfo.zipCode
+          },
+          linkedin_url: formData.personalInfo.linkedIn,
+          professional_title: formData.personalInfo.firstName ? 'Professional' : '' // Placeholder
+        }
       case 2:
-        return { experience: formData.experience }
+        return {
+          summary: formData.experience.summary,
+          technical_skills: formData.experience.technicalSkills,
+          soft_skills: formData.experience.softSkills,
+          work_experience: formData.experience.workExperience.map(exp => ({
+            job_title: exp.jobTitle,
+            company: exp.company,
+            location: exp.location,
+            start_date: exp.startDate,
+            end_date: exp.endDate,
+            is_current: exp.isCurrent,
+            responsibilities: exp.responsibilities.split('\n').filter(r => r.trim())
+          })),
+          education: formData.experience.education.map(edu => ({
+            degree: edu.degree,
+            field: edu.fieldOfStudy,
+            school: edu.institution,
+            graduation_year: edu.graduationYear.toString(),
+            gpa: edu.gpa
+          }))
+        }
       case 3:
-        return { questions: formData.questions }
+        return {
+          work_authorization: formData.questions.workAuthorization,
+          visa_sponsorship: formData.questions.visaSponsorship,
+          relocate: formData.questions.relocate,
+          remote_work: formData.questions.remoteWork,
+          preferred_location: formData.questions.preferredLocation,
+          availability: formData.questions.availability,
+          salary_min: formData.questions.salaryMin,
+          salary_max: formData.questions.salaryMax
+        }
       case 4:
-        return { disclosures: formData.disclosures }
+        return {
+          government_employment: formData.disclosures.governmentEmployment,
+          non_compete: formData.disclosures.nonCompete,
+          previous_employment: formData.disclosures.previousEmployment,
+          previous_alias: formData.disclosures.previousAlias,
+          personnel_number: formData.disclosures.personnelNumber
+        }
       case 5:
-        return { identity: formData.identity }
+        return {
+          gender: formData.identity.gender,
+          race: formData.identity.race,
+          veteran_status: formData.identity.veteranStatus,
+          disability: formData.identity.disability
+        }
       default:
         return {}
     }
@@ -1411,57 +1614,62 @@ export default function ApplicationPage({ params }: ApplicationPageProps) {
   }
 
   const handleSubmit = async () => {
-    if (!resolvedParams) return
+    if (!resolvedParams || !applicationData?.applicationId) return
     
     setIsSubmitting(true)
     showToast.info('Submitting your application...')
     
-    // Simulate successful application submission
-    setTimeout(() => {
-      // Mock successful submission
-      console.log('Submitting complete application:', {
-        applicationData: formData,
-        userId: user?.id,
-        jobId: resolvedParams.jobId
-      })
+    try {
+      // Call Step 6 API with submit_application flag
+      const { applicationsApi } = await import('@/lib/api')
+      const result = await applicationsApi.saveStep(
+        applicationData.applicationId,
+        6,
+        { submit_application: true }
+      )
       
-      // Clear the "Submitting..." toast before showing success
-      clearAllToasts()
-      setTimeout(() => {
-        showToast.success('Application submitted successfully!')
-      }, 100)
-      
-      setTimeout(() => {
-        setIsSubmitting(false)
+      if (result.data?.success) {
+        // Clear the "Submitting..." toast before showing success
+        clearAllToasts()
+        setTimeout(() => {
+          showToast.success('Application submitted successfully!')
+        }, 100)
         
-        // Simulate AI evaluation logic - 70% chance of being eligible
-        const isEligible = Math.random() > 0.3
+        // Get redirect URL from API response or construct default
+        const redirectUrl = result.data.data?.redirect_url || `/apply/${resolvedParams.jobId}/result?result=under-review`
         
-        // Update user state with new application
-        if (user && resolvedParams) {
-          const newApplication = {
-            jobId: resolvedParams.jobId,
-            qualified: isEligible,
-            status: isEligible ? 'ELIGIBLE' : undefined, // Set status based on eligibility
-            interviewSession: isEligible ? `session-${Date.now()}` : undefined,
-            appliedAt: new Date().toISOString()
+        // Refresh user profile to get updated applications list
+        if (user) {
+          try {
+            const { userApi } = await import('@/lib/api')
+            const userResult = await userApi.getProfile()
+            if (userResult.data?.user) {
+              // Update localStorage with fresh user data including applications
+              localStorage.setItem('user', JSON.stringify(userResult.data.user))
+              console.log('User profile refreshed after application submission')
+            }
+          } catch (profileError) {
+            console.error('Failed to refresh user profile:', profileError)
+            // Don't block the flow if profile refresh fails
           }
-          
-          const updatedUser = {
-            ...user,
-            applications: [...(user.applications || []), newApplication]
-          }
-          
-          localStorage.setItem('user', JSON.stringify(updatedUser))
         }
         
-        // Use the eligibility result for redirect
-        const resultType = isEligible ? 'eligible' : 'under-review'
+        setTimeout(() => {
+          setIsSubmitting(false)
+          // Use API provided redirect URL
+          router.push(redirectUrl)
+        }, 1500)
         
-        // Redirect to results page with result type
-        router.push(`/apply/${resolvedParams.jobId}/result?result=${resultType}`)
-      }, 1500)
-    }, 2000)
+      } else {
+        throw new Error(result.error || 'Failed to submit application')
+      }
+      
+    } catch (error) {
+      console.error('Application submission failed:', error)
+      clearAllToasts()
+      showToast.error('Failed to submit application. Please try again.')
+      setIsSubmitting(false)
+    }
   }
 
   const isGuest = !user
@@ -1534,6 +1742,7 @@ export default function ApplicationPage({ params }: ApplicationPageProps) {
             onSubmit={handleSubmit}
             onBack={handleBack}
             isSubmitting={isSubmitting}
+            applicationId={applicationData?.applicationId}
           />
         )
       default:

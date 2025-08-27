@@ -3,7 +3,7 @@
 export interface UserApplication {
   jobId: string
   qualified: boolean
-  status?: 'ELIGIBLE' | 'INPROGRESS' | 'COMPLETED'
+  status?: 'STARTED' | 'APPLIED' | 'QUALIFIED' | 'INPROGRESS' | 'COMPLETED'
   interviewSession?: string
   appliedAt: string
   completedAt?: string
@@ -44,6 +44,7 @@ export interface Job {
   category: 'Engineering' | 'Operations' | 'Finance' | 'Marketing' | 'Sales' | 'Other'
   remote?: boolean
   description: string
+  short_description?: string
   requirements: string[]
   benefits?: string[]
   salaryRange?: {

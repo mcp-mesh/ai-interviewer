@@ -47,23 +47,28 @@ async def extract_experience_with_llm(
                 logger.warning(f"Tool conversion failed, using original format: {e}")
         
         # Create system prompt for experience extraction
-        system_prompt = f"""You are a professional resume parser specializing in work experience extraction. Analyze the provided resume text and extract detailed employment history.
+        system_prompt = f"""You are a professional resume parser. Extract 5 key fields from any resume format: Brief Summary, Technical Skills, Soft Skills, Work Experience, and Education.
 
-RESUME TEXT:
-{resume_text[:3000]}{'...' if len(resume_text) > 3000 else ''}
+RESUME TEXT (First 5000 characters):
+{resume_text[:5000]}{'...' if len(resume_text) > 5000 else ''}
 
-Instructions:
-- Extract all work experiences in reverse chronological order (most recent first)
-- For each role, capture: job title, company, location, dates, responsibilities, and skills used
-- Calculate total years of professional experience
-- Identify key skills and competencies across all roles
-- Note management experience and industries worked in
-- Extract salary information if mentioned (current salary, expectations)
-- Be precise with date formats (MM/YYYY preferred)
-- Mark current employment accurately (is_current: true/false)
-- Rate your confidence in the extraction accuracy (0.0-1.0)
+EXTRACTION GUIDELINES:
+1. BRIEF SUMMARY: Create 2-3 sentence summary from any overview/profile/objective section, or synthesize from overall content
+2. TECHNICAL SKILLS: Find programming languages, technologies, tools, frameworks mentioned anywhere in the resume  
+3. SOFT SKILLS: Infer from job descriptions, achievements, leadership roles - look for management, communication, problem-solving indicators
+4. WORK EXPERIENCE: Extract job entries with company names, job titles, employment dates, and key responsibilities
+5. EDUCATION: Find degrees, certifications, schools, universities mentioned anywhere in the document
 
-Focus on extracting factual information as it appears in the resume. Use the provided tool to return structured data."""
+FLEXIBLE PARSING APPROACH:
+- Adapt to any resume format (chronological, functional, hybrid, modern, traditional)
+- Look for common patterns: company names, job titles, dates, degree names, school names
+- Infer information from context when explicit sections aren't labeled
+- Handle various date formats (MM/YYYY, Month Year, Year only)
+- Extract skills from job descriptions if no dedicated skills section exists
+- Synthesize professional summary if no explicit summary section is present
+- Identify education from institution names, degree keywords (Bachelor, Master, PhD, Certification)
+
+Focus on extracting complete, accurate information regardless of resume formatting or structure."""
 
         # Call LLM service
         logger.info(f"Calling LLM service for experience extraction")
@@ -229,10 +234,35 @@ async def handle_experience_step(
             experience_data = extraction_result["data"]
             
             # Format prefill data for frontend (matching database schema)
+            # Map LLM tool response fields to database schema fields
+            key_skills = experience_data.get("key_skills", [])
+            technical_skills = ", ".join(key_skills) if key_skills else ""
+            
+            soft_skills_array = experience_data.get("soft_skills", [])
+            soft_skills = ", ".join(soft_skills_array) if soft_skills_array else ""
+            
+            # Use extracted summary or generate fallback
+            extracted_summary = experience_data.get("summary", "")
+            if not extracted_summary:
+                # Generate fallback summary from extracted data
+                industries = experience_data.get("industries", [])
+                total_years = experience_data.get("total_years_experience", 0)
+                management_exp = experience_data.get("management_experience", False)
+                
+                summary_parts = []
+                if total_years:
+                    summary_parts.append(f"Over {total_years} years of professional experience")
+                if industries:
+                    summary_parts.append(f"in {', '.join(industries)}")
+                if management_exp:
+                    summary_parts.append("with management and leadership experience")
+                
+                extracted_summary = ". ".join(summary_parts) + "." if summary_parts else ""
+            
             prefill_data = {
-                "summary": experience_data.get("summary", ""),
-                "technical_skills": experience_data.get("technical_skills", ""),
-                "soft_skills": experience_data.get("soft_skills", ""),
+                "summary": extracted_summary,
+                "technical_skills": technical_skills,
+                "soft_skills": soft_skills,
                 "work_experience": experience_data.get("work_experience", []),
                 "education": experience_data.get("education", [])
             }

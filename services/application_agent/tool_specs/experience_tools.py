@@ -79,11 +79,44 @@ def get_experience_tool_spec() -> Dict[str, Any]:
                     "type": "string", 
                     "description": "Salary expectations if mentioned"
                 },
+                "summary": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "description": "Brief professional summary (2-3 sentences) from resume"
+                },
                 "key_skills": {
                     "type": "array",
                     "items": {"type": "string"},
                     "maxItems": 20,
-                    "description": "Top skills and competencies across all experience"
+                    "description": "Top technical skills and competencies across all experience"
+                },
+                "soft_skills": {
+                    "type": "array", 
+                    "items": {"type": "string"},
+                    "maxItems": 10,
+                    "description": "Soft skills inferred from leadership roles, achievements, and experience"
+                },
+                "education": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "degree": {
+                                "type": "string",
+                                "description": "Degree or certification name"
+                            },
+                            "institution": {
+                                "type": "string", 
+                                "description": "School, university, or certifying body"
+                            },
+                            "year": {
+                                "type": "string",
+                                "description": "Graduation year or date if available"
+                            }
+                        },
+                        "required": ["degree", "institution"]
+                    },
+                    "description": "Education history and certifications"
                 },
                 "industries": {
                     "type": "array",

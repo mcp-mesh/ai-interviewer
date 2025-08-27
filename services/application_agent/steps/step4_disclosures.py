@@ -187,35 +187,20 @@ async def handle_disclosures_step(
                 "message": "Disclosures information saved successfully"
             }
         
-        # Mode 2: Generate prefill from resume
+        # Mode 2: Return empty prefill data (no LLM extraction for Step 4)
         else:
-            logger.info("Mode: Generating prefill from resume text")
+            logger.info("Mode: Returning empty prefill data for Step 4 (no LLM extraction)")
             
-            # Extract disclosures information using LLM
-            extraction_result = await extract_disclosures_with_llm(
-                resume_text, llm_service, convert_tool_format
-            )
-            
-            if not extraction_result.get("success"):
-                return {
-                    "success": False,
-                    "error": extraction_result.get("error", "Failed to extract disclosures information"),
-                    "step": 4,
-                    "step_name": "disclosures"
-                }
-            
-            disclosures_data = extraction_result["data"]
-            
-            # Format prefill data for frontend (matching database schema)
+            # Return empty prefill data - user will fill voluntary disclosures manually
             prefill_data = {
-                "government_employment": disclosures_data.get("government_employment", "prefer_not_to_say"),
-                "non_compete": disclosures_data.get("non_compete", "prefer_not_to_say"),
-                "previous_employment": disclosures_data.get("previous_employment", "prefer_not_to_say"),
-                "previous_alias": disclosures_data.get("previous_alias", ""),
-                "personnel_number": disclosures_data.get("personnel_number", "")
+                "government_employment": "prefer_not_to_say",
+                "non_compete": "prefer_not_to_say", 
+                "previous_employment": "prefer_not_to_say",
+                "previous_alias": "",
+                "personnel_number": ""
             }
             
-            logger.info(f"Successfully generated prefill for Step 4, application {application_id}")
+            logger.info(f"Successfully returned empty prefill for Step 4, application {application_id}")
             
             return {
                 "success": True,
@@ -225,9 +210,10 @@ async def handle_disclosures_step(
                 "step_description": get_step_description(4),
                 "prefill_data": prefill_data,
                 "extraction_metadata": {
-                    "confidence_score": disclosures_data.get("confidence_score", 0.0),
-                    "ai_provider": extraction_result.get("ai_provider", "unknown"),
-                    "ai_model": extraction_result.get("ai_model", "unknown")
+                    "confidence_score": 0.0,
+                    "ai_provider": "none",
+                    "ai_model": "none",
+                    "llm_skipped": True
                 },
                 "data_saved": False
             }

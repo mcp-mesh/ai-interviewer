@@ -125,8 +125,36 @@ def get_generic_questions_tool_spec() -> Dict[str, Any]:
                 },
                 "work_authorization": {
                     "type": "string",
-                    "enum": ["citizen", "permanent_resident", "work_visa", "needs_sponsorship", "unknown"],
-                    "description": "Work authorization status if determinable from resume"
+                    "enum": ["yes", "no", "unknown"],
+                    "description": "Whether candidate is authorized to work in the country"
+                },
+                "visa_sponsorship": {
+                    "type": "string",
+                    "enum": ["yes", "no", "unknown"],
+                    "description": "Whether candidate would require visa sponsorship"
+                },
+                "relocate": {
+                    "type": "string", 
+                    "enum": ["yes", "no", "maybe"],
+                    "description": "Willingness to relocate for the position"
+                },
+                "remote_work": {
+                    "type": "string",
+                    "enum": ["onsite", "remote", "hybrid"],
+                    "description": "Preferred work arrangement (onsite/remote/hybrid)"
+                },
+                "preferred_location": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "description": "Preferred work location or city if mentioned in resume or can be inferred"
+                },
+                "salary_min": {
+                    "type": "string",
+                    "description": "Minimum salary expectation if mentioned or can be reasonably inferred from experience level"
+                },
+                "salary_max": {
+                    "type": "string", 
+                    "description": "Maximum salary expectation if mentioned or can be reasonably inferred from experience level"
                 },
                 "confidence_score": {
                     "type": "number",

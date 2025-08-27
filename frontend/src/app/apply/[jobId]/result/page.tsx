@@ -247,7 +247,7 @@ export default function ApplicationResultPage({ params }: ApplicationResultProps
               </Button>
               <Button 
                 variant="secondary" 
-                onClick={() => router.push('/dashboard')}
+                onClick={() => router.push('/applications')}
                 className="px-8 py-3 text-base bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
               >
                 View My Applications

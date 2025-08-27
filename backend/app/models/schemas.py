@@ -55,6 +55,7 @@ class JobDetail(BaseModel):
     posted_date: str
     application_deadline: Optional[str] = None
     description: str
+    short_description: Optional[str] = None
     requirements: List[str]
     responsibilities: List[str] = []
     benefits: List[str] = []
@@ -171,6 +172,16 @@ class ApplicationStatusUpdate(BaseModel):
 
 
 # User-related schemas
+class UserApplication(BaseModel):
+    """User application data structure"""
+    jobId: str
+    qualified: bool = False
+    status: Optional[str] = None  # 'STARTED' | 'APPLIED' | 'QUALIFIED' | 'INPROGRESS' | 'COMPLETED'
+    appliedAt: str
+    completedAt: Optional[str] = None
+    interviewSession: Optional[str] = None
+
+
 class UserProfile(BaseModel):
     """User profile information"""
     skills: List[str] = []
@@ -209,15 +220,20 @@ class UserData(BaseModel):
     id: str
     name: str
     email: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     hasResume: bool = False
+    isApplicationsAvailable: bool = True
     profile: UserProfile
     preferences: Optional[UserPreferences] = None
     resume_analysis: Optional[ResumeAnalysis] = None
     availableJobs: int = 0
     matchedJobs: int = 0
-    applications: List[str] = []
+    applications: List[UserApplication] = []
     createdAt: str
     updatedAt: str
+    profile_completed: Optional[bool] = None
+    onboarding_completed: Optional[bool] = None
 
 
 class UserProfileResponse(BaseModel):

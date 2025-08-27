@@ -61,6 +61,7 @@ export default function JobDetailPage({ params }: JobDetailProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [resolvedParams, setResolvedParams] = useState<{ id: string } | null>(null)
+  const [applying, setApplying] = useState(false)
   
   useEffect(() => {
     params.then(setResolvedParams)
@@ -139,15 +140,42 @@ export default function JobDetailPage({ params }: JobDetailProps) {
   const isGuest = !user
   const userState = isGuest ? "guest" : (user.hasResume ? "has-resume" : "no-resume")
 
-  const handleApplyNow = () => {
-    if (!job?.id) return
+  const handleApplyNow = async () => {
+    if (!job?.id || applying) return
     
     if (isGuest) {
       // Show login modal or redirect to login
       router.push(`/login?redirect=/apply/${job.id}`)
-    } else {
-      // Redirect to application page
-      router.push(`/apply/${job.id}`)
+      return
+    }
+
+    // Start the application using our new API
+    setApplying(true)
+    try {
+      const { applicationsApi } = await import('@/lib/api')
+      const result = await applicationsApi.startApplication(job.id)
+      
+      if (result.data) {
+        // Success! Redirect to application page with the application_id
+        const applicationId = result.data.data.application_id
+        // Store application data for the application page
+        localStorage.setItem('currentApplication', JSON.stringify({
+          applicationId,
+          jobId: job.id,
+          currentStep: result.data.data.target_step || 1,
+          prefillData: result.data.data.prefill_data
+        }))
+        router.push(`/apply/${job.id}`)
+      } else {
+        // Handle error
+        console.error('Failed to start application:', result.error)
+        alert('Failed to start application. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error starting application:', error)
+      alert('An error occurred. Please try again.')
+    } finally {
+      setApplying(false)
     }
   }
 
@@ -196,9 +224,9 @@ export default function JobDetailPage({ params }: JobDetailProps) {
                   variant="primary" 
                   size="lg"
                   onClick={handleApplyNow}
-                  disabled={loading}
+                  disabled={loading || applying}
                 >
-                  {loading ? 'Loading...' : 'Apply Now'}
+                  {applying ? 'Starting Application...' : loading ? 'Loading...' : 'Apply Now'}
                 </Button>
               </div>
             </div>

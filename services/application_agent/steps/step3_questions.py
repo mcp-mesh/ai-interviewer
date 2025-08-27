@@ -78,7 +78,17 @@ Instructions:
 - Write a compelling cover letter that connects resume experience to the role
 - Explain why the candidate is interested and uniquely qualified
 - Keep responses within specified character limits
-- Rate your confidence in the generated responses (0.0-1.0)
+
+STANDARD APPLICATION FIELDS - INFER FROM RESUME:
+- Work Authorization: Look for citizenship, visa status, or location indicators
+- Visa Sponsorship: Infer from current location vs work history
+- Relocation: Look at location history and current location patterns
+- Remote Work Preference: Infer from recent work arrangements if mentioned
+- Preferred Location: Use most recent location or location patterns from resume
+- Salary Range: Base on experience level, role seniority, and industry standards
+- Availability: Standard professional availability unless specific dates mentioned
+
+Rate your confidence in the generated responses (0.0-1.0)
 
 Use the provided tool to return all responses in structured format."""
 
@@ -230,38 +240,23 @@ async def handle_questions_step(
                 "message": "Questions information saved successfully"
             }
         
-        # Mode 2: Generate prefill from resume
+        # Mode 2: Return empty prefill data (no LLM extraction for Step 3)
         else:
-            logger.info("Mode: Generating prefill from resume text")
+            logger.info("Mode: Returning empty prefill data for Step 3 (no LLM extraction)")
             
-            # Generate question responses using LLM
-            generation_result = await generate_question_responses_with_llm(
-                resume_text, job_questions or [], llm_service, convert_tool_format
-            )
-            
-            if not generation_result.get("success"):
-                return {
-                    "success": False,
-                    "error": generation_result.get("error", "Failed to generate question responses"),
-                    "step": 3,
-                    "step_name": "questions"
-                }
-            
-            questions_data = generation_result["data"]
-            
-            # Format prefill data for frontend (matching database schema)
+            # Return empty prefill data - user will fill these fields manually
             prefill_data = {
-                "work_authorization": questions_data.get("work_authorization", "unknown"),
-                "visa_sponsorship": questions_data.get("visa_sponsorship", "unknown"),
-                "relocate": questions_data.get("relocate", "maybe"),
-                "remote_work": questions_data.get("remote_work", "hybrid"),
-                "preferred_location": questions_data.get("preferred_location", "San Francisco, CA"),
-                "availability": questions_data.get("availability", "immediately"),
-                "salary_min": questions_data.get("salary_min", "150000"),
-                "salary_max": questions_data.get("salary_max", "200000")
+                "work_authorization": "unknown",
+                "visa_sponsorship": "unknown", 
+                "relocate": "maybe",
+                "remote_work": "hybrid",
+                "preferred_location": "",
+                "availability": "",
+                "salary_min": "",
+                "salary_max": ""
             }
             
-            logger.info(f"Successfully generated prefill for Step 3, application {application_id}")
+            logger.info(f"Successfully returned empty prefill for Step 3, application {application_id}")
             
             return {
                 "success": True,
@@ -271,10 +266,11 @@ async def handle_questions_step(
                 "step_description": get_step_description(3),
                 "prefill_data": prefill_data,
                 "extraction_metadata": {
-                    "confidence_score": questions_data.get("confidence_score", 0.0),
-                    "ai_provider": generation_result.get("ai_provider", "unknown"),
-                    "ai_model": generation_result.get("ai_model", "unknown"),
-                    "questions_count": len(job_questions) if job_questions else 0
+                    "confidence_score": 0.0,
+                    "ai_provider": "none",
+                    "ai_model": "none", 
+                    "questions_count": len(job_questions) if job_questions else 0,
+                    "llm_skipped": True
                 },
                 "data_saved": False
             }
