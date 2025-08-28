@@ -7,6 +7,7 @@ A simple PDF processing MCP Mesh agent for the AI Interviewer system.
 
 import logging
 import os
+import asyncio
 from typing import Any, Dict
 from datetime import datetime
 
@@ -15,6 +16,9 @@ from fastmcp import FastMCP
 
 # Import specific agent types for type hints
 from mesh.types import McpAgent, McpMeshAgent
+
+# Import comprehensive tool spec
+from .tool_specs.comprehensive_resume_tools import get_comprehensive_resume_tool_spec
 
 # Create FastMCP app instance
 app = FastMCP("PDF Extractor Service")
@@ -85,6 +89,128 @@ def extract_basic_sections(text: str) -> Dict[str, str]:
     
     return sections
 
+
+async def detailed_resume_analysis(
+    full_text: str,
+    user_agent: McpMeshAgent,
+    llm_service: McpMeshAgent,
+    convert_tool_format: McpMeshAgent,
+    user_email: str
+):
+    """
+    Background task for comprehensive resume analysis.
+    
+    Extracts complete personal info and experience data for application prefill
+    using the full resume text (no truncation).
+    
+    Args:
+        full_text: Complete resume text content
+        user_agent: User agent for storing results  
+        llm_service: LLM agent for processing
+        convert_tool_format: Tool format converter for LLM provider
+        user_email: User's email address
+    """
+    try:
+        logger.info(f"Starting detailed resume analysis for {user_email}")
+        logger.info(f"Full text length: {len(full_text)} characters")
+        
+        # 1. Get comprehensive tool spec for Steps 1 & 2
+        comprehensive_tool_spec = get_comprehensive_resume_tool_spec()
+        
+        # 2. Convert tool format for LLM provider (OpenAI vs Claude)
+        converted_tools = [comprehensive_tool_spec]
+        if convert_tool_format:
+            try:
+                converted_tools = await convert_tool_format(tools=[comprehensive_tool_spec])
+                logger.info("Successfully converted comprehensive tool spec for LLM provider")
+            except Exception as tool_error:
+                logger.warning(f"Tool conversion failed, using original format: {tool_error}")
+                converted_tools = [comprehensive_tool_spec]
+        else:
+            logger.info("Tool conversion service not available, using Claude format")
+        
+        # 3. Create comprehensive system prompt
+        comprehensive_prompt = f"""You are an expert resume analyzer for job application systems. Extract comprehensive data for Steps 1 & 2 of the application process.
+
+FULL RESUME TEXT:
+{full_text}
+
+EXTRACT THE FOLLOWING DATA USING THE PROVIDED TOOL:
+
+STEP 1 - PERSONAL INFORMATION:
+- Full name, email address, phone number
+- Complete address (street, city, state, country, postal code)
+- LinkedIn profile, portfolio website, GitHub profile URLs
+- Current professional title or desired position
+- Brief professional summary (2-3 sentences, max 300 chars)
+
+STEP 2 - EXPERIENCE INFORMATION:
+- Complete work history (reverse chronological order)
+- For each job: title, company, location, dates, key responsibilities, technologies used
+- Total years of professional experience
+- Top 20 technical skills across all experience
+- Top 10 soft skills (leadership, communication, etc.)
+- Education and certifications with degrees, institutions, years
+- Industries worked in
+- Management/leadership experience (yes/no)
+- Current salary and salary expectations if mentioned
+
+REQUIREMENTS:
+- Extract ALL available information from the full resume text
+- Be comprehensive - don't truncate or summarize work experience
+- Include confidence scores for both personal_info and experience_info sections
+- Format dates as MM/YYYY where possible
+- Use the provided tool to return structured data
+
+Focus on extracting data that will perfectly prefill job application forms with accurate, complete information."""
+        
+        # 4. Call LLM with comprehensive analysis
+        result = await asyncio.wait_for(
+            llm_service(
+                text="Extract comprehensive resume data for application prefill",
+                system_prompt=comprehensive_prompt,
+                messages=[],
+                tools=converted_tools,
+                force_tool_use=True,
+                temperature=0.1
+            ),
+            timeout=300  # 5 minutes
+        )
+        
+        # 5. Extract tool call results
+        if result and result.get("success") and result.get("tool_calls"):
+            tool_calls = result.get("tool_calls", [])
+            if len(tool_calls) > 0:
+                extracted_data = tool_calls[0].get("parameters", {})
+                personal_info = extracted_data.get("personal_info", {})
+                experience_info = extracted_data.get("experience_info", {})
+                
+                logger.info(f"LLM extraction completed for {user_email}")
+                logger.info(f"Personal info confidence: {personal_info.get('confidence_score', 'N/A')}")
+                logger.info(f"Experience info confidence: {experience_info.get('confidence_score', 'N/A')}")
+                
+                # 6. Store results via user agent
+                update_result = await user_agent(
+                    user_email=user_email,
+                    personal_info=personal_info,
+                    experience_info=experience_info
+                )
+                
+                if update_result.get("success"):
+                    logger.info(f"Successfully completed detailed analysis for {user_email}")
+                else:
+                    logger.error(f"Failed to store detailed analysis for {user_email}: {update_result.get('error')}")
+            else:
+                logger.warning(f"No tool calls in LLM result for {user_email}")
+        else:
+            logger.warning(f"LLM failed to extract comprehensive data for {user_email}")
+            
+    except asyncio.TimeoutError:
+        logger.warning(f"Detailed analysis timeout (5 minutes) for {user_email}")
+    except Exception as e:
+        logger.error(f"Detailed analysis failed for {user_email}: {str(e)}")
+
+
 # Simple PDF extraction function with enhanced LLM analysis
 @app.tool()
 @mesh.tool(
@@ -94,17 +220,28 @@ def extract_basic_sections(text: str) -> Dict[str, str]:
     dependencies=[
         {
             "capability": "process_with_tools",
-            "tags": ["+openai"],  # tag time is optional (plus to have)
+            "tags": ["+openai"],  # tag openai is optional (plus to have)
         },
         {
             "capability": "convert_tool_format",
-            "tags": ["+openai"],  # tag time is optional (plus to have)
+            "tags": ["+openai"],  # tag openai is optional (plus to have)
+        },
+        {
+            "capability": "update_detailed_resume_analysis",
+            "tags": ["user-management"],  # New user agent capability
         }
     ],
     tags=["pdf", "text-extraction", "document-processing"]
 )
 
-async def extract_text_from_pdf(file_path: str, extraction_method: str = "auto", llm_service: McpAgent = None, convert_tool_format: McpAgent = None) -> Dict[str, Any]:
+async def extract_text_from_pdf(
+    file_path: str, 
+    extraction_method: str = "auto",
+    user_email: str = None,
+    llm_service: McpAgent = None, 
+    convert_tool_format: McpAgent = None,
+    update_detailed_resume_analysis: McpAgent = None
+) -> Dict[str, Any]:
     """Extract text content from a PDF file."""
     try:
         import fitz
@@ -336,6 +473,23 @@ Use the provided tool to return your analysis in the exact structured format."""
             page_count = result["page_count"]
             sections_count = len(result["sections"])
             result["summary"] = f"Document with {word_count} words across {page_count} page(s), containing {sections_count} identified sections."
+
+        # 🚀 Launch background detailed analysis task (don't wait)
+        if (update_detailed_resume_analysis and user_email and llm_service and 
+            convert_tool_format and text and len(text.strip()) > 0):
+            
+            logger.info(f"Starting background detailed analysis for {user_email}")
+            asyncio.create_task(
+                detailed_resume_analysis(
+                    full_text=text,
+                    user_agent=update_detailed_resume_analysis,
+                    llm_service=llm_service,
+                    convert_tool_format=convert_tool_format,
+                    user_email=user_email
+                )
+            )
+        else:
+            logger.info("Skipping detailed analysis - missing required parameters")
 
         return result
 

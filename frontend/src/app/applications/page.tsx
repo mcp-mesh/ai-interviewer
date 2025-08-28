@@ -11,7 +11,7 @@ import Link from 'next/link'
 import { MapPin, Clock, Calendar, RotateCw, Target, CheckCircle, FileText, Edit } from 'lucide-react'
 
 interface ApplicationWithJob extends UserApplication {
-  job?: any // Will be populated from API
+  job?: import('@/lib/types').Job // Will be populated from API
 }
 
 export default function ApplicationsPage() {
@@ -19,6 +19,7 @@ export default function ApplicationsPage() {
   const [user, setUser] = useState<User | null>(null)
   const [applications, setApplications] = useState<ApplicationWithJob[]>([])
   const [loading, setLoading] = useState(true)
+  const [continuingApp, setContinuingApp] = useState<string | null>(null) // Track which app is being continued
 
   useEffect(() => {
     const loadData = async () => {
@@ -89,20 +90,27 @@ export default function ApplicationsPage() {
   }
 
   const handleContinueApplication = async (application: ApplicationWithJob) => {
+    setContinuingApp(application.id) // Set loading state for this specific app
+    
     try {
-      // Call API to get/resume application - this will return existing application ID and current step
-      const { applicationsApi } = await import('@/lib/api')
+      // Call API to get/resume application - this will return existing application ID and correct step
+      const { applicationsApi } = await import('@/lib/api-client')
       const result = await applicationsApi.startApplication(application.jobId)
       
       if (result.data) {
+        // Extract the data from the API response (same as job detail page)
+        const { applicationId, prefillData, currentStep } = result.data
+        
         // Set current application data in localStorage so apply page can pick it up
         const applicationData = {
-          applicationId: result.data.data?.application_id,
+          applicationId,
           jobId: application.jobId,
-          currentStep: result.data.data?.target_step || result.data.data?.step_info?.step_number || 1,
-          prefillData: result.data.data?.prefill_data
+          currentStep: currentStep || 1, // Use API response step, fallback to 1
+          prefillData: prefillData || null
         }
         localStorage.setItem('currentApplication', JSON.stringify(applicationData))
+        
+        console.log('Continuing application:', { applicationId, currentStep, hasPrefillData: !!prefillData })
         
         // Now redirect to application flow
         router.push(`/apply/${application.jobId}`)
@@ -115,6 +123,8 @@ export default function ApplicationsPage() {
       console.error('Error continuing application:', error)
       // Fallback - redirect without API data  
       router.push(`/apply/${application.jobId}`)
+    } finally {
+      setContinuingApp(null) // Clear loading state
     }
   }
 
@@ -197,7 +207,7 @@ export default function ApplicationsPage() {
         <main className="container max-w-[900px] mx-auto px-6 pt-20">
           <div className="py-12 text-center">
             <h1 className="text-2xl font-bold text-gray-900 mb-4">Your Applications</h1>
-            <p className="text-gray-600 mb-8">You haven't submitted any applications yet.</p>
+            <p className="text-gray-600 mb-8">You haven&apos;t submitted any applications yet.</p>
             <Button onClick={() => router.push('/jobs')} variant="primary">
               Browse Jobs
             </Button>
@@ -211,7 +221,7 @@ export default function ApplicationsPage() {
 
   return (
     <div className="page-light min-h-screen">
-      <Navigation userState={userState} user={user} theme="light" />
+      <Navigation userState={userState} user={user} theme="light" currentPage="applications" />
       
       <main className="container max-w-[900px] mx-auto px-6 pt-20">
         <div className="py-12">
@@ -252,7 +262,7 @@ export default function ApplicationsPage() {
               <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
                 <Target className="w-5 h-5 text-primary-600" /> Ready for Interview
               </h2>
-              <p className="text-gray-600 mb-6">Congratulations! You're eligible to start your interviews</p>
+              <p className="text-gray-600 mb-6">Congratulations! You&apos;re eligible to start your interviews</p>
               {qualifiedApplications.map(app => 
                 renderJobCard(app, 
                   <Button 
@@ -280,8 +290,13 @@ export default function ApplicationsPage() {
                     onClick={() => handleContinueApplication(app)}
                     variant="primary"
                     size="sm"
+                    disabled={continuingApp === app.id}
+                    className="flex items-center gap-2"
                   >
-                    Continue Application
+                    {continuingApp === app.id && (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    )}
+                    {continuingApp === app.id ? 'Continuing Application...' : 'Continue Application'}
                   </Button>
                 )
               )}
@@ -311,7 +326,7 @@ export default function ApplicationsPage() {
               <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
                 <CheckCircle className="w-5 h-5 text-success-600" /> Completed Interviews
               </h2>
-              <p className="text-gray-600 mb-6">You've completed these interviews</p>
+              <p className="text-gray-600 mb-6">You&apos;ve completed these interviews</p>
               {completedApplications.map(app => 
                 renderJobCard(app, 
                   <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">

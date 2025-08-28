@@ -15,7 +15,6 @@ from mesh.types import McpMeshAgent
 from app.models.schemas import (
     JobListResponse, 
     JobDetailResponse, 
-    JobCategoriesResponse,
     JobFiltersResponse,
     JobFiltersData,
     JobFilters,
@@ -77,85 +76,7 @@ async def search_jobs(
         raise HTTPException(status_code=500, detail=f"Failed to search jobs: {str(e)}")
 
 
-@router.get("", response_model=JobListResponse)
-@mesh.route(dependencies=["jobs_all_listing"])
-async def list_jobs_legacy(
-    category: Optional[str] = None,
-    location: Optional[str] = None,
-    experience_level: Optional[str] = None,
-    job_type: Optional[str] = None,
-    page: int = 1,
-    limit: int = 20,
-    job_agent: McpMeshAgent = None
-) -> JobListResponse:
-    """
-    Legacy endpoint - List all available jobs with basic filtering.
-    
-    Use /jobs/search for advanced multi-value filtering.
-    Delegates to job_agent's jobs_all_listing capability.
-    """
-    try:
-        logger.info(f"Listing jobs - page {page}, limit {limit}, category: {category}")
-        
-        # Build filters
-        filters = {}
-        if category:
-            filters["category"] = category
-        if location:
-            filters["location"] = location  
-        if experience_level:
-            filters["experience_level"] = experience_level
-        if job_type:
-            filters["job_type"] = job_type
-        
-        # Delegate to job agent
-        result = await job_agent(
-            filters=filters,
-            page=page,
-            limit=limit
-        )
-        
-        logger.info(f"Job agent returned {len(result.get('jobs', []))} jobs")
-        
-        return JobListResponse(
-            data=result.get("jobs", []),
-            total=result.get("total", 0),
-            page=page,
-            limit=limit,
-            success=True
-        )
-        
-    except Exception as e:
-        logger.error(f"Failed to list jobs: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve jobs: {str(e)}")
 
-
-@router.get("/categories", response_model=JobCategoriesResponse)
-@mesh.route(dependencies=["jobs_categories_list"])
-async def get_job_categories(
-    job_agent: McpMeshAgent = None
-) -> JobCategoriesResponse:
-    """
-    Get all available job categories.
-    
-    Delegates to job_agent's jobs_categories_list capability.
-    """
-    try:
-        logger.info("Getting job categories")
-        
-        # Delegate to job agent
-        result = await job_agent()
-        
-        logger.info(f"Job agent returned {len(result.get('categories', []))} categories")
-        
-        return JobCategoriesResponse(
-            data=result.get("categories", []),
-            success=True
-        )
-        
-    except Exception as e:
-        logger.error(f"Failed to get job categories: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve job categories: {str(e)}")
 
 
 @router.get("/filters", response_model=JobFiltersResponse)

@@ -172,7 +172,7 @@ interface FormErrorSummaryProps {
 }
 
 export function FormErrorSummary({ errors, title = "Please correct the following errors:" }: FormErrorSummaryProps) {
-  const errorEntries = Object.entries(errors).filter(([_, error]) => error)
+  const errorEntries = Object.entries(errors).filter(([, error]) => error)
   
   if (errorEntries.length === 0) return null
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { X } from 'lucide-react'
 
@@ -118,26 +118,26 @@ export function ToastContainer({ toasts, onRemove }: ToastContainerProps) {
 export function useToast() {
   const [toasts, setToasts] = useState<Toast[]>([])
 
-  const addToast = (message: string, type: ToastType = 'info') => {
+  const addToast = useCallback((message: string, type: ToastType = 'info') => {
     const id = Math.random().toString(36).substr(2, 9)
     setToasts(prev => [...prev, { id, message, type }])
     return id // Return the ID so caller can remove it later
-  }
+  }, [])
 
-  const removeToast = (id: string) => {
+  const removeToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(toast => toast.id !== id))
-  }
+  }, [])
 
-  const clearAllToasts = () => {
+  const clearAllToasts = useCallback(() => {
     setToasts([])
-  }
+  }, [])
 
-  const showToast = {
+  const showToast = useMemo(() => ({
     info: (message: string) => addToast(message, 'info'),
     success: (message: string) => addToast(message, 'success'),
     warning: (message: string) => addToast(message, 'warning'),
     error: (message: string) => addToast(message, 'error')
-  }
+  }), [addToast])
 
   return {
     toasts,

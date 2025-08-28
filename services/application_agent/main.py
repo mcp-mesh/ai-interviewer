@@ -66,9 +66,7 @@ logger.info("✅ Application Agent ready with modular step processing")
 @mesh.tool(
     capability="application_start_with_prefill",
     dependencies=[
-        {"capability": "get_resume_text"},
-        {"capability": "process_with_tools", "tags": ["+openai"]},
-        {"capability": "convert_tool_format", "tags": ["+openai"]},
+        {"capability": "get_detailed_resume_analysis"},
         {"capability": "job_details_get"}
     ],
     tags=["application-management", "step-specific-llm", "intelligent-autofill"],
@@ -77,9 +75,7 @@ logger.info("✅ Application Agent ready with modular step processing")
 async def application_start_with_prefill(
     job_id: str,
     user_email: str,
-    user_agent: McpMeshAgent = None,
-    llm_service: McpMeshAgent = None,
-    convert_tool_format: McpMeshAgent = None,
+    get_detailed_resume_analysis: McpMeshAgent = None,
     job_agent: McpMeshAgent = None
 ) -> Dict[str, Any]:
     """
@@ -91,9 +87,7 @@ async def application_start_with_prefill(
     Args:
         job_id: Job ID to apply for
         user_email: User's email address
-        user_agent: MCP Mesh agent for user operations
-        llm_service: MCP Mesh agent for LLM processing
-        convert_tool_format: Tool format converter for LLM compatibility
+        get_detailed_resume_analysis: MCP Mesh agent for detailed analysis retrieval
         job_agent: MCP Mesh agent for job operations
         
     Returns:
@@ -111,28 +105,28 @@ async def application_start_with_prefill(
         
         logger.info(f"Target step for user: {target_step} (status: {application['status']})")
         
-        # 2. Get resume text for LLM processing
-        resume_text = ""
-        if user_agent:
+        # 2. Get detailed resume analysis for prefill
+        detailed_analysis = None
+        if get_detailed_resume_analysis:
             try:
-                resume_result = await user_agent(user_email=user_email)
-                if resume_result.get("success") and resume_result.get("text_content"):
-                    resume_text = resume_result["text_content"]
-                    logger.info(f"Retrieved resume text: {len(resume_text)} characters")
+                analysis_result = await get_detailed_resume_analysis(user_email=user_email)
+                if analysis_result.get("success") and analysis_result.get("has_detailed_analysis"):
+                    detailed_analysis = analysis_result
+                    logger.info(f"Retrieved detailed resume analysis for prefill")
+                    logger.info(f"Personal confidence: {analysis_result.get('analysis_metadata', {}).get('personal_confidence', 'N/A')}")
+                    logger.info(f"Experience confidence: {analysis_result.get('analysis_metadata', {}).get('experience_confidence', 'N/A')}")
                 else:
-                    logger.info("No resume text available for prefill generation")
-            except Exception as resume_error:
-                logger.warning(f"Failed to get resume text: {resume_error}")
+                    logger.info("No detailed resume analysis available - using fallback")
+            except Exception as analysis_error:
+                logger.warning(f"Failed to get detailed resume analysis: {analysis_error}")
         
-        # 3. Generate prefill data using appropriate step handler
+        # 3. Generate prefill data using direct data instead of LLM processing
         step_handler = get_step_handler(target_step)
         
-        # Prepare handler arguments
+        # Prepare handler arguments with detailed analysis instead of LLM
         handler_args = {
             "application_id": application["id"],
-            "resume_text": resume_text,
-            "llm_service": llm_service,
-            "convert_tool_format": convert_tool_format,
+            "detailed_analysis": detailed_analysis,
             "save_data": False  # Don't save on start, only generate prefill
         }
         
@@ -179,11 +173,12 @@ async def application_start_with_prefill(
 @mesh.tool(
     capability="application_step_save_with_next_prefill",
     dependencies=[
+        {"capability": "get_detailed_resume_analysis"},
+        {"capability": "job_details_get"}, 
+        {"capability": "cache_invalidate"},
         {"capability": "get_resume_text"},
         {"capability": "process_with_tools", "tags": ["+openai"]},
-        {"capability": "convert_tool_format", "tags": ["+openai"]},
-        {"capability": "job_details_get"},
-        {"capability": "cache_invalidate"}
+        {"capability": "convert_tool_format", "tags": ["+openai"]}
     ],
     tags=["application-management", "step-management", "intelligent-autofill"],
     description="Save current step data and return next step prefill data"
@@ -193,11 +188,12 @@ async def application_step_save_with_next_prefill(
     step_number: int,
     step_data: Dict[str, Any],
     user_email: str,
-    user_agent: McpMeshAgent = None,
-    llm_service: McpMeshAgent = None,
-    convert_tool_format: McpMeshAgent = None,
+    get_detailed_resume_analysis: McpMeshAgent = None,
     job_agent: McpMeshAgent = None,
-    cache_agent: McpMeshAgent = None
+    cache_agent: McpMeshAgent = None,
+    user_agent: McpMeshAgent = None,
+    process_with_tools: McpMeshAgent = None,
+    convert_tool_format: McpMeshAgent = None
 ) -> Dict[str, Any]:
     """
     Save current step data and return next step prefill data.
@@ -207,9 +203,7 @@ async def application_step_save_with_next_prefill(
         step_number: Current step number (1-6)
         step_data: Data to save for current step
         user_email: User email for resume lookup
-        user_agent: MCP Mesh agent for user operations
-        llm_service: MCP Mesh agent for LLM processing
-        convert_tool_format: Tool format converter
+        get_detailed_resume_analysis: MCP Mesh agent for detailed analysis retrieval
         job_agent: MCP Mesh agent for job operations
         cache_agent: MCP Mesh agent for cache invalidation
         
@@ -225,7 +219,6 @@ async def application_step_save_with_next_prefill(
         # Save current step 
         save_handler_args = {
             "application_id": application_id,
-            "resume_text": "",  # Not needed for saving
             "step_data": step_data,  # Pass the data to save
             "save_data": True
         }
@@ -234,8 +227,8 @@ async def application_step_save_with_next_prefill(
         if step_number == 6:
             save_handler_args.update({
                 "job_agent": job_agent,
-                "user_agent": user_agent, 
-                "llm_service": llm_service,
+                "user_agent": user_agent,
+                "llm_service": process_with_tools,
                 "convert_tool_format": convert_tool_format,
                 "cache_agent": cache_agent
             })
@@ -276,26 +269,26 @@ async def application_step_save_with_next_prefill(
             status="STARTED"
         )
         
-        # 4. Get resume text for next step prefill
-        resume_text = ""
-        if user_agent:
+        # 4. Get detailed resume analysis for next step prefill
+        detailed_analysis = None
+        if get_detailed_resume_analysis:
             try:
-                resume_result = await user_agent(user_email=user_email)
-                if resume_result.get("success") and resume_result.get("text_content"):
-                    resume_text = resume_result["text_content"]
-                    logger.info(f"Retrieved resume for next step prefill: {len(resume_text)} chars")
-            except Exception as resume_error:
-                logger.warning(f"Failed to get resume for next step: {resume_error}")
+                analysis_result = await get_detailed_resume_analysis(user_email=user_email)
+                if analysis_result.get("success") and analysis_result.get("has_detailed_analysis"):
+                    detailed_analysis = analysis_result
+                    logger.info(f"Retrieved detailed resume analysis for next step prefill")
+                else:
+                    logger.info("No detailed resume analysis available for next step")
+            except Exception as analysis_error:
+                logger.warning(f"Failed to get detailed resume analysis for next step: {analysis_error}")
         
         # 5. Generate prefill for next step
         next_step_handler = get_step_handler(next_step_number)
         
-        # Prepare handler arguments
+        # Prepare handler arguments with detailed analysis instead of LLM
         handler_args = {
             "application_id": application_id,
-            "resume_text": resume_text,
-            "llm_service": llm_service,
-            "convert_tool_format": convert_tool_format,
+            "detailed_analysis": detailed_analysis,
             "save_data": False  # Don't save, just generate prefill
         }
         
@@ -643,7 +636,7 @@ class ApplicationAgent(McpAgent):
     Modular architecture with step-specific handlers:
     - Smart resume logic (checks existing progress)
     - Step-specific LLM extraction with dedicated handlers
-    - Clean separation of concerns (utils, steps, tool_specs)
+    - Clean separation of concerns (utils, steps)
     - Comprehensive database persistence with PostgreSQL + Redis
     - Standardized response formatting
     

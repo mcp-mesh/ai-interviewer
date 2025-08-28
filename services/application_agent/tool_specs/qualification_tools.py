@@ -15,7 +15,7 @@ def get_qualification_tool_spec() -> Dict[str, Any]:
     return {
         "name": "assess_candidate_qualification",
         "description": "Assess candidate qualification based on application data, resume, and job requirements",
-        "parameters": {
+        "input_schema": {
             "type": "object",
             "properties": {
                 "qualification_score": {

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Navigation } from "@/components/navigation"
 import { Button } from "@/components/ui/button"
+import { Markdown } from "@/components/ui/markdown"
 import { ToastContainer, useToast } from "@/components/wireframe"
 import { AlertTriangle, Calendar, MapPin, Clock, Ban, Scale, Wrench, Lightbulb, CheckCircle2, Settings } from "lucide-react"
 import { UserState, User, Job } from "@/lib/types"
@@ -14,7 +15,7 @@ interface PreparePageProps {
 }
 
 export default function InterviewPreparePage({ params }: PreparePageProps) {
-  const [jobId, setJobId] = useState<string>("")
+  // const [jobId, setJobId] = useState<string>("") // TODO: May be needed for future functionality
   const [job, setJob] = useState<Job | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -32,7 +33,7 @@ export default function InterviewPreparePage({ params }: PreparePageProps) {
   useEffect(() => {
     const resolveParams = async () => {
       const resolvedParams = await params
-      setJobId(resolvedParams.jobId)
+      // setJobId(resolvedParams.jobId) // TODO: May be needed for future functionality
       
       // Fetch job data
       setLoading(true)
@@ -43,7 +44,7 @@ export default function InterviewPreparePage({ params }: PreparePageProps) {
         } else {
           setJob(jobData)
         }
-      } catch (err) {
+      } catch {
         setError('Failed to fetch job information')
       } finally {
         setLoading(false)
@@ -116,7 +117,7 @@ export default function InterviewPreparePage({ params }: PreparePageProps) {
                 <div className="flex items-center gap-6 text-gray-500 text-sm">
                   <div className="flex items-center gap-1">
                     <Calendar className="w-4 h-4 text-purple-600" />
-                    Interview Duration: 30 minutes
+                    Interview Duration: {job.interview_duration_minutes || 60} minutes
                   </div>
                   <div className="flex items-center gap-1">
                     <MapPin className="w-4 h-4 text-primary-600" />
@@ -142,7 +143,7 @@ export default function InterviewPreparePage({ params }: PreparePageProps) {
                     onClick={handleStartInterview}
                     className="px-6 py-3"
                   >
-                    I'm Ready - Start Interview
+                    I&apos;m Ready - Start Interview
                   </Button>
                 </div>
               </div>
@@ -214,7 +215,7 @@ export default function InterviewPreparePage({ params }: PreparePageProps) {
                   <ul className="list-none pl-4 text-red-900">
                     <li className="mb-2 flex items-start gap-2">
                       <span className="text-emerald-500 font-bold">•</span>
-                      <span><strong>Duration:</strong> This interview is scheduled for 30 minutes</span>
+                      <span><strong>Duration:</strong> This interview is scheduled for {job.interview_duration_minutes || 60} minutes</span>
                     </li>
                     <li className="mb-2 flex items-start gap-2">
                       <span className="text-emerald-500 font-bold">•</span>
@@ -222,7 +223,7 @@ export default function InterviewPreparePage({ params }: PreparePageProps) {
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-emerald-500 font-bold">•</span>
-                      <span><strong>Manual Exit:</strong> You can end the interview early at any time using the "End Interview" button</span>
+                      <span><strong>Manual Exit:</strong> You can end the interview early at any time using the &ldquo;End Interview&rdquo; button</span>
                     </li>
                   </ul>
                 </div>
@@ -235,7 +236,7 @@ export default function InterviewPreparePage({ params }: PreparePageProps) {
                   <ul className="list-none pl-4 text-red-900">
                     <li className="mb-2 flex items-start gap-2">
                       <span className="text-blue-500 font-bold">•</span>
-                      <span><strong>Reconnection Window:</strong> If technical issues occur, you can reconnect and resume your interview as long as the total scheduled time hasn't elapsed</span>
+                      <span><strong>Reconnection Window:</strong> If technical issues occur, you can reconnect and resume your interview as long as the total scheduled time hasn&apos;t elapsed</span>
                     </li>
                     <li className="mb-2 flex items-start gap-2">
                       <span className="text-blue-500 font-bold">•</span>
@@ -254,67 +255,20 @@ export default function InterviewPreparePage({ params }: PreparePageProps) {
             <div className="bg-white border border-gray-200 rounded-xl p-8">
               <h2 className="text-xl font-semibold text-gray-800 mb-6">About This Role</h2>
               
-              <p className="leading-relaxed mb-6 text-gray-600">
-                {job.description}
-              </p>
+              <Markdown 
+                content={`${job.description}
 
-              <h3 className="text-lg font-semibold mt-8 mb-4 text-gray-800">Requirements:</h3>
-              <ul className="list-disc pl-6 text-gray-600 leading-relaxed">
-                {job.requirements.map((requirement, index) => (
-                  <li key={index} className="mb-2">{requirement}</li>
-                ))}
-              </ul>
-
-              {job.benefits && job.benefits.length > 0 && (
-                <>
-                  <h3 className="text-lg font-semibold mt-8 mb-4 text-gray-800">Benefits and Perks:</h3>
-                  <ul className="list-disc pl-6 text-gray-600 leading-relaxed">
-                    {job.benefits.map((benefit, index) => (
-                      <li key={index} className="mb-2">{benefit}</li>
-                    ))}
-                  </ul>
-                </>
-              )}
-
-              {job.salaryRange && (
-                <>
-                  <h3 className="text-lg font-semibold mt-8 mb-4 text-gray-800">Compensation:</h3>
-                  <p className="leading-relaxed text-gray-600">
-                    ${job.salaryRange.min.toLocaleString()} - ${job.salaryRange.max.toLocaleString()} {job.salaryRange.currency} annually
-                  </p>
-                </>
-              )}
+## Requirements
+${job.requirements.map(req => `- ${req}`).join('\n')}
+${job.benefits && job.benefits.length > 0 ? `\n## Benefits and Perks\n${job.benefits.map(benefit => `- ${benefit}`).join('\n')}` : ''}
+${job.salaryRange ? `\n## Compensation\n$${job.salaryRange.min.toLocaleString()} - $${job.salaryRange.max.toLocaleString()} ${job.salaryRange.currency} annually` : ''}`}
+                className="text-gray-600"
+              />
             </div>
           </div>
 
           {/* Sidebar */}
           <aside className="w-80 space-y-8">
-            {/* Interview Info */}
-            <div className="border border-gray-200 rounded-lg p-6 bg-blue-50">
-              <h4 className="font-semibold mb-4 text-blue-900">Interview Information</h4>
-              <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Position:</span>
-                  <span className="text-blue-900 font-medium">{job.title}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Company:</span>
-                  <span className="text-blue-900 font-medium">{job.company}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Duration:</span>
-                  <span className="text-blue-900 font-medium">30 minutes</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Type:</span>
-                  <span className="text-blue-900 font-medium">AI-Powered Technical</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Questions:</span>
-                  <span className="text-blue-900 font-medium">8-12 questions</span>
-                </div>
-              </div>
-            </div>
 
             {/* Preparation Tips */}
             <div className="border border-gray-200 rounded-lg p-6">

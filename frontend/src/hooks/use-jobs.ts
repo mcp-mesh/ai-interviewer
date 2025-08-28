@@ -1,15 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { jobsApi } from '@/lib/api'
 import { queryKeys } from '@/lib/react-query'
-import { Job } from '@/lib/types'
+import { Job, JobFilters } from '@/lib/types'
 
 // Get all jobs with optional filters
-export function useJobs(filters?: { location?: string; type?: string; remote?: boolean }) {
+export function useJobs(filters?: JobFilters, enabled = true) {
   return useQuery({
     queryKey: queryKeys.jobs.list(filters),
     queryFn: () => jobsApi.getAll(filters),
     select: (data) => data.data, // Extract the data from the API response
     staleTime: 1000 * 60 * 5, // 5 minutes - job listings don't change frequently
+    enabled: Boolean(enabled),
   })
 }
 
@@ -50,15 +51,14 @@ export function useBookmarkJob() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async ({ jobId, userId }: { jobId: string; userId: string }) => {
+    mutationFn: async () => {
       // This would be a real API call
       // For now, we'll just simulate success
       return { success: true }
     },
-    onSuccess: (data, variables) => {
+    onSuccess: () => {
       // Invalidate job queries to refetch updated bookmark status
       queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all })
-      queryClient.invalidateQueries({ queryKey: queryKeys.jobs.detail(variables.jobId) })
     },
   })
 }

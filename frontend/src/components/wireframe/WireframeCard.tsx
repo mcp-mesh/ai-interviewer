@@ -8,7 +8,7 @@ interface WireframeCardProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export const WireframeCard = forwardRef<HTMLDivElement, WireframeCardProps>(
-  ({ className, shimmer = false, children, ...props }, ref) => {
+  ({ className, children, ...props }, ref) => {
     return (
       <div
         ref={ref}

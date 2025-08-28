@@ -6,19 +6,19 @@ import { Button } from '@/components/ui/button'
 import { Job, User } from '@/lib/types'
 import { jobsApi } from '@/lib/api'
 import Link from 'next/link'
-import { Search, Target, Calendar, MapPin, Clock } from 'lucide-react'
+import { Search, Target, MapPin, Clock } from 'lucide-react'
 
 
 interface FilterSectionProps {
   title: string
-  filterId: string
+  // filterId: string // TODO: May be needed for future functionality  
   options: string[]
   selectedValues: string[]
   onChange: (values: string[]) => void
   showSearch?: boolean
 }
 
-function FilterSection({ title, filterId, options, selectedValues, onChange, showSearch }: FilterSectionProps) {
+function FilterSection({ title, /* filterId, */ options, selectedValues, onChange, showSearch }: FilterSectionProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -136,34 +136,40 @@ export default function MatchedJobsPage() {
       
       // Fetch matched jobs, all available jobs, and filters
       try {
-        const promises: Promise<any>[] = [
+        const promises: Promise<{ data: unknown; error?: string }>[] = [
           jobsApi.getFilters() // Always fetch filters
         ]
         
         if (parsedUser?.id && parsedUser?.hasResume) {
           promises.push(
-            jobsApi.getMatched(parsedUser.id),
-            jobsApi.getJobs() // Use new unified method
+            jobsApi.getMatched(),
+            jobsApi.getAll() // Use new unified method
           )
         } else {
           promises.push(
             Promise.resolve({ data: [] }), // No matched jobs
-            jobsApi.getJobs() // Use new unified method
+            jobsApi.getAll() // Use new unified method
           )
         }
         
         const [filtersResponse, matchedJobsResponse, allJobsResponse] = await Promise.all(promises)
         
         if (filtersResponse.data) {
-          setFilterOptions(filtersResponse.data)
+          setFilterOptions(filtersResponse.data as {
+            categories: string[]
+            job_types: string[]
+            cities: string[]
+            states: string[]
+            countries: string[]
+          })
         }
         
         if (matchedJobsResponse.data) {
-          setJobs(matchedJobsResponse.data)
+          setJobs(matchedJobsResponse.data as Job[])
         }
         
         if (allJobsResponse.data) {
-          setAllAvailableJobs(allJobsResponse.data)
+          setAllAvailableJobs(allJobsResponse.data as Job[])
         }
       } catch (error) {
         console.error('Failed to fetch data:', error)
@@ -191,7 +197,7 @@ export default function MatchedJobsPage() {
       if (activeTab === 'all') {
         // For 'all' tab, use API filtering
         try {
-          const jobsResponse = await jobsApi.getJobs(filters)
+          const jobsResponse = await jobsApi.getAll(filters)
           if (jobsResponse.data) {
             let filtered = jobsResponse.data
             
@@ -254,7 +260,7 @@ export default function MatchedJobsPage() {
 
   return (
     <div className="page-light min-h-screen">
-      <Navigation userState={userState} user={user} theme="light" />
+      <Navigation userState={userState} user={user} theme="light" currentPage="matched" />
       
       <main className="container max-w-[1400px] mx-auto px-6 pt-20">
         {/* AI Insights Banner for users with resume - only show if there are matched jobs */}
@@ -330,7 +336,7 @@ export default function MatchedJobsPage() {
                 <>
                   <FilterSection
                     title="Category"
-                    filterId="category"
+                    // filterId="category" // TODO: May be needed for future functionality
                     options={filterOptions.categories}
                     selectedValues={selectedCategories}
                     onChange={setSelectedCategories}
@@ -339,7 +345,7 @@ export default function MatchedJobsPage() {
 
                   <FilterSection
                     title="City"
-                    filterId="city"
+                    // filterId="city" // TODO: May be needed for future functionality
                     options={filterOptions.cities}
                     selectedValues={selectedCities}
                     onChange={setSelectedCities}
@@ -348,7 +354,7 @@ export default function MatchedJobsPage() {
 
                   <FilterSection
                     title="State"
-                    filterId="state"
+                    // filterId="state" // TODO: May be needed for future functionality
                     options={filterOptions.states}
                     selectedValues={selectedStates}
                     onChange={setSelectedStates}
@@ -356,7 +362,7 @@ export default function MatchedJobsPage() {
 
                   <FilterSection
                     title="Country"
-                    filterId="country"
+                    // filterId="country" // TODO: May be needed for future functionality
                     options={filterOptions.countries}
                     selectedValues={selectedCountries}
                     onChange={setSelectedCountries}
@@ -364,7 +370,7 @@ export default function MatchedJobsPage() {
 
                   <FilterSection
                     title="Type"
-                    filterId="type"
+                    // filterId="type" // TODO: May be needed for future functionality
                     options={filterOptions.job_types}
                     selectedValues={selectedTypes}
                     onChange={setSelectedTypes}

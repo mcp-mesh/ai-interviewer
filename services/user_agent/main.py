@@ -441,7 +441,8 @@ async def process_resume_upload(
         # Use MCP Mesh dependency injection pattern
         extraction_result = await pdf_extractor(
             file_path=minio_url,
-            extraction_method="auto"
+            extraction_method="auto",
+            user_email=user_email
         )
         
         if not extraction_result or not extraction_result.get("success"):
@@ -651,6 +652,166 @@ def cache_invalidate(user_email: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error in cache_invalidate: {str(e)}")
         return {"success": False, "error": str(e)}
+
+
+@app.tool()
+@mesh.tool(
+    capability="update_detailed_resume_analysis",
+    tags=["user-management", "resume-processing", "application-prefill"],
+    description="Update resume with detailed analysis for application form prefill"
+)
+def update_detailed_resume_analysis(
+    user_email: str, 
+    personal_info: Dict[str, Any],
+    experience_info: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Store comprehensive resume analysis for application Steps 1 & 2 prefill.
+    
+    Called by PDF extractor agent after detailed LLM analysis completes.
+    
+    Args:
+        user_email: User's email address
+        personal_info: Step 1 data (contact info, URLs, professional title, etc.)
+        experience_info: Step 2 data (work history, skills, education, etc.)
+        
+    Returns:
+        Dict with success status and storage confirmation
+    """
+    try:
+        logger.info(f"Updating detailed resume analysis for user: {user_email}")
+        
+        with get_db_session() as db:
+            # Find user and their resume
+            db_user = db.query(User).filter(User.email == user_email).first()
+            if not db_user:
+                return {
+                    "success": False,
+                    "error": f"User not found: {user_email}"
+                }
+            
+            if not db_user.resume:
+                return {
+                    "success": False,
+                    "error": f"No resume found for user: {user_email}"
+                }
+            
+            # Update detailed analysis fields
+            resume = db_user.resume
+            resume.detailed_personal_info = personal_info
+            resume.detailed_experience_info = experience_info
+            resume.detailed_analysis_completed = True
+            resume.detailed_analysis_at = datetime.utcnow()
+            resume.updated_at = datetime.utcnow()
+            
+            db.commit()
+            
+            logger.info(f"Successfully updated detailed analysis for user {user_email}")
+            logger.info(f"Personal info confidence: {personal_info.get('confidence_score', 'N/A')}")
+            logger.info(f"Experience info confidence: {experience_info.get('confidence_score', 'N/A')}")
+            
+            # Invalidate cache since resume data changed
+            try:
+                invalidate_user_cache(user_email)
+                logger.info(f"Cache invalidated for user {user_email}")
+            except Exception as cache_error:
+                logger.warning(f"Cache invalidation failed for {user_email}: {cache_error}")
+            
+            return {
+                "success": True,
+                "message": "Detailed resume analysis updated successfully",
+                "personal_info_confidence": personal_info.get("confidence_score", 0.0),
+                "experience_info_confidence": experience_info.get("confidence_score", 0.0),
+                "updated_at": resume.updated_at.isoformat() + "Z"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error updating detailed resume analysis for {user_email}: {str(e)}")
+        return {
+            "success": False,
+            "error": f"Failed to update detailed analysis: {str(e)}"
+        }
+
+
+@app.tool()
+@mesh.tool(
+    capability="get_detailed_resume_analysis",
+    tags=["user-management", "resume-processing", "application-prefill"],
+    description="Get detailed resume analysis for application form prefill"
+)
+def get_detailed_resume_analysis(user_email: str) -> Dict[str, Any]:
+    """
+    Get detailed resume analysis for application Steps 1 & 2 prefill.
+    
+    Returns pre-analyzed personal info and experience data instead of 
+    requiring LLM processing during application flow.
+    
+    Args:
+        user_email: User's email address
+        
+    Returns:
+        Dict with detailed personal_info and experience_info for prefill
+    """
+    try:
+        logger.info(f"Getting detailed resume analysis for user: {user_email}")
+        
+        with get_db_session() as db:
+            # Find user and their resume
+            db_user = db.query(User).filter(User.email == user_email).first()
+            if not db_user:
+                return {
+                    "success": False,
+                    "error": f"User not found: {user_email}"
+                }
+            
+            if not db_user.resume:
+                return {
+                    "success": False,
+                    "error": f"No resume found for user: {user_email}",
+                    "has_resume": False
+                }
+            
+            resume = db_user.resume
+            
+            # Check if detailed analysis is available
+            if not resume.detailed_analysis_completed:
+                return {
+                    "success": True,
+                    "has_detailed_analysis": False,
+                    "message": "Detailed analysis not yet completed - may still be processing",
+                    "basic_analysis_available": resume.analysis_enhanced,
+                    "processed_at": resume.processed_at.isoformat() + "Z" if resume.processed_at else None
+                }
+            
+            # Return detailed analysis data
+            personal_info = resume.detailed_personal_info or {}
+            experience_info = resume.detailed_experience_info or {}
+            
+            logger.info(f"Retrieved detailed analysis for {user_email}")
+            logger.info(f"Personal info confidence: {personal_info.get('confidence_score', 'N/A')}")
+            logger.info(f"Experience info confidence: {experience_info.get('confidence_score', 'N/A')}")
+            
+            return {
+                "success": True,
+                "has_detailed_analysis": True,
+                "personal_info": personal_info,
+                "experience_info": experience_info,
+                "analysis_metadata": {
+                    "completed_at": resume.detailed_analysis_at.isoformat() + "Z" if resume.detailed_analysis_at else None,
+                    "ai_provider": resume.ai_provider,
+                    "ai_model": resume.ai_model,
+                    "personal_confidence": personal_info.get("confidence_score", 0.0),
+                    "experience_confidence": experience_info.get("confidence_score", 0.0)
+                },
+                "message": "Detailed resume analysis retrieved successfully"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error getting detailed resume analysis for {user_email}: {str(e)}")
+        return {
+            "success": False,
+            "error": f"Failed to get detailed analysis: {str(e)}"
+        }
 
 
 # Agent class definition - MCP Mesh pattern

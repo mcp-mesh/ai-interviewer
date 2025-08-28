@@ -83,6 +83,9 @@ class Job(Base):
     salary_max = Column(Integer, nullable=True)
     salary_currency = Column(String(10), default='USD')
     
+    # Interview and application details
+    interview_duration_minutes = Column(Integer, default=60, nullable=False)  # Default 60 minutes
+    
     # Status and metadata
     is_active = Column(Boolean, default=True)
     posted_date = Column(DateTime(timezone=True), default=func.now())
@@ -119,6 +122,7 @@ class Job(Base):
             "salary_min": self.salary_min,
             "salary_max": self.salary_max,
             "salary_currency": self.salary_currency,
+            "interview_duration_minutes": self.interview_duration_minutes,
             "is_active": self.is_active,
             "posted_date": self.posted_date.isoformat() if self.posted_date else None,
             "application_deadline": self.application_deadline.isoformat() if self.application_deadline else None,
@@ -195,18 +199,20 @@ def insert_sample_data():
             
             logger.info("🔄 Inserting sample job data...")
             
-            # Load all 12 job data files dynamically
+            # Load all 15 job data files dynamically
             sample_jobs = []
             
             # Import and load all job data files
             from .job_data import (
                 job_01, job_02, job_03, job_04, job_05, job_06,
-                job_07, job_08, job_09, job_10, job_11, job_12
+                job_07, job_08, job_09, job_10, job_11, job_12,
+                job_13, job_14, job_15
             )
             
             job_modules = [
                 job_01, job_02, job_03, job_04, job_05, job_06,
-                job_07, job_08, job_09, job_10, job_11, job_12
+                job_07, job_08, job_09, job_10, job_11, job_12,
+                job_13, job_14, job_15
             ]
             
             for job_module in job_modules:

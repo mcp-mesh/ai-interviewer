@@ -10,101 +10,12 @@ from datetime import datetime
 import json
 
 from ..database import get_db_session, ApplicationExperience
-from ..tool_specs.experience_tools import get_experience_tool_spec
+# Tool spec import removed - using detailed analysis from user agent
 from ..utils.step_management import get_step_title, get_step_description
 
 logger = logging.getLogger(__name__)
 
-async def extract_experience_with_llm(
-    resume_text: str,
-    llm_service,
-    convert_tool_format
-) -> Dict[str, Any]:
-    """
-    Extract work experience from resume text using LLM.
-    
-    Args:
-        resume_text: Raw resume text content
-        llm_service: LLM agent for processing
-        convert_tool_format: Tool format converter
-        
-    Returns:
-        Dict with extracted experience information or error
-    """
-    try:
-        logger.info("Extracting work experience using LLM")
-        
-        # Get tool specification
-        experience_tool = get_experience_tool_spec()
-        
-        # Convert tools to appropriate format for the LLM provider
-        converted_tools = [experience_tool]
-        if convert_tool_format:
-            try:
-                converted_tools = await convert_tool_format(tools=[experience_tool])
-                logger.info("Successfully converted experience tool for LLM provider")
-            except Exception as e:
-                logger.warning(f"Tool conversion failed, using original format: {e}")
-        
-        # Create system prompt for experience extraction
-        system_prompt = f"""You are a professional resume parser. Extract 5 key fields from any resume format: Brief Summary, Technical Skills, Soft Skills, Work Experience, and Education.
-
-RESUME TEXT (First 5000 characters):
-{resume_text[:5000]}{'...' if len(resume_text) > 5000 else ''}
-
-EXTRACTION GUIDELINES:
-1. BRIEF SUMMARY: Create 2-3 sentence summary from any overview/profile/objective section, or synthesize from overall content
-2. TECHNICAL SKILLS: Find programming languages, technologies, tools, frameworks mentioned anywhere in the resume  
-3. SOFT SKILLS: Infer from job descriptions, achievements, leadership roles - look for management, communication, problem-solving indicators
-4. WORK EXPERIENCE: Extract job entries with company names, job titles, employment dates, and key responsibilities
-5. EDUCATION: Find degrees, certifications, schools, universities mentioned anywhere in the document
-
-FLEXIBLE PARSING APPROACH:
-- Adapt to any resume format (chronological, functional, hybrid, modern, traditional)
-- Look for common patterns: company names, job titles, dates, degree names, school names
-- Infer information from context when explicit sections aren't labeled
-- Handle various date formats (MM/YYYY, Month Year, Year only)
-- Extract skills from job descriptions if no dedicated skills section exists
-- Synthesize professional summary if no explicit summary section is present
-- Identify education from institution names, degree keywords (Bachelor, Master, PhD, Certification)
-
-Focus on extracting complete, accurate information regardless of resume formatting or structure."""
-
-        # Call LLM service
-        logger.info(f"Calling LLM service for experience extraction")
-        result = await llm_service(
-            text="Extract detailed work experience from this resume using the provided tool.",
-            system_prompt=system_prompt,
-            messages=[],
-            tools=converted_tools,
-            force_tool_use=True,
-            temperature=0.1
-        )
-        
-        if result and result.get("success") and result.get("tool_calls"):
-            tool_calls = result.get("tool_calls", [])
-            if len(tool_calls) > 0:
-                experience_data = tool_calls[0].get("parameters", {})
-                logger.info(f"Successfully extracted experience - {len(experience_data.get('work_experience', []))} roles, confidence: {experience_data.get('confidence_score', 'N/A')}")
-                return {
-                    "success": True,
-                    "data": experience_data,
-                    "ai_provider": result.get("provider", "unknown"),
-                    "ai_model": result.get("model", "unknown")
-                }
-        
-        logger.warning("LLM failed to extract work experience")
-        return {
-            "success": False,
-            "error": "Failed to extract work experience from resume"
-        }
-        
-    except Exception as e:
-        logger.error(f"Experience extraction failed: {e}")
-        return {
-            "success": False,
-            "error": f"Experience extraction error: {str(e)}"
-        }
+# LLM extraction function removed - using detailed analysis from user agent
 
 async def save_experience_data(
     application_id: str,
@@ -162,25 +73,21 @@ async def save_experience_data(
 
 async def handle_experience_step(
     application_id: str,
-    resume_text: str = "",
+    detailed_analysis: Dict[str, Any] = None,
     step_data: Dict[str, Any] = None,
-    llm_service=None,
-    convert_tool_format=None,
     save_data: bool = True
 ) -> Dict[str, Any]:
     """
     Handle Step 2: Work Experience processing.
     
     Two modes:
-    1. Generate prefill: resume_text provided, step_data=None  
-    2. Save user data: step_data provided, resume_text optional
+    1. Generate prefill: detailed_analysis provided, step_data=None  
+    2. Save user data: step_data provided, detailed_analysis optional
     
     Args:
         application_id: Application ID
-        resume_text: Resume text content (for prefill generation)
+        detailed_analysis: Pre-analyzed resume data (for prefill generation)
         step_data: User-submitted data to save (for save mode)
-        llm_service: LLM agent for extraction  
-        convert_tool_format: Tool format converter
         save_data: Whether to save data to database
         
     Returns:
@@ -214,24 +121,21 @@ async def handle_experience_step(
                 "message": "Experience information saved successfully"
             }
         
-        # Mode 2: Generate prefill from resume
+        # Mode 2: Generate prefill from detailed analysis
         else:
-            logger.info("Mode: Generating prefill from resume text")
+            logger.info("Mode: Generating prefill from detailed analysis")
             
-            # Extract experience information using LLM
-            extraction_result = await extract_experience_with_llm(
-                resume_text, llm_service, convert_tool_format
-            )
-            
-            if not extraction_result.get("success"):
+            # Check if detailed analysis is available
+            if not detailed_analysis or not detailed_analysis.get("has_detailed_analysis"):
                 return {
                     "success": False,
-                    "error": extraction_result.get("error", "Failed to extract work experience"),
+                    "error": "No detailed resume analysis available for prefill",
                     "step": 2,
                     "step_name": "experience"
                 }
             
-            experience_data = extraction_result["data"]
+            # Use pre-analyzed experience data directly
+            experience_data = detailed_analysis.get("experience_info", {})
             
             # Format prefill data for frontend (matching database schema)
             # Map LLM tool response fields to database schema fields
@@ -278,9 +182,10 @@ async def handle_experience_step(
                 "prefill_data": prefill_data,
                 "extraction_metadata": {
                     "confidence_score": experience_data.get("confidence_score", 0.0),
-                    "ai_provider": extraction_result.get("ai_provider", "unknown"),
-                    "ai_model": extraction_result.get("ai_model", "unknown"),
-                    "roles_extracted": len(experience_data.get("work_experience", []))
+                    "ai_provider": detailed_analysis.get("analysis_metadata", {}).get("ai_provider", "unknown"),
+                    "ai_model": detailed_analysis.get("analysis_metadata", {}).get("ai_model", "unknown"),
+                    "roles_extracted": len(experience_data.get("work_experience", [])),
+                    "source": "detailed_analysis"
                 },
                 "data_saved": False
             }

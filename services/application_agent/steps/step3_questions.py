@@ -10,123 +10,11 @@ from datetime import datetime
 import json
 
 from ..database import get_db_session, ApplicationQuestions
-from ..tool_specs.questions_tools import get_questions_tool_spec, get_generic_questions_tool_spec
+# Tool spec imports removed - using detailed analysis from user agent
 from ..utils.step_management import get_step_title, get_step_description
 
 logger = logging.getLogger(__name__)
 
-async def generate_question_responses_with_llm(
-    resume_text: str,
-    job_questions: List[Dict[str, Any]],
-    llm_service,
-    convert_tool_format
-) -> Dict[str, Any]:
-    """
-    Generate responses to job questions using LLM and resume content.
-    
-    Args:
-        resume_text: Raw resume text content
-        job_questions: List of job-specific questions
-        llm_service: LLM agent for processing
-        convert_tool_format: Tool format converter
-        
-    Returns:
-        Dict with generated responses or error
-    """
-    try:
-        logger.info(f"Generating responses for {len(job_questions)} job questions using LLM")
-        
-        # Get appropriate tool specification
-        if job_questions:
-            questions_tool = get_questions_tool_spec(job_questions)
-        else:
-            questions_tool = get_generic_questions_tool_spec()
-            logger.info("Using generic questions tool - no specific job questions provided")
-        
-        # Convert tools to appropriate format for the LLM provider
-        converted_tools = [questions_tool]
-        if convert_tool_format:
-            try:
-                converted_tools = await convert_tool_format(tools=[questions_tool])
-                logger.info("Successfully converted questions tool for LLM provider")
-            except Exception as e:
-                logger.warning(f"Tool conversion failed, using original format: {e}")
-        
-        # Build question context for system prompt
-        questions_context = ""
-        if job_questions:
-            questions_context = "\n".join([
-                f"Q{i+1}: {q.get('question', '')} (Type: {q.get('type', 'text')}, Required: {q.get('required', False)})"
-                for i, q in enumerate(job_questions)
-            ])
-        else:
-            questions_context = "No specific job questions provided - generate generic application responses."
-        
-        # Create system prompt for question response generation
-        system_prompt = f"""You are a professional application writer. Generate thoughtful responses to job application questions based on the candidate's resume experience.
-
-RESUME TEXT:
-{resume_text[:2500]}{'...' if len(resume_text) > 2500 else ''}
-
-JOB QUESTIONS:
-{questions_context}
-
-Instructions:
-- Analyze the resume to understand the candidate's background, skills, and experience
-- Generate authentic, personalized responses that highlight relevant experience
-- Ensure responses are professional, concise, and directly address each question
-- Write a compelling cover letter that connects resume experience to the role
-- Explain why the candidate is interested and uniquely qualified
-- Keep responses within specified character limits
-
-STANDARD APPLICATION FIELDS - INFER FROM RESUME:
-- Work Authorization: Look for citizenship, visa status, or location indicators
-- Visa Sponsorship: Infer from current location vs work history
-- Relocation: Look at location history and current location patterns
-- Remote Work Preference: Infer from recent work arrangements if mentioned
-- Preferred Location: Use most recent location or location patterns from resume
-- Salary Range: Base on experience level, role seniority, and industry standards
-- Availability: Standard professional availability unless specific dates mentioned
-
-Rate your confidence in the generated responses (0.0-1.0)
-
-Use the provided tool to return all responses in structured format."""
-
-        # Call LLM service
-        logger.info(f"Calling LLM service for question response generation")
-        result = await llm_service(
-            text="Generate responses to the job application questions using the provided tool.",
-            system_prompt=system_prompt,
-            messages=[],
-            tools=converted_tools,
-            force_tool_use=True,
-            temperature=0.2
-        )
-        
-        if result and result.get("success") and result.get("tool_calls"):
-            tool_calls = result.get("tool_calls", [])
-            if len(tool_calls) > 0:
-                questions_data = tool_calls[0].get("parameters", {})
-                logger.info(f"Successfully generated question responses - confidence: {questions_data.get('confidence_score', 'N/A')}")
-                return {
-                    "success": True,
-                    "data": questions_data,
-                    "ai_provider": result.get("provider", "unknown"),
-                    "ai_model": result.get("model", "unknown")
-                }
-        
-        logger.warning("LLM failed to generate question responses")
-        return {
-            "success": False,
-            "error": "Failed to generate question responses"
-        }
-        
-    except Exception as e:
-        logger.error(f"Question response generation failed: {e}")
-        return {
-            "success": False,
-            "error": f"Question response generation error: {str(e)}"
-        }
 
 async def save_questions_data(
     application_id: str,
@@ -186,27 +74,23 @@ async def save_questions_data(
 
 async def handle_questions_step(
     application_id: str,
-    resume_text: str = "",
+    detailed_analysis: Dict[str, Any] = None,
     step_data: Dict[str, Any] = None,
     job_questions: List[Dict[str, Any]] = None,
-    llm_service=None,
-    convert_tool_format=None,
     save_data: bool = True
 ) -> Dict[str, Any]:
     """
     Handle Step 3: Questions processing.
     
     Two modes:
-    1. Generate prefill: resume_text provided, step_data=None  
-    2. Save user data: step_data provided, resume_text optional
+    1. Generate prefill: No prefill needed for step 3 (user preferences)
+    2. Save user data: step_data provided for save mode
     
     Args:
         application_id: Application ID
-        resume_text: Resume text content (for prefill generation)
+        detailed_analysis: Not used for step 3 (maintained for consistency)
         step_data: User-submitted data to save (for save mode)
         job_questions: List of job-specific questions
-        llm_service: LLM agent for extraction  
-        convert_tool_format: Tool format converter
         save_data: Whether to save data to database
         
     Returns:

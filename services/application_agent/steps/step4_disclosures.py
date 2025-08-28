@@ -10,79 +10,11 @@ from datetime import datetime
 import json
 
 from ..database import get_db_session, ApplicationDisclosures
-from ..tool_specs.disclosures_tools import get_disclosures_tool_spec
+# Tool spec import removed - using detailed analysis from user agent
 from ..utils.step_management import get_step_title, get_step_description
 
 logger = logging.getLogger(__name__)
 
-async def extract_disclosures_with_llm(
-    resume_text: str,
-    llm_service,
-    convert_tool_format
-) -> Dict[str, Any]:
-    """Extract disclosure-related information from resume text using LLM."""
-    try:
-        logger.info("Extracting disclosures information using LLM")
-        
-        disclosures_tool = get_disclosures_tool_spec()
-        
-        converted_tools = [disclosures_tool]
-        if convert_tool_format:
-            try:
-                converted_tools = await convert_tool_format(tools=[disclosures_tool])
-                logger.info("Successfully converted disclosures tool for LLM provider")
-            except Exception as e:
-                logger.warning(f"Tool conversion failed, using original format: {e}")
-        
-        system_prompt = f"""Extract disclosure-related information from the resume text. Focus on extracting only what can be reasonably inferred from the resume.
-
-RESUME TEXT:
-{resume_text[:2500]}{'...' if len(resume_text) > 2500 else ''}
-
-Instructions:
-- Extract professional licenses, certifications, and credentials
-- Identify educational qualifications and degrees
-- Note security clearances if mentioned
-- Infer work authorization hints based on education/work patterns (not definitive)
-- List professional memberships and organizations
-- Be conservative - only extract information that is clearly present
-- Note limitations of what can be extracted from resume alone
-
-Use the provided tool to return structured disclosure information."""
-
-        result = await llm_service(
-            text="Extract disclosure-related information from this resume using the provided tool.",
-            system_prompt=system_prompt,
-            messages=[],
-            tools=converted_tools,
-            force_tool_use=True,
-            temperature=0.1
-        )
-        
-        if result and result.get("success") and result.get("tool_calls"):
-            tool_calls = result.get("tool_calls", [])
-            if len(tool_calls) > 0:
-                disclosures_data = tool_calls[0].get("parameters", {})
-                logger.info(f"Successfully extracted disclosures - confidence: {disclosures_data.get('confidence_score', 'N/A')}")
-                return {
-                    "success": True,
-                    "data": disclosures_data,
-                    "ai_provider": result.get("provider", "unknown"),
-                    "ai_model": result.get("model", "unknown")
-                }
-        
-        logger.warning("LLM failed to extract disclosures information")
-        return {
-            "success": False,
-            "error": "Failed to extract disclosures information from resume"
-        }
-        
-    except Exception as e:
-        logger.error(f"Disclosures extraction failed: {e}")
-        return {
-            "success": False,
-            "error": f"Disclosures extraction error: {str(e)}"
-        }
 
 async def save_disclosures_data(
     application_id: str,
@@ -135,10 +67,8 @@ async def save_disclosures_data(
 
 async def handle_disclosures_step(
     application_id: str,
-    resume_text: str = "",
+    detailed_analysis: Dict[str, Any] = None,
     step_data: Dict[str, Any] = None,
-    llm_service=None,
-    convert_tool_format=None,
     save_data: bool = True
 ) -> Dict[str, Any]:
     """

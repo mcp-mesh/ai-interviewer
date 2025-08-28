@@ -4,7 +4,7 @@ import { MapPin, Clock, Star, Bookmark, DollarSign } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { JobCardProps, Job } from "@/lib/types"
+import { JobCardProps } from "@/lib/types"
 
 export function JobCard({ 
   job, 

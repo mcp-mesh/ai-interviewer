@@ -73,14 +73,14 @@ const mockJobs: Job[] = [
 
 interface FilterSectionProps {
   title: string
-  filterId: string
+  // filterId: string // TODO: May be needed for future functionality
   options: string[]
   selectedValues: string[]
   onChange: (values: string[]) => void
   showSearch?: boolean
 }
 
-function FilterSection({ title, filterId, options, selectedValues, onChange, showSearch }: FilterSectionProps) {
+function FilterSection({ title, /* filterId, */ options, selectedValues, onChange, showSearch }: FilterSectionProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -149,7 +149,7 @@ function FilterSection({ title, filterId, options, selectedValues, onChange, sho
 export default function JobsPage() {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
-  const [jobs, setJobs] = useState<Job[]>([])
+  // const [jobs, setJobs] = useState<Job[]>([]) // TODO: May be needed for future functionality
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -191,12 +191,12 @@ export default function JobsPage() {
       // Fetch jobs and filters from API
       try {
         const [jobsResponse, filtersResponse] = await Promise.all([
-          jobsApi.getJobs(), // Use new unified method
+          jobsApi.getAll(), // Use filtered method that excludes applied jobs
           jobsApi.getFilters()
         ])
         
         if (jobsResponse.data) {
-          setJobs(jobsResponse.data)
+          // setJobs(jobsResponse.data) // TODO: May be needed for future functionality
         }
         
         if (filtersResponse.data) {
@@ -210,7 +210,7 @@ export default function JobsPage() {
     }
     
     loadData()
-  }, [])
+  }, [router])
 
   // Refetch jobs when filters change - now using API filtering
   useEffect(() => {
@@ -226,7 +226,7 @@ export default function JobsPage() {
       }
       
       try {
-        const jobsResponse = await jobsApi.getJobs(filters)
+        const jobsResponse = await jobsApi.getAll(filters)
         if (jobsResponse.data) {
           let filtered = jobsResponse.data
           
@@ -253,7 +253,7 @@ export default function JobsPage() {
 
   return (
     <div className="page-light min-h-screen">
-      <Navigation userState={userState} user={user} theme="light" />
+      <Navigation userState={userState} user={user} theme="light" currentPage="jobs" />
       
       <main className="container max-w-[1400px] mx-auto px-6 pt-20">
         {/* Login Banner for Guest Users */}
@@ -320,7 +320,7 @@ export default function JobsPage() {
                 <>
                   <FilterSection
                     title="Category"
-                    filterId="category"
+                    // filterId="category" // TODO: May be needed for future functionality
                     options={filterOptions.categories}
                     selectedValues={selectedCategories}
                     onChange={setSelectedCategories}
@@ -329,7 +329,7 @@ export default function JobsPage() {
 
                   <FilterSection
                     title="City"
-                    filterId="city"
+                    // filterId="city" // TODO: May be needed for future functionality
                     options={filterOptions.cities}
                     selectedValues={selectedCities}
                     onChange={setSelectedCities}
@@ -338,7 +338,7 @@ export default function JobsPage() {
 
                   <FilterSection
                     title="State"
-                    filterId="state"
+                    // filterId="state" // TODO: May be needed for future functionality
                     options={filterOptions.states}
                     selectedValues={selectedStates}
                     onChange={setSelectedStates}
@@ -346,7 +346,7 @@ export default function JobsPage() {
 
                   <FilterSection
                     title="Country"
-                    filterId="country"
+                    // filterId="country" // TODO: May be needed for future functionality
                     options={filterOptions.countries}
                     selectedValues={selectedCountries}
                     onChange={setSelectedCountries}
@@ -354,7 +354,7 @@ export default function JobsPage() {
 
                   <FilterSection
                     title="Type"
-                    filterId="type"
+                    // filterId="type" // TODO: May be needed for future functionality
                     options={filterOptions.job_types}
                     selectedValues={selectedTypes}
                     onChange={setSelectedTypes}

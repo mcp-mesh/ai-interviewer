@@ -132,6 +132,12 @@ class Resume(Base):
     ai_model = Column(String(100), nullable=True)  # gpt-4o, claude-3-5-sonnet, etc.
     analysis_enhanced = Column(Boolean, default=False)  # Whether LLM analysis succeeded
     
+    # Detailed analysis for application prefill (Steps 1 & 2)
+    detailed_personal_info = Column(JSONB, nullable=True)  # Step 1: Contact info, URLs, etc.
+    detailed_experience_info = Column(JSONB, nullable=True)  # Step 2: Work history, skills, education
+    detailed_analysis_completed = Column(Boolean, default=False)  # Whether detailed analysis finished
+    detailed_analysis_at = Column(DateTime, nullable=True)  # When detailed analysis completed
+    
     # Raw content and basic sections (fallback data)
     text_content = Column(Text, nullable=True)  # Raw extracted text
     basic_sections = Column(JSONB, nullable=True)  # Basic section parsing results
@@ -166,6 +172,11 @@ class Resume(Base):
             "ai_provider": self.ai_provider,
             "ai_model": self.ai_model,
             "analysis_enhanced": self.analysis_enhanced,
+            # Detailed Analysis for Application Prefill
+            "detailed_personal_info": self.detailed_personal_info,
+            "detailed_experience_info": self.detailed_experience_info,
+            "detailed_analysis_completed": self.detailed_analysis_completed,
+            "detailed_analysis_at": self.detailed_analysis_at.isoformat() + "Z" if self.detailed_analysis_at else None,
             # Processing status
             "uploaded_at": self.uploaded_at.isoformat() + "Z" if self.uploaded_at else None,
             "processed_at": self.processed_at.isoformat() + "Z" if self.processed_at else None,

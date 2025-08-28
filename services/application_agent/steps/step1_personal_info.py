@@ -9,94 +9,12 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 
 from ..database import get_db_session, ApplicationPersonalInfo
-from ..tool_specs.personal_info_tools import get_personal_info_tool_spec
+# Tool spec import removed - using detailed analysis from user agent
 from ..utils.step_management import get_step_title, get_step_description
 
 logger = logging.getLogger(__name__)
 
-async def extract_personal_info_with_llm(
-    resume_text: str,
-    llm_service,
-    convert_tool_format
-) -> Dict[str, Any]:
-    """
-    Extract personal information from resume text using LLM.
-    
-    Args:
-        resume_text: Raw resume text content
-        llm_service: LLM agent for processing
-        convert_tool_format: Tool format converter
-        
-    Returns:
-        Dict with extracted personal information or error
-    """
-    try:
-        logger.info("Extracting personal information using LLM")
-        
-        # Get tool specification
-        personal_info_tool = get_personal_info_tool_spec()
-        
-        # Convert tools to appropriate format for the LLM provider
-        converted_tools = [personal_info_tool]
-        if convert_tool_format:
-            try:
-                converted_tools = await convert_tool_format(tools=[personal_info_tool])
-                logger.info("Successfully converted personal info tool for LLM provider")
-            except Exception as e:
-                logger.warning(f"Tool conversion failed, using original format: {e}")
-        
-        # Create system prompt for personal information extraction
-        system_prompt = f"""You are a professional resume parser. Extract personal contact information from the provided resume text.
-
-RESUME TEXT:
-{resume_text[:2000]}{'...' if len(resume_text) > 2000 else ''}
-
-Instructions:
-- Extract the candidate's full name, email, and phone number
-- Parse complete address if available (street, city, state, country, postal code)
-- Find LinkedIn, portfolio, or GitHub URLs if mentioned
-- Identify professional title or current position
-- Extract professional summary or objective if present
-- Be conservative with extraction - only include information that is clearly present
-- Rate your confidence in the extraction accuracy (0.0-1.0)
-
-Use the provided tool to return the extracted information in structured format."""
-
-        # Call LLM service
-        logger.info(f"Calling LLM service for personal info extraction")
-        result = await llm_service(
-            text="Extract personal information from this resume using the provided tool.",
-            system_prompt=system_prompt,
-            messages=[],
-            tools=converted_tools,
-            force_tool_use=True,
-            temperature=0.1
-        )
-        
-        if result and result.get("success") and result.get("tool_calls"):
-            tool_calls = result.get("tool_calls", [])
-            if len(tool_calls) > 0:
-                personal_data = tool_calls[0].get("parameters", {})
-                logger.info(f"Successfully extracted personal info - confidence: {personal_data.get('confidence_score', 'N/A')}")
-                return {
-                    "success": True,
-                    "data": personal_data,
-                    "ai_provider": result.get("provider", "unknown"),
-                    "ai_model": result.get("model", "unknown")
-                }
-        
-        logger.warning("LLM failed to extract personal information")
-        return {
-            "success": False,
-            "error": "Failed to extract personal information from resume"
-        }
-        
-    except Exception as e:
-        logger.error(f"Personal info extraction failed: {e}")
-        return {
-            "success": False,
-            "error": f"Personal info extraction error: {str(e)}"
-        }
+# LLM extraction function removed - using detailed analysis from user agent
 
 async def save_personal_info_data(
     application_id: str,
@@ -169,25 +87,21 @@ async def save_personal_info_data(
 
 async def handle_personal_info_step(
     application_id: str,
-    resume_text: str = "",
+    detailed_analysis: Dict[str, Any] = None,
     step_data: Dict[str, Any] = None,
-    llm_service=None,
-    convert_tool_format=None,
     save_data: bool = True
 ) -> Dict[str, Any]:
     """
     Handle Step 1: Personal Information processing.
     
     Two modes:
-    1. Generate prefill: resume_text provided, step_data=None  
-    2. Save user data: step_data provided, resume_text optional
+    1. Generate prefill: detailed_analysis provided, step_data=None  
+    2. Save user data: step_data provided, detailed_analysis optional
     
     Args:
         application_id: Application ID
-        resume_text: Resume text content (for prefill generation)
+        detailed_analysis: Pre-analyzed resume data (for prefill generation)
         step_data: User-submitted data to save (for save mode)
-        llm_service: LLM agent for extraction  
-        convert_tool_format: Tool format converter
         save_data: Whether to save data to database
         
     Returns:
@@ -221,24 +135,21 @@ async def handle_personal_info_step(
                 "message": "Personal information saved successfully"
             }
         
-        # Mode 2: Generate prefill from resume
+        # Mode 2: Generate prefill from detailed analysis
         else:
-            logger.info("Mode: Generating prefill from resume text")
+            logger.info("Mode: Generating prefill from detailed analysis")
             
-            # Extract personal information using LLM
-            extraction_result = await extract_personal_info_with_llm(
-                resume_text, llm_service, convert_tool_format
-            )
-            
-            if not extraction_result.get("success"):
+            # Check if detailed analysis is available
+            if not detailed_analysis or not detailed_analysis.get("has_detailed_analysis"):
                 return {
                     "success": False,
-                    "error": extraction_result.get("error", "Failed to extract personal information"),
+                    "error": "No detailed resume analysis available for prefill",
                     "step": 1,
                     "step_name": "personal_info"
                 }
             
-            personal_data = extraction_result["data"]
+            # Use pre-analyzed personal data directly
+            personal_data = detailed_analysis.get("personal_info", {})
             
             # Format prefill data for frontend
             prefill_data = {
@@ -270,8 +181,9 @@ async def handle_personal_info_step(
                 "prefill_data": prefill_data,
                 "extraction_metadata": {
                     "confidence_score": personal_data.get("confidence_score", 0.0),
-                    "ai_provider": extraction_result.get("ai_provider", "unknown"),
-                    "ai_model": extraction_result.get("ai_model", "unknown")
+                    "ai_provider": detailed_analysis.get("analysis_metadata", {}).get("ai_provider", "unknown"),
+                    "ai_model": detailed_analysis.get("analysis_metadata", {}).get("ai_model", "unknown"),
+                    "source": "detailed_analysis"
                 },
                 "data_saved": False
             }

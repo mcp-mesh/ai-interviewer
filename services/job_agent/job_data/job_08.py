@@ -19,6 +19,7 @@ def get_job_data():
         'salary_min': 70000,
         'salary_max': 112000,
         'salary_currency': 'USD',
+        'interview_duration_minutes': 45,
         'posted_date': datetime.fromisoformat('2025-05-28T00:00:00+00:00'),
         'is_active': True
     }

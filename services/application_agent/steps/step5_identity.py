@@ -10,79 +10,11 @@ from datetime import datetime
 import json
 
 from ..database import get_db_session, ApplicationIdentity
-from ..tool_specs.identity_tools import get_identity_tool_spec
+# Tool spec import removed - using detailed analysis from user agent
 from ..utils.step_management import get_step_title, get_step_description
 
 logger = logging.getLogger(__name__)
 
-async def extract_identity_with_llm(
-    resume_text: str,
-    llm_service,
-    convert_tool_format
-) -> Dict[str, Any]:
-    """Extract identity-related information from resume text using LLM."""
-    try:
-        logger.info("Extracting identity information using LLM")
-        
-        identity_tool = get_identity_tool_spec()
-        
-        converted_tools = [identity_tool]
-        if convert_tool_format:
-            try:
-                converted_tools = await convert_tool_format(tools=[identity_tool])
-                logger.info("Successfully converted identity tool for LLM provider")
-            except Exception as e:
-                logger.warning(f"Tool conversion failed, using original format: {e}")
-        
-        system_prompt = f"""Extract professional identity and consistency information from the resume text. Focus on name variations, contact consistency, and professional profiles.
-
-RESUME TEXT:
-{resume_text[:2500]}{'...' if len(resume_text) > 2500 else ''}
-
-Instructions:
-- Identify all name variations used in the resume
-- Determine the preferred/most common name format
-- Check consistency of contact information throughout the document
-- Extract professional online profiles (LinkedIn, GitHub, etc.)
-- Note any potential inconsistencies or issues
-- Remember that identity verification requires official documents beyond resume
-- Rate confidence in different aspects of identity extraction
-
-Use the provided tool to return structured identity information."""
-
-        result = await llm_service(
-            text="Extract identity information from this resume using the provided tool.",
-            system_prompt=system_prompt,
-            messages=[],
-            tools=converted_tools,
-            force_tool_use=True,
-            temperature=0.1
-        )
-        
-        if result and result.get("success") and result.get("tool_calls"):
-            tool_calls = result.get("tool_calls", [])
-            if len(tool_calls) > 0:
-                identity_data = tool_calls[0].get("parameters", {})
-                logger.info(f"Successfully extracted identity info - confidence: {identity_data.get('confidence_score', 'N/A')}")
-                return {
-                    "success": True,
-                    "data": identity_data,
-                    "ai_provider": result.get("provider", "unknown"),
-                    "ai_model": result.get("model", "unknown")
-                }
-        
-        logger.warning("LLM failed to extract identity information")
-        return {
-            "success": False,
-            "error": "Failed to extract identity information from resume"
-        }
-        
-    except Exception as e:
-        logger.error(f"Identity extraction failed: {e}")
-        return {
-            "success": False,
-            "error": f"Identity extraction error: {str(e)}"
-        }
 
 async def save_identity_data(
     application_id: str,
@@ -133,10 +65,8 @@ async def save_identity_data(
 
 async def handle_identity_step(
     application_id: str,
-    resume_text: str = "",
+    detailed_analysis: Dict[str, Any] = None,
     step_data: Dict[str, Any] = None,
-    llm_service=None,
-    convert_tool_format=None,
     save_data: bool = True
 ) -> Dict[str, Any]:
     """

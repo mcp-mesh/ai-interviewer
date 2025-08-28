@@ -1,25 +1,26 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { UserState, User } from "@/lib/types"
-import { jobsApi } from "@/lib/api"
 
 interface NavigationProps {
   userState?: UserState
   user?: User | null
   className?: string
   theme?: "dark" | "light"
+  currentPage?: "dashboard" | "jobs" | "applications" | "matched" | null
 }
 
-export function Navigation({ userState = "guest", user, className, theme = "dark" }: NavigationProps) {
+export function Navigation({ userState = "guest", user, className, theme = "dark", currentPage }: NavigationProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [jobsCount, setJobsCount] = useState<number>(0)
 
-  const isLoggedIn = userState !== "guest" && user
+  // Memoize isLoggedIn to prevent infinite re-renders
+  const isLoggedIn = useMemo(() => userState !== "guest" && !!user, [userState, user])
 
   const handleLogout = () => {
     // Complete cleanup - remove all auth-related data
@@ -31,32 +32,38 @@ export function Navigation({ userState = "guest", user, className, theme = "dark
     window.location.href = '/'
   }
 
-  // Fetch jobs count based on user state
+  // Load actual job counts from API
   useEffect(() => {
-    const fetchJobsCount = async () => {
-      if (!isLoggedIn) {
+    const loadJobCounts = async () => {
+      if (!isLoggedIn || !user) {
         setJobsCount(0)
         return
       }
 
       try {
-        if (user?.hasResume) {
-          // User has resume - get matched jobs count
-          const response = await jobsApi.getMatched(user.id)
-          setJobsCount(response.data?.length || 0)
+        // Import API client dynamically to avoid circular dependencies
+        const { jobsApi } = await import('@/lib/api')
+        
+        // Get job count based on user's resume status
+        if (user.hasResume) {
+          const matchedResponse = await jobsApi.getMatched()
+          if (matchedResponse.data) {
+            setJobsCount(matchedResponse.data.length)
+          }
         } else {
-          // User logged in but no resume - get all jobs count
-          const response = await jobsApi.getAll()
-          setJobsCount(response.data?.length || 0)
+          const allJobsResponse = await jobsApi.getAll()
+          if (allJobsResponse.data) {
+            setJobsCount(allJobsResponse.data.length)
+          }
         }
       } catch (error) {
-        console.error('Failed to fetch jobs count:', error)
+        console.error('Failed to load job counts:', error)
         setJobsCount(0)
       }
     }
 
-    fetchJobsCount()
-  }, [isLoggedIn, user?.hasResume, user?.id])
+    loadJobCounts()
+  }, [isLoggedIn, user?.hasResume])
 
   // Determine nav styling based on theme and user state
   const getNavStyles = () => {
@@ -77,6 +84,54 @@ export function Navigation({ userState = "guest", user, className, theme = "dark
   const getNavLinkColor = () => {
     if (theme === "light") return "text-gray-600 hover:text-primary-500"
     return userState === "guest" ? "text-white hover:text-primary-100" : "text-text-secondary hover:text-primary-500"
+  }
+
+  // Helper function to get nav link styling based on selected state
+  const getNavLinkClasses = (page: string, isSelected: boolean) => {
+    if (isSelected) {
+      // Selected page styling - extra bold text, no hover effects
+      if (theme === "light") {
+        return "font-black text-primary-600 cursor-default transition-colors"
+      }
+      return userState === "guest" 
+        ? "font-black text-white cursor-default transition-colors"
+        : "font-black text-primary-500 cursor-default transition-colors"
+    } else {
+      // Regular link styling - semibold to distinguish from selected
+      return `font-semibold transition-colors ${getNavLinkColor()}`
+    }
+  }
+
+  // Helper to render nav link (either as Link or span based on selection)
+  const renderNavLink = (href: string, children: React.ReactNode, page: string) => {
+    const isSelected = currentPage === page
+    const classes = getNavLinkClasses(page, isSelected)
+    
+    if (isSelected) {
+      return <span className={classes}>{children}</span>
+    } else {
+      return <Link href={href} className={classes}>{children}</Link>
+    }
+  }
+
+  // Mobile nav link renderer with block styling
+  const renderMobileNavLink = (href: string, children: React.ReactNode, page: string) => {
+    const isSelected = currentPage === page
+    const baseClasses = "block py-2 transition-colors"
+    
+    if (isSelected) {
+      return (
+        <span className={`${baseClasses} text-primary-500 font-black cursor-default`}>
+          {children}
+        </span>
+      )
+    } else {
+      return (
+        <Link href={href} className={`${baseClasses} text-foreground hover:text-primary-500 font-semibold`}>
+          {children}
+        </Link>
+      )
+    }
   }
 
   return (
@@ -133,35 +188,32 @@ export function Navigation({ userState = "guest", user, className, theme = "dark
             ) : (
               // Logged In Navigation
               <>
-                <Link 
-                  href="/dashboard" 
-                  className="text-text-secondary hover:text-primary-500 font-medium transition-colors"
-                >
-                  Dashboard
-                </Link>
-                <Link 
-                  href={user?.hasResume ? "/jobs/matched" : "/jobs"}
-                  className="text-text-secondary hover:text-primary-500 font-medium transition-colors relative pr-6"
-                >
-                  Jobs
-                  {/* Show badge with dynamic count */}
+                {renderNavLink("/dashboard", "Dashboard", "dashboard")}
+                
+                {/* Jobs link with badge */}
+                <div className="relative pr-6">
+                  {renderNavLink(
+                    user?.hasResume ? "/jobs/matched" : "/jobs", 
+                    "Jobs", 
+                    user?.hasResume ? "matched" : "jobs"
+                  )}
+                  {/* Show badge with dynamic count positioned outside the link */}
                   {jobsCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center leading-none">
+                    <span className="absolute -top-1 -right-0 bg-red-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center leading-none">
                       {jobsCount}
                     </span>
                   )}
-                </Link>
+                </div>
+                
                 {/* Show Applications only when user has applications */}
                 {user?.applications && user.applications.length > 0 && (
-                  <Link 
-                    href="/applications"
-                    className="text-text-secondary hover:text-primary-500 font-medium transition-colors relative pr-6"
-                  >
-                    Applications
-                    <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center leading-none">
+                  <div className="relative pr-6">
+                    {renderNavLink("/applications", "Applications", "applications")}
+                    {/* Show badge with application count positioned outside the link */}
+                    <span className="absolute -top-1 -right-0 bg-green-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center leading-none">
                       {user.applications.length}
                     </span>
-                  </Link>
+                  </div>
                 )}
               </>
             )}
@@ -265,29 +317,30 @@ export function Navigation({ userState = "guest", user, className, theme = "dark
                       <div className="text-text-muted text-sm">{user?.email}</div>
                     </div>
                   </div>
-                  <Link href="/dashboard" className="block py-2 text-foreground hover:text-primary-500">
-                    Dashboard
-                  </Link>
-                  <div className="block py-2 text-foreground hover:text-primary-500 relative">
-                    <Link href={user?.hasResume ? "/jobs/matched" : "/jobs"} className="block pr-6">
-                      Jobs
-                      {/* Show badge with dynamic count */}
-                      {jobsCount > 0 && (
-                        <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center leading-none">
-                          {jobsCount}
-                        </span>
-                      )}
-                    </Link>
+                  {renderMobileNavLink("/dashboard", "Dashboard", "dashboard")}
+                  
+                  <div className="relative pr-6">
+                    {renderMobileNavLink(
+                      user?.hasResume ? "/jobs/matched" : "/jobs",
+                      "Jobs",
+                      user?.hasResume ? "matched" : "jobs"
+                    )}
+                    {/* Show badge with dynamic count positioned outside the link */}
+                    {jobsCount > 0 && (
+                      <span className="absolute top-2 right-0 bg-red-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center leading-none">
+                        {jobsCount}
+                      </span>
+                    )}
                   </div>
+                  
                   {/* Show Applications only when user has applications */}
                   {user?.applications && user.applications.length > 0 && (
-                    <div className="block py-2 text-foreground hover:text-primary-500 relative">
-                      <Link href="/applications" className="block pr-6">
-                        Applications
-                        <span className="absolute top-0 right-0 bg-green-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center leading-none">
-                          {user.applications.length}
-                        </span>
-                      </Link>
+                    <div className="relative pr-6">
+                      {renderMobileNavLink("/applications", "Applications", "applications")}
+                      {/* Show badge with application count positioned outside the link */}
+                      <span className="absolute top-2 right-0 bg-green-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center leading-none">
+                        {user.applications.length}
+                      </span>
                     </div>
                   )}
                   <div className="pt-4 border-t border-border">

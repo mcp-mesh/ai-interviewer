@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { WireframeCard, WireframeCardIcon, WireframeCardBody, WireframeNavigation } from "@/components/wireframe"
 import { HomeBackground } from "@/components/ui/optimized-background"
 import { ClipboardList, Clock, Star } from "lucide-react"
-import { User } from "@/lib/types"
+// import { User } from "@/lib/types" // TODO: May be needed for future user state management
 
 export default function HomePage() {
   // const [user, setUser] = useState<User | null>(null)

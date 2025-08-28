@@ -1,4 +1,4 @@
-import { Job, User, Application, Interview } from './types'
+import { Job, User, BackendJob, ApplicationStepData, ApplicationStatus, ApplicationReviewData, FileUploadResponse, FileStatus, JobFilters } from './types'
 
 import { API_CONFIG } from './config'
 
@@ -33,7 +33,7 @@ class ApiClient {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }))
         const error = new Error(errorData.detail || `HTTP error! status: ${response.status}`)
-        ;(error as any).status = response.status
+        ;(error as Error & { status?: number }).status = response.status
         throw error
       }
 
@@ -90,13 +90,9 @@ interface ApiResponse<T> {
   limit?: number
 }
 
-interface ApiErrorResponse {
-  detail: string
-  success: false
-}
 
 // Helper function to map backend job format to frontend format
-function mapBackendJobToFrontend(backendJob: any): Job {
+function mapBackendJobToFrontend(backendJob: BackendJob): Job {
   return {
     id: backendJob.id,
     title: backendJob.title,
@@ -118,18 +114,6 @@ function mapBackendJobToFrontend(backendJob: any): Job {
   } as Job
 }
 
-// Job filter interface
-interface JobFilters {
-  categories?: string[]
-  job_types?: string[]
-  cities?: string[]
-  states?: string[]
-  countries?: string[]
-  // Legacy filters for backward compatibility
-  location?: string
-  type?: string
-  remote?: boolean
-}
 
 // Jobs API - unified filtering approach
 export const jobsApi = {
@@ -163,7 +147,7 @@ export const jobsApi = {
       queryParams.set('page', page.toString())
       queryParams.set('limit', limit.toString())
       
-      const response = await apiClient.get<ApiResponse<any[]>>(
+      const response = await apiClient.get<ApiResponse<BackendJob[]>>(
         `/jobs/search?${queryParams.toString()}`
       )
       
@@ -177,14 +161,34 @@ export const jobsApi = {
     }
   },
 
-  // Legacy method - delegates to getJobs
-  getAll: async (filters?: { location?: string; type?: string; remote?: boolean }): Promise<{ data: Job[]; error?: string }> => {
-    return jobsApi.getJobs(filters || {})
+  // Legacy method - delegates to getJobs with applied job filtering
+  getAll: async (filters?: JobFilters): Promise<{ data: Job[]; error?: string }> => {
+    const result = await jobsApi.getJobs(filters || {})
+    
+    if (result.data && result.data.length > 0) {
+      // Filter out jobs user has already applied to (internal filtering)
+      try {
+        const userData = localStorage.getItem('user')
+        if (userData) {
+          const user = JSON.parse(userData)
+          if (user.applications && user.applications.length > 0) {
+            const appliedJobIds = user.applications.map((app: any) => app.jobId)
+            result.data = result.data.filter(job => !appliedJobIds.includes(job.id))
+          }
+        }
+        // If no user (guest mode), return all jobs unchanged
+      } catch (error) {
+        console.error('Error filtering applied jobs:', error)
+        // Return unfiltered jobs if filtering fails
+      }
+    }
+    
+    return result
   },
 
   getById: async (id: string): Promise<{ data: Job | null; error?: string }> => {
     try {
-      const response = await apiClient.get<ApiResponse<any>>(`/jobs/${id}`)
+      const response = await apiClient.get<ApiResponse<BackendJob>>(`/jobs/${id}`)
       const mappedJob = mapBackendJobToFrontend(response.data)
       return { data: mappedJob }
     } catch (error) {
@@ -199,7 +203,7 @@ export const jobsApi = {
       const result = await jobsApi.getJobs({}, 1, 10)
       if (result.error) return result
       
-      const featuredJobs = result.data.filter(job => job.is_featured).slice(0, 3)
+      const featuredJobs = result.data.filter((job: Job) => (job as BackendJob).is_featured || job.isRecommended).slice(0, 3)
       return { data: featuredJobs }
     } catch (error) {
       console.error('Failed to fetch featured jobs:', error)
@@ -207,7 +211,7 @@ export const jobsApi = {
     }
   },
 
-  getMatched: async (userId: string, filters?: { location?: string; type?: string; remote?: boolean }): Promise<{ data: Job[]; error?: string }> => {
+  getMatched: async (filters?: { location?: string; type?: string; remote?: boolean }): Promise<{ data: Job[]; error?: string }> => {
     try {
       // Use the unified getJobs method 
       const result = await jobsApi.getJobs(filters || {})
@@ -215,7 +219,23 @@ export const jobsApi = {
       
       // Filter for jobs with high match scores (when matching algorithm is implemented)
       // For now, return all jobs since matchScore is 0
-      const matchedJobs = result.data.filter(job => job.matchScore === undefined || job.matchScore >= 0)
+      let matchedJobs = result.data.filter(job => job.matchScore === undefined || job.matchScore >= 0)
+      
+      // Filter out jobs user has already applied to (internal filtering)
+      try {
+        const userData = localStorage.getItem('user')
+        if (userData) {
+          const user = JSON.parse(userData)
+          if (user.applications && user.applications.length > 0) {
+            const appliedJobIds = user.applications.map((app: any) => app.jobId)
+            matchedJobs = matchedJobs.filter(job => !appliedJobIds.includes(job.id))
+          }
+        }
+        // If no user (guest mode), return all jobs unchanged
+      } catch (error) {
+        console.error('Error filtering applied jobs from matched jobs:', error)
+        // Return unfiltered matched jobs if filtering fails
+      }
       
       return { data: matchedJobs }
     } catch (error) {
@@ -238,10 +258,18 @@ export const jobsApi = {
 // Applications API - matches our backend endpoints
 export const applicationsApi = {
   // Start new application with job ID - returns application_id and step 1 prefill
-  startApplication: async (jobId: string): Promise<{ data: any | null; error?: string }> => {
+  startApplication: async (jobId: string): Promise<{ data: { applicationId: string; prefillData?: Record<string, unknown>; currentStep?: number } | null; error?: string }> => {
     try {
-      const response = await apiClient.post<any>(`/applications/new/steps/1`, { job_id: jobId })
-      return { data: response }
+      const response = await apiClient.post<{ success: boolean; message: string; data: { application_id: string; prefill_data?: Record<string, unknown>; target_step?: number }; timestamp: string }>(`/applications/new/steps/1`, { job_id: jobId })
+      
+      // Extract and transform the response to match frontend expectations
+      return { 
+        data: {
+          applicationId: response.data.application_id,
+          prefillData: response.data.prefill_data,
+          currentStep: response.data.target_step || 1
+        }
+      }
     } catch (error) {
       console.error('Failed to start application:', error)
       return { data: null, error: 'Failed to start application' }
@@ -249,9 +277,9 @@ export const applicationsApi = {
   },
 
   // Save current step and get next step prefill
-  saveStep: async (applicationId: string, stepNumber: number, stepData: any): Promise<{ data: any | null; error?: string }> => {
+  saveStep: async (applicationId: string, stepNumber: number, stepData: ApplicationStepData): Promise<{ data: { success: boolean; message?: string; data?: Record<string, unknown>; timestamp?: string } | null; error?: string }> => {
     try {
-      const response = await apiClient.post<any>(`/applications/${applicationId}/steps/${stepNumber}`, { step_data: stepData })
+      const response = await apiClient.post<{ success: boolean; message?: string; data?: Record<string, unknown>; timestamp?: string }>(`/applications/${applicationId}/steps/${stepNumber}`, { step_data: stepData })
       return { data: response }
     } catch (error) {
       console.error('Failed to save application step:', error)
@@ -260,9 +288,9 @@ export const applicationsApi = {
   },
 
   // Get application status
-  getStatus: async (applicationId: string): Promise<{ data: any | null; error?: string }> => {
+  getStatus: async (applicationId: string): Promise<{ data: ApplicationStatus | null; error?: string }> => {
     try {
-      const response = await apiClient.get<any>(`/applications/${applicationId}/status`)
+      const response = await apiClient.get<ApplicationStatus>(`/applications/${applicationId}/status`)
       return { data: response }
     } catch (error) {
       console.error('Failed to get application status:', error)
@@ -271,9 +299,9 @@ export const applicationsApi = {
   },
 
   // Get complete review data for Step 6
-  getReviewData: async (applicationId: string): Promise<{ data: any | null; error?: string }> => {
+  getReviewData: async (applicationId: string): Promise<{ data: ApplicationReviewData | null; error?: string }> => {
     try {
-      const response = await apiClient.get<any>(`/applications/${applicationId}/review`)
+      const response = await apiClient.get<ApplicationReviewData>(`/applications/${applicationId}/review`)
       return { data: response }
     } catch (error) {
       console.error('Failed to get application review data:', error)
@@ -281,26 +309,11 @@ export const applicationsApi = {
     }
   },
 
-  // Legacy methods for backward compatibility (can be removed later)
-  create: async (jobId: string, userId: string, coverLetter: string, additionalInfo?: any): Promise<{ data: Application | null; error?: string }> => {
-    console.warn('applicationsApi.create is deprecated, use startApplication instead')
-    return { data: null, error: 'Method deprecated' }
-  },
-
-  getByUserId: async (userId: string): Promise<{ data: Application[]; error?: string }> => {
-    console.warn('applicationsApi.getByUserId is deprecated')
-    return { data: [], error: 'Method deprecated' }
-  },
-
-  updateStatus: async (id: string, status: Application['status']): Promise<{ data: Application | null; error?: string }> => {
-    console.warn('applicationsApi.updateStatus is deprecated')
-    return { data: null, error: 'Method deprecated' }
-  }
 }
 
 // User API - matches our backend endpoints
 export const userApi = {
-  getProfile: async (userId?: string): Promise<{ data: User | null; error?: string }> => {
+  getProfile: async (): Promise<{ data: User | null; error?: string }> => {
     try {
       const response = await apiClient.get<ApiResponse<User>>('/users/profile')
       return { data: response.data }
@@ -310,7 +323,7 @@ export const userApi = {
     }
   },
 
-  updateProfile: async (userId: string, profileData: Partial<User['profile']>): Promise<{ data: User | null; error?: string }> => {
+  updateProfile: async (profileData: Partial<User['profile']>): Promise<{ data: User | null; error?: string }> => {
     try {
       const response = await apiClient.put<ApiResponse<User>>('/users/profile', { profile_data: profileData })
       return { data: response.data }
@@ -323,13 +336,13 @@ export const userApi = {
 
 // File API - for resume uploads
 export const fileApi = {
-  uploadResume: async (file: File, processWithAi = true): Promise<{ data: any | null; error?: string }> => {
+  uploadResume: async (file: File, processWithAi = true): Promise<{ data: FileUploadResponse | null; error?: string }> => {
     try {
       const formData = new FormData()
       formData.append('file', file)
       formData.append('process_with_ai', processWithAi.toString())
       
-      const response = await apiClient.postForm<any>('/files/resume', formData)
+      const response = await apiClient.postForm<FileUploadResponse>('/files/resume', formData)
       return { data: response }
     } catch (error) {
       console.error('Failed to upload resume:', error)
@@ -337,9 +350,9 @@ export const fileApi = {
     }
   },
 
-  getFileStatus: async (fileId: string): Promise<{ data: any | null; error?: string }> => {
+  getFileStatus: async (fileId: string): Promise<{ data: FileStatus | null; error?: string }> => {
     try {
-      const response = await apiClient.get<ApiResponse<any>>(`/files/status/${fileId}`)
+      const response = await apiClient.get<ApiResponse<FileStatus>>(`/files/status/${fileId}`)
       return { data: response.data }
     } catch (error) {
       console.error('Failed to get file status:', error)
@@ -348,37 +361,5 @@ export const fileApi = {
   }
 }
 
-// Auth API - OAuth handled by nginx, session-based auth
-export const authApi = {
-  login: async (email: string, password: string): Promise<{ data: { user: User; token: string } | null; error?: string }> => {
-    // For Phase 2, OAuth is handled by nginx, not direct login
-    // This would redirect to OAuth provider or return error
-    return { data: null, error: 'Direct login not implemented - use OAuth' }
-  },
-
-  oauthLogin: async (provider: 'google' | 'github'): Promise<{ data: { user: User; token: string } | null; error?: string }> => {
-    // OAuth is handled by nginx - this would redirect to the OAuth endpoint
-    window.location.href = `/auth/${provider}`
-    return { data: null } // Won't actually return since page redirects
-  },
-
-  register: async (name: string, email: string, password: string): Promise<{ data: { user: User; token: string } | null; error?: string }> => {
-    // For Phase 2, registration is handled via OAuth, not direct registration
-    return { data: null, error: 'Direct registration not implemented - use OAuth' }
-  }
-}
-
-// Interviews API - placeholder for future implementation
-export const interviewsApi = {
-  getByApplicationId: async (applicationId: string): Promise<{ data: Interview | null; error?: string }> => {
-    // Placeholder - backend doesn't have interview endpoints yet
-    return { data: null, error: 'Interviews API not implemented yet' }
-  },
-
-  create: async (applicationId: string, scheduledAt: string): Promise<{ data: Interview | null; error?: string }> => {
-    // Placeholder - backend doesn't have interview endpoints yet
-    return { data: null, error: 'Interviews API not implemented yet' }
-  }
-}
 
 export default apiClient

@@ -3,19 +3,13 @@
 import { useState, useEffect } from 'react'
 import { Navigation } from '@/components/navigation'
 import { Button } from '@/components/ui/button'
-import { User } from '@/lib/types'
+import { User, Job } from '@/lib/types'
+import { jobsApi } from '@/lib/api'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { PartyPopper, Monitor, Lock, Mail, Clock, Bot } from 'lucide-react'
 
-// Job titles lookup
-const jobTitles: Record<string, string> = {
-  '1': 'Operations Analyst, Institutional Private Client',
-  '2': 'Fund Accountant, Investment Fund Services', 
-  '3': 'Operations Analyst, Separately Managed Accounts',
-  '4': 'Operations Analyst, AML',
-  '5': 'Senior Software Engineer'
-}
+// Remove hardcoded job titles - we'll fetch real job data
 
 interface ApplicationResultProps {
   params: Promise<{
@@ -27,15 +21,41 @@ export default function ApplicationResultPage({ params }: ApplicationResultProps
   const router = useRouter()
   const searchParams = useSearchParams()
   const [user, setUser] = useState<User | null>(null)
+  const [job, setJob] = useState<Job | null>(null)
+  const [loading, setLoading] = useState(true)
   const [resolvedParams, setResolvedParams] = useState<{ jobId: string } | null>(null)
   
   useEffect(() => {
     params.then(setResolvedParams)
   }, [params])
 
-  const jobTitle = resolvedParams ? (jobTitles[resolvedParams.jobId] || 'Unknown Position') : 'Loading...'
-  const resultType = searchParams.get('result') || 'eligible' // 'eligible' or 'under-review'
-  const isEligible = resultType === 'eligible'
+  // Fetch job data when params are resolved
+  useEffect(() => {
+    if (resolvedParams) {
+      fetchJobData()
+    }
+  }, [resolvedParams])
+
+  const fetchJobData = async () => {
+    if (!resolvedParams) return
+    
+    try {
+      setLoading(true)
+      const { data, error } = await jobsApi.getById(resolvedParams.jobId)
+      if (error) {
+        console.error('Failed to fetch job:', error)
+      } else {
+        setJob(data)
+      }
+    } catch (err) {
+      console.error('Error fetching job:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const resultType = searchParams.get('result') || 'eligible' // 'eligible', 'interview', or 'under-review'
+  const isEligible = resultType === 'eligible' || resultType === 'interview'
 
   useEffect(() => {
     // Get user from localStorage
@@ -65,7 +85,7 @@ export default function ApplicationResultPage({ params }: ApplicationResultProps
   const isGuest = !user
   const userState = isGuest ? "guest" : (user?.hasResume ? "has-resume" : "no-resume")
 
-  if (!user || !resolvedParams) {
+  if (!user || !resolvedParams || loading || !job) {
     return (
       <div className="page-light min-h-screen">
         <Navigation userState="guest" user={null} theme="light" />
@@ -95,7 +115,7 @@ export default function ApplicationResultPage({ params }: ApplicationResultProps
                 Congratulations!
               </h1>
               <p className="text-xl text-blue-600 font-semibold mb-8">
-                You're invited to participate in our AI-powered interview process
+                You&apos;re invited to participate in our AI-powered interview process
               </p>
             </div>
 
@@ -106,11 +126,11 @@ export default function ApplicationResultPage({ params }: ApplicationResultProps
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div>
                   <h3 className="text-sm font-medium text-gray-600 mb-1">Position</h3>
-                  <p className="font-semibold text-gray-900">{jobTitle}</p>
+                  <p className="font-semibold text-gray-900">{job.title}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-600 mb-1">Location</h3>
-                  <p className="font-semibold text-gray-900">San Francisco, CA</p>
+                  <p className="font-semibold text-gray-900">{job.location}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-600 mb-1">Application Date</h3>
@@ -126,7 +146,7 @@ export default function ApplicationResultPage({ params }: ApplicationResultProps
 
               {/* What's Next */}
               <div className="bg-blue-50 rounded-lg p-4 mb-6">
-                <h3 className="text-base font-semibold text-blue-800 mb-2">What's Next?</h3>
+                <h3 className="text-base font-semibold text-blue-800 mb-2">What&apos;s Next?</h3>
                 <p className="text-blue-800 text-sm">
                   Our AI-powered interview process helps us better understand your capabilities and ensures 
                   a fair, consistent evaluation. The interview is personalized based on your background and the role requirements.
@@ -139,7 +159,7 @@ export default function ApplicationResultPage({ params }: ApplicationResultProps
                 <ul className="space-y-2 text-gray-600 text-sm">
                   <li className="flex items-center">
                     <Clock className="w-4 h-4 mr-2 text-purple-600" />
-                    <strong className="mr-1">Duration:</strong> 20-25 minutes
+                    <strong className="mr-1">Duration:</strong> {job.interview_duration_minutes || 60} minutes
                   </li>
                   <li className="flex items-center">
                     <Bot className="w-4 h-4 mr-2 text-primary-600" />
@@ -208,11 +228,11 @@ export default function ApplicationResultPage({ params }: ApplicationResultProps
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div>
                   <h3 className="text-sm font-medium text-gray-600 mb-1">Position</h3>
-                  <p className="font-semibold text-gray-900">{jobTitle}</p>
+                  <p className="font-semibold text-gray-900">{job.title}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-600 mb-1">Location</h3>
-                  <p className="font-semibold text-gray-900">San Francisco, CA</p>
+                  <p className="font-semibold text-gray-900">{job.location}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-600 mb-1">Application Date</h3>
@@ -228,10 +248,10 @@ export default function ApplicationResultPage({ params }: ApplicationResultProps
 
               {/* What's Next */}
               <div className="bg-blue-50 rounded-lg p-4">
-                <h3 className="text-base font-semibold text-blue-800 mb-2">What's Next?</h3>
+                <h3 className="text-base font-semibold text-blue-800 mb-2">What&apos;s Next?</h3>
                 <p className="text-blue-800 text-sm">
                   Our team will review your application within 5-7 business days. If your background matches 
-                  our requirements, we'll contact you with next steps. Thank you for your interest in joining our team!
+                  our requirements, we&apos;ll contact you with next steps. Thank you for your interest in joining our team!
                 </p>
               </div>
             </div>

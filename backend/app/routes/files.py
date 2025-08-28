@@ -172,22 +172,3 @@ async def get_file_status(
         raise HTTPException(status_code=500, detail=f"Failed to get file status: {str(e)}")
 
 
-@router.get("/recaptcha/config")
-async def get_recaptcha_configuration():
-    """
-    Get reCAPTCHA configuration for frontend.
-    
-    Returns site key and configuration details.
-    """
-    try:
-        config = get_recaptcha_config()
-        logger.info("reCAPTCHA configuration requested")
-        
-        return {
-            "success": True,
-            "data": config
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to get reCAPTCHA config: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to get security configuration")

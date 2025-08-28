@@ -1,10 +1,9 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { OAuthButton } from '@/components/wireframe/OAuthButton'
-import { authApi } from '@/lib/api'
 import { Bot, Target, Mail, BarChart3, Zap } from 'lucide-react'
 
 const benefits = [
@@ -41,11 +40,9 @@ const benefits = [
 ]
 
 export default function LoginPage() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect') || '/dashboard'
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
 
   useEffect(() => {
     // No need to check authentication status - nginx handles this
@@ -124,7 +121,7 @@ export default function LoginPage() {
 
               <div className="mt-8 p-6 bg-slate-50 rounded-xl border-l-4 border-wireframe-blue">
                 <p className="italic text-gray-700 mb-2">
-                  "S Corp. helped me land my dream job in just 2 weeks. The AI matching was incredibly accurate!"
+                  &ldquo;S Corp. helped me land my dream job in just 2 weeks. The AI matching was incredibly accurate!&rdquo;
                 </p>
                 <p className="text-sm text-gray-600 font-medium">
                   — Sarah Chen, Software Engineer at TechCorp
@@ -142,11 +139,6 @@ export default function LoginPage() {
                   <p className="text-gray-600 text-sm">Choose your preferred method to get started</p>
                 </div>
 
-                {error && (
-                  <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-red-700 text-sm">{error}</p>
-                  </div>
-                )}
 
                 <div className="flex flex-col gap-4">
                   <OAuthButton 
@@ -162,7 +154,7 @@ export default function LoginPage() {
 
                 <div className="mt-8 pt-6 border-t border-gray-200 text-center">
                   <p className="text-gray-600 text-xs leading-relaxed">
-                    By continuing, you agree to S Corp.'s{' '}
+                    By continuing, you agree to S Corp.&apos;s{' '}
                     <Link href="#" className="text-wireframe-blue underline hover:text-wireframe-blue-dark">
                       Terms of Service
                     </Link>

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { authApi, userApi } from '@/lib/api'
+import { userApi } from '@/lib/api'
 import { queryKeys } from '@/lib/react-query'
 import { User } from '@/lib/types'
 import { useRouter } from 'next/navigation'
@@ -27,24 +27,16 @@ export function useCurrentUser() {
 
 // Login mutation
 export function useLogin() {
-  const queryClient = useQueryClient()
-  const router = useRouter()
-  
   return useMutation({
-    mutationFn: ({ email, password }: { email: string; password: string }) => 
-      authApi.login(email, password),
-    onSuccess: (data) => {
-      if (data.data) {
-        // Store in localStorage
-        localStorage.setItem('auth_token', data.data.token)
-        localStorage.setItem('user', JSON.stringify(data.data.user))
-        
-        // Update React Query cache
-        queryClient.setQueryData(queryKeys.auth.user, data.data.user)
-        
-        // Redirect or handle success
-        router.push('/dashboard')
-      }
+    mutationFn: () => {
+      // OAuth login is handled by redirecting to nginx gateway
+      console.warn('Direct login not supported - use OAuth')
+      return Promise.resolve({ data: null, error: 'Direct login not implemented - use OAuth' })
+    },
+    onSuccess: () => {
+      // OAuth redirect will handle the actual login process
+      // This function won't be reached in normal flow
+      console.log('Login initiated, redirecting to OAuth...')
     },
     onError: (error) => {
       console.error('Login failed:', error)
@@ -54,26 +46,19 @@ export function useLogin() {
 
 // OAuth login mutation
 export function useOAuthLogin() {
-  const queryClient = useQueryClient()
-  const router = useRouter()
-  
   return useMutation({
-    mutationFn: ({ provider, redirectTo }: { 
+    mutationFn: ({ provider }: { 
       provider: 'google' | 'github'
       redirectTo?: string 
-    }) => authApi.oauthLogin(provider),
-    onSuccess: (data, variables) => {
-      if (data.data) {
-        // Store in localStorage
-        localStorage.setItem('auth_token', data.data.token)
-        localStorage.setItem('user', JSON.stringify(data.data.user))
-        
-        // Update React Query cache
-        queryClient.setQueryData(queryKeys.auth.user, data.data.user)
-        
-        // Redirect
-        router.push(variables.redirectTo || '/dashboard')
-      }
+    }) => {
+      // OAuth is handled by nginx - redirect to the OAuth endpoint
+      window.location.href = `/auth/${provider}`
+      return Promise.resolve({ data: null }) // Won't actually return since page redirects
+    },
+    onSuccess: () => {
+      // OAuth redirect will handle the actual login process
+      // This function won't be reached in normal flow
+      console.log('OAuth login initiated, redirecting...')
     },
     onError: (error) => {
       console.error('OAuth login failed:', error)
@@ -83,27 +68,14 @@ export function useOAuthLogin() {
 
 // Register mutation
 export function useRegister() {
-  const queryClient = useQueryClient()
-  const router = useRouter()
-  
   return useMutation({
-    mutationFn: ({ name, email, password }: { 
-      name: string
-      email: string 
-      password: string 
-    }) => authApi.register(name, email, password),
-    onSuccess: (data) => {
-      if (data.data) {
-        // Store in localStorage
-        localStorage.setItem('auth_token', data.data.token)
-        localStorage.setItem('user', JSON.stringify(data.data.user))
-        
-        // Update React Query cache
-        queryClient.setQueryData(queryKeys.auth.user, data.data.user)
-        
-        // Redirect to onboarding or dashboard
-        router.push('/upload') // Start with resume upload
-      }
+    mutationFn: () => {
+      // Registration is handled via OAuth, not direct registration
+      return Promise.resolve({ data: null, error: 'Direct registration not implemented - use OAuth' })
+    },
+    onSuccess: () => {
+      // Registration is handled via OAuth, not direct registration
+      console.log('Registration initiated, use OAuth instead')
     },
     onError: (error) => {
       console.error('Registration failed:', error)
@@ -139,11 +111,10 @@ export function useUpdateProfile() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: ({ userId, profileData }: { 
-      userId: string
+    mutationFn: ({ profileData }: { 
       profileData: Partial<User['profile']> 
-    }) => userApi.updateProfile(userId, profileData),
-    onSuccess: (data, variables) => {
+    }) => userApi.updateProfile(profileData),
+    onSuccess: (data) => {
       if (data.data) {
         // Update user in cache
         queryClient.setQueryData(queryKeys.auth.user, data.data)
@@ -155,7 +126,7 @@ export function useUpdateProfile() {
         
         // Invalidate related queries
         queryClient.invalidateQueries({ 
-          queryKey: queryKeys.auth.profile(variables.userId) 
+          queryKey: queryKeys.auth.user 
         })
       }
     },
@@ -169,7 +140,7 @@ export function useUpdateProfile() {
 export function useUserProfile(userId: string, enabled = true) {
   return useQuery({
     queryKey: queryKeys.auth.profile(userId),
-    queryFn: () => userApi.getProfile(userId),
+    queryFn: () => userApi.getProfile(),
     select: (data) => data.data,
     enabled: enabled && !!userId,
     staleTime: 1000 * 60 * 10, // 10 minutes - profile data is relatively stable

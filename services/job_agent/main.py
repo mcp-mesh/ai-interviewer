@@ -145,6 +145,7 @@ async def _search_jobs_with_filters(
                     "requirements": job.requirements or [],
                     "benefits": job.benefits or [],
                     "salaryRange": salary_range,
+                    "interview_duration_minutes": job.interview_duration_minutes,
                     "remote": job.remote,
                     "postedAt": job.posted_date.isoformat() if job.posted_date else None,
                     "matchScore": 0  # Will be implemented with matching algorithm
@@ -320,6 +321,7 @@ async def jobs_featured_listing(limit: int = 5) -> Dict[str, Any]:
                     "category": job.category,
                     "remote": job.remote,
                     "short_description": job.short_description,
+                    "interview_duration_minutes": job.interview_duration_minutes,
                     "posted_date": job.posted_date.isoformat() if job.posted_date else None
                 }
                 jobs.append(job_dict)
@@ -497,6 +499,7 @@ async def jobs_search(
                     "remote": job.remote,
                     "short_description": job.short_description,
                     "is_featured": job.is_featured,
+                    "interview_duration_minutes": job.interview_duration_minutes,
                     "posted_date": job.posted_date.isoformat() if job.posted_date else None
                 }
                 jobs.append(job_dict)

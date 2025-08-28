@@ -27,6 +27,20 @@ export interface User {
   availableJobs?: number
   matchedJobs?: number
   applications?: UserApplication[]
+  resume_analysis?: {
+    professional_summary?: string
+    years_experience?: number
+    skills?: string[]
+    experience?: {
+      title: string
+      company: string
+      duration: string
+    }[]
+    experience_level?: string
+    education_level?: string
+    ai_provider?: string
+    ai_model?: string
+  }
   createdAt: string
   updatedAt: string
   created_at?: string // For compatibility with mock-data
@@ -52,6 +66,7 @@ export interface Job {
     max: number
     currency: string
   }
+  interview_duration_minutes?: number
   matchScore?: number
   isBookmarked?: boolean
   isRecommended?: boolean
@@ -115,12 +130,17 @@ export interface InterviewResponse {
 
 export interface JobFilters {
   search?: string
+  categories?: string[]
+  job_types?: string[]
+  cities?: string[]
+  states?: string[]
+  countries?: string[]
+  // Legacy filters for backward compatibility
   location?: string
-  type?: Job['type'][]
-  category?: Job['category'][]
+  type?: string
+  remote?: boolean
   salaryMin?: number
   salaryMax?: number
-  remote?: boolean
 }
 
 export interface PaginatedResponse<T> {
@@ -181,4 +201,155 @@ export interface UserStatusCardProps {
   user: User | null
   onUploadResume?: () => void
   onStartInterview?: (roleId: string) => void
+}
+
+// File API Types
+export interface FileUpload {
+  file_id: string
+  filename: string
+  file_path: string
+  file_size: number
+  content_type: string
+  uploaded_at: string
+  user_email: string
+}
+
+export interface WorkExperienceItem {
+  company_name: string
+  job_title: string
+  start_date?: string
+  end_date?: string
+  is_current: boolean
+  location?: string
+  responsibilities: string | string[]
+}
+
+export interface EducationItem {
+  institution: string
+  degree: string
+  year?: string
+}
+
+export interface ProcessedResumeData {
+  skills_extracted: string[]
+  experience_years: number
+  education: EducationItem[]
+  work_experience: WorkExperienceItem[]
+  contact_info: { email: string }
+  summary?: string
+  technical_skills?: string
+  soft_skills?: string
+  confidence_score: number
+}
+
+export interface FileUploadResponse {
+  success: boolean
+  upload: FileUpload
+  processed_data: ProcessedResumeData | null
+  profile_updated: boolean
+  message: string
+}
+
+export interface FileStatus {
+  file_id: string
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  processed: boolean
+}
+
+// Backend API Types (for api-client.ts)
+export interface BackendJob {
+  id: string
+  title: string
+  company: string
+  location: string
+  city?: string
+  state?: string
+  country?: string
+  type: 'Full-time' | 'Part-time' | 'Contract' | 'Internship'
+  category: 'Engineering' | 'Operations' | 'Finance' | 'Marketing' | 'Sales' | 'Other'
+  remote?: boolean
+  description?: string
+  short_description?: string
+  requirements?: string[]
+  benefits?: string[]
+  salaryRange?: {
+    min: number
+    max: number
+    currency: string
+  }
+  interview_duration_minutes?: number
+  matchScore?: number
+  isBookmarked?: boolean
+  isRecommended?: boolean
+  is_featured?: boolean
+  postedAt: string
+  expiresAt?: string
+}
+
+export interface ApplicationStepData {
+  [key: string]: string | number | boolean | string[] | Record<string, unknown>[] | Record<string, unknown> | null | undefined
+}
+
+export interface ApplicationStatus {
+  applicationId: string
+  status: 'draft' | 'submitted' | 'under-review' | 'interview' | 'rejected' | 'accepted'
+  currentStep?: number
+  totalSteps?: number
+  lastUpdated: string
+}
+
+export interface ApplicationReviewData {
+  applicationId: string
+  responses: Record<string, string | string[]>
+  personalInfo: {
+    firstName: string
+    lastName: string
+    email: string
+    phone: string
+    address?: string
+  }
+  personal_information?: {
+    name: string
+    email: string
+    phone: string
+    linkedin: string
+    address: string
+    location?: {
+      city: string
+      state: string
+      country: string
+    }
+  }
+  position?: {
+    job_title: string
+  }
+  experience_and_skills?: {
+    professional_summary?: string
+    technical_skills?: string[]
+    work_experience?: Record<string, unknown>[]
+    education?: Record<string, unknown>[]
+    current_position?: {
+      job_title: string
+      company: string
+    }
+  }
+  questions?: Record<string, string>
+  disclosures?: Record<string, string>
+  identity?: Record<string, string | string[]>
+  application_preferences?: {
+    work_authorization?: string
+    relocate?: string
+    remote_work?: string
+    availability?: string
+  }
+  attached_documents?: {
+    resume?: {
+      filename?: string
+      url?: string
+      uploaded_at?: string
+      file_size?: number
+    }
+  }
+  coverLetter?: string
+  additionalInfo?: Record<string, unknown>
 }

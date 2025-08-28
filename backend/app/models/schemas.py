@@ -34,6 +34,7 @@ class JobSummary(BaseModel):
     requirements: List[str] = []
     benefits: List[str] = []
     salaryRange: Optional[Dict[str, Any]] = None  # {min, max, currency}
+    interview_duration_minutes: int = 60
     remote: bool = False
     postedAt: str
     matchScore: Optional[int] = None
@@ -52,6 +53,7 @@ class JobDetail(BaseModel):
     experience_level: Optional[str] = None
     category: str
     salary_range: Optional[str] = None
+    interview_duration_minutes: int = 60
     posted_date: str
     application_deadline: Optional[str] = None
     description: str
@@ -62,11 +64,6 @@ class JobDetail(BaseModel):
     skills_required: List[str] = []
     company_info: Optional[Dict[str, Any]] = None
 
-
-class JobCategory(BaseModel):
-    """Job category information"""
-    category: str
-    count: int
 
 
 class JobListResponse(BaseModel):
@@ -84,10 +81,6 @@ class JobDetailResponse(BaseModel):
     success: bool = True
 
 
-class JobCategoriesResponse(BaseModel):
-    """Job categories API response"""
-    data: List[JobCategory]
-    success: bool = True
 
 
 class JobFiltersData(BaseModel):

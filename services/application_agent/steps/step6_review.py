@@ -253,10 +253,10 @@ Use the provided tool to return structured qualification assessment."""
 
 async def handle_review_step(
     application_id: str,
-    resume_text: str = "",
+    detailed_analysis: Dict[str, Any] = None,
     step_data: Dict[str, Any] = None,
     job_agent=None,
-    user_agent=None, 
+    user_agent=None,
     llm_service=None,
     convert_tool_format=None,
     cache_agent=None,
@@ -326,8 +326,9 @@ async def handle_review_step(
             else:
                 logger.warning("job_agent is None - job details will not be fetched")
             
-            # 3. Get resume text if not provided
-            if not resume_text and user_agent:
+            # 3. Get resume text for qualification assessment
+            resume_text = ""  # Initialize resume text
+            if user_agent:
                 try:
                     resume_result = await user_agent(user_email=user_email)
                     if resume_result.get("success") and resume_result.get("text_content"):

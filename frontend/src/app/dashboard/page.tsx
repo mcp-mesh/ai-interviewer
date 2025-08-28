@@ -6,14 +6,14 @@ import { Navigation } from '@/components/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { jobsApi } from '@/lib/api'
-import { Job, User } from '@/lib/types'
+import { User } from '@/lib/types'
 import { FileText, Target, Zap, Bot, BarChart3, User as UserIcon } from 'lucide-react'
 
 export default function DashboardPage() {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
-  const [featuredJobs, setFeaturedJobs] = useState<Job[]>([])
-  const [loading, setLoading] = useState(true)
+  // const [featuredJobs, setFeaturedJobs] = useState<Job[]>([])
+  // const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     // Get user data from API using session-based authentication
@@ -44,7 +44,7 @@ export default function DashboardPage() {
 
   // Show different dashboard based on user state
   const hasResume = user?.hasResume || false
-  const hasApplications = user?.isApplicationsAvailable || false
+  // const hasApplications = user?.isApplicationsAvailable || false
 
   // Dynamic profile status calculations
   const getProfileCompletion = () => {
@@ -92,18 +92,18 @@ export default function DashboardPage() {
 
 
   const fetchDashboardData = async () => {
-    setLoading(true)
+    // setLoading(true) // TODO: May be needed for future functionality
     
     try {
       const jobsResponse = await jobsApi.getFeatured()
       if (jobsResponse.data) {
-        setFeaturedJobs(jobsResponse.data.slice(0, 3))
+        // setFeaturedJobs(jobsResponse.data.slice(0, 3)) // TODO: May be needed for future functionality
       }
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error)
     }
     
-    setLoading(false)
+    // setLoading(false) // TODO: May be needed for future functionality
   }
 
   const handleUploadResume = () => {
@@ -127,7 +127,7 @@ export default function DashboardPage() {
   if (!hasResume) {
     return (
       <div className="page-light min-h-screen">
-        <Navigation userState="has-resume" user={user} theme="light" />
+        <Navigation userState="has-resume" user={user} theme="light" currentPage="dashboard" />
         
         <main className="container max-w-[900px] mx-auto px-6 pt-20">
           <div className="py-12">
@@ -137,7 +137,7 @@ export default function DashboardPage() {
                 Welcome to S Corp., {user?.name?.split(' ')[0]}!
               </h1>
               <p className="text-[#6b7280] text-lg">
-                Let's get you set up to find your perfect job match
+                Let&apos;s get you set up to find your perfect job match
               </p>
             </div>
 
@@ -244,7 +244,7 @@ export default function DashboardPage() {
   // Show "has resume" dashboard
   return (
     <div className="page-light min-h-screen">
-      <Navigation userState="has-resume" user={user} theme="light" />
+      <Navigation userState="has-resume" user={user} theme="light" currentPage="dashboard" />
       
       <main className="container max-w-[900px] mx-auto px-6 pt-20">
         <div className="py-12">
@@ -254,7 +254,7 @@ export default function DashboardPage() {
               Welcome back, {user?.name?.split(' ')[0]}!
             </h1>
             <p className="text-[#6b7280] text-lg">
-              Your profile is ready - let's find your perfect match
+              Your profile is ready - let&apos;s find your perfect match
             </p>
           </div>
 
@@ -397,7 +397,7 @@ export default function DashboardPage() {
                 </div>
                 <p className="text-[#6b7280] text-sm">
                   {applicationsCount > 0 
-                    ? `You've submitted ${applicationsCount} ${applicationsCount === 1 ? 'application' : 'applications'} - great job!`
+                    ? `You&apos;ve submitted ${applicationsCount} ${applicationsCount === 1 ? 'application' : 'applications'} - great job!`
                     : 'Ready to start applying to your matches'
                   }
                 </p>

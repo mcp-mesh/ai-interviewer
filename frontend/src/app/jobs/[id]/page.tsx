@@ -59,7 +59,7 @@ export default function JobDetailPage({ params }: JobDetailProps) {
   const [user, setUser] = useState<User | null>(null)
   const [job, setJob] = useState<Job | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error] = useState<string | null>(null) // TODO: setError may be needed for error handling
   const [resolvedParams, setResolvedParams] = useState<{ id: string } | null>(null)
   const [applying, setApplying] = useState(false)
   
@@ -84,18 +84,19 @@ export default function JobDetailPage({ params }: JobDetailProps) {
       const cleanJobId = resolvedParams.id.split('?')[0]
       
       setLoading(true)
-      setError(null)
+      // setError(null) // TODO: May need error state management
       
       try {
         const jobResponse = await jobsApi.getById(cleanJobId)
         if (jobResponse.data) {
           setJob(jobResponse.data)
         } else {
-          setError(jobResponse.error || 'Job not found')
+          console.error('Job not found:', jobResponse.error || 'Job not found')
+          // setError(jobResponse.error || 'Job not found') // TODO: May need error state management
         }
       } catch (error) {
         console.error('Failed to fetch job details:', error)
-        setError('Failed to load job details')
+        // setError('Failed to load job details') // TODO: May need error state management
       }
       
       setLoading(false)
@@ -127,7 +128,7 @@ export default function JobDetailPage({ params }: JobDetailProps) {
         <main className="container max-w-[1400px] mx-auto px-6 pt-20">
           <div className="text-center py-20">
             <h1 className="text-2xl font-bold text-gray-900 mb-4">Job Not Found</h1>
-            <p className="text-gray-600 mb-6">{error || 'The job you\'re looking for doesn\'t exist or has been removed.'}</p>
+            <p className="text-gray-600 mb-6">{error || 'The job you&apos;re looking for doesn&apos;t exist or has been removed.'}</p>
             <Link href="/jobs">
               <Button variant="primary">Back to Jobs</Button>
             </Link>
@@ -149,31 +150,56 @@ export default function JobDetailPage({ params }: JobDetailProps) {
       return
     }
 
-    // Start the application using our new API
+    // Start the application using our new API with timeout
     setApplying(true)
     try {
-      const { applicationsApi } = await import('@/lib/api')
-      const result = await applicationsApi.startApplication(job.id)
+      const { applicationsApi } = await import('@/lib/api-client')
+      
+      // Create a timeout promise
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Application setup timed out')), 15000)
+      })
+      
+      // Race between API call and timeout
+      const result = await Promise.race([
+        applicationsApi.startApplication(job.id),
+        timeoutPromise
+      ]) as { data: { applicationId: string; prefillData?: Record<string, unknown>; currentStep?: number } | null; error?: string }
       
       if (result.data) {
-        // Success! Redirect to application page with the application_id
-        const applicationId = result.data.data.application_id
+        // Success! Redirect to application page with the application_id and prefill data
+        const { applicationId, prefillData, currentStep } = result.data
+        
         // Store application data for the application page
         localStorage.setItem('currentApplication', JSON.stringify({
           applicationId,
           jobId: job.id,
-          currentStep: result.data.data.target_step || 1,
-          prefillData: result.data.data.prefill_data
+          currentStep: currentStep || 1,
+          prefillData: prefillData || null
         }))
+        
+        console.log('Application started:', { applicationId, currentStep, hasPrefillData: !!prefillData })
         router.push(`/apply/${job.id}`)
       } else {
-        // Handle error
+        // Handle API error response
         console.error('Failed to start application:', result.error)
-        alert('Failed to start application. Please try again.')
+        alert(`Failed to start application: ${result.error || 'Please try again.'}`)
       }
     } catch (error) {
       console.error('Error starting application:', error)
-      alert('An error occurred. Please try again.')
+      
+      // Handle different error types
+      if (error instanceof Error) {
+        if (error.message.includes('timed out')) {
+          alert('Application setup took longer than expected. Please try again or continue without AI prefill.')
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+          alert('Network error. Please check your connection and try again.')
+        } else {
+          alert(`Error: ${error.message}`)
+        }
+      } else {
+        alert('An unexpected error occurred. Please try again.')
+      }
     } finally {
       setApplying(false)
     }
@@ -225,7 +251,11 @@ export default function JobDetailPage({ params }: JobDetailProps) {
                   size="lg"
                   onClick={handleApplyNow}
                   disabled={loading || applying}
+                  className="flex items-center gap-2"
                 >
+                  {applying && (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  )}
                   {applying ? 'Starting Application...' : loading ? 'Loading...' : 'Apply Now'}
                 </Button>
               </div>

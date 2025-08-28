@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ToastContainer, useToast } from '@/components/wireframe'
 import { User } from '@/lib/types'
-import { FileText, Upload, CheckCircle, Shield, RefreshCw, XCircle } from 'lucide-react'
+import { FileText, Upload, CheckCircle, Shield, RefreshCw } from 'lucide-react'
 
 export default function UploadPage() {
   const router = useRouter()
@@ -99,7 +99,9 @@ export default function UploadPage() {
       // Create form data for file upload with reCAPTCHA token
       const formData = new FormData()
       formData.append('file', selectedFile)
-      formData.append('recaptcha_token', recaptchaToken)
+      if (recaptchaToken) {
+        formData.append('recaptcha_token', recaptchaToken)
+      }
       formData.append('process_with_ai', 'true')
 
       // Make API call to backend
@@ -140,7 +142,7 @@ export default function UploadPage() {
               resume_url: result.upload?.file_path || '/uploaded-resume.pdf'
             }
           }
-          setUser(updatedUser)
+          setUser(updatedUser as User)
           localStorage.setItem('user', JSON.stringify(updatedUser))
         }
       }
@@ -267,7 +269,7 @@ export default function UploadPage() {
             <div className="border-2 border-light-border rounded-lg p-8 bg-light-surface text-center">
               <Shield className="w-12 h-12 text-light-text-muted mb-4 mx-auto" />
               <p className="text-light-text-secondary mb-6">
-                Click the button below to verify you're human using Google's security system.
+                Click the button below to verify you&apos;re human using Google&apos;s security system.
               </p>
               
               <Button 
