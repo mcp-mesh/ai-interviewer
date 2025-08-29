@@ -194,18 +194,21 @@ def process_with_tools(
                 api_messages.append({"role": "system", "content": system_prompt})
             api_messages.append({"role": "user", "content": text})
         
+        # Convert tools to OpenAI format if needed
+        api_tools = _convert_tools_to_openai_format(tools) if tools else None
+        
         # Force tool use if tools provided and force_tool_use is True
         tool_choice = None
-        if tools and force_tool_use:
+        if api_tools and force_tool_use:
             tool_choice = "required"  # OpenAI's equivalent to forcing tool use
-            logger.info(f"Forcing tool use with {len(tools)} available tools")
-        elif tools:
+            logger.info(f"Forcing tool use with {len(api_tools)} available tools")
+        elif api_tools:
             tool_choice = "auto"
         
         # Call OpenAI API
         response = call_openai_api(
             messages=api_messages,
-            tools=tools,
+            tools=api_tools,
             tool_choice=tool_choice,
             model=model,
             max_tokens=max_tokens,
@@ -216,8 +219,8 @@ def process_with_tools(
         response.update({
             "processed_at": __import__("datetime").datetime.now().isoformat(),
             "input_length": len(text) if text else sum(len(msg.get("content", "")) for msg in api_messages),
-            "tools_provided": len(tools) if tools else 0,
-            "tool_use_forced": force_tool_use and bool(tools)
+            "tools_provided": len(api_tools) if api_tools else 0,
+            "tool_use_forced": force_tool_use and bool(api_tools)
         })
         
         if response["success"]:
@@ -239,68 +242,51 @@ def process_with_tools(
         }
 
 
-@app.tool()
-@mesh.tool(
-    capability="convert_tool_format",
-    version="1.0",
-    tags=["tool-conversion", "format", "openai", "claude"],
-    description="Convert Claude tool format to OpenAI tool format"
-)
-def convert_tool_format(tools: List[Dict]) -> List[Dict]:
+def _convert_tools_to_openai_format(tools: List[Dict]) -> List[Dict]:
     """
-    Convert Claude tool format to OpenAI tool format.
-    
-    Claude format uses tools directly, OpenAI requires type="function" wrapper.
-    This function converts Claude format to OpenAI format.
+    Internal utility to convert Claude tool format to OpenAI tool format.
     
     Args:
         tools: List of tool definitions in Claude format
         
     Returns:
         List of tool definitions in OpenAI format
-        
-    Example:
-        Claude format:
-        [{"name": "extract_data", "description": "...", "parameters": {...}}]
-        
-        OpenAI format:
-        [{"type": "function", "function": {"name": "extract_data", "description": "...", "parameters": {...}}}]
     """
+    if not tools:
+        return tools
+    
+    # Check if already in OpenAI format
+    if tools[0].get("type") == "function":
+        return tools  # Already converted
+    
     try:
-        logger.info(f"Converting {len(tools)} tools from Claude to OpenAI format")
+        logger.debug(f"Converting {len(tools)} tools from Claude to OpenAI format")
         
         converted_tools = []
         for tool in tools:
             if isinstance(tool, dict):
-                # Check if already in OpenAI format (has "type" and "function" keys)
-                if "type" in tool and "function" in tool:
-                    # Already in OpenAI format, just pass through
-                    converted_tools.append(tool)
-                    logger.debug(f"Tool {tool.get('function', {}).get('name', 'unknown')} already in OpenAI format")
-                else:
-                    # Convert from Claude format to OpenAI format
-                    function_def = tool.copy()
-                    
-                    # Convert Claude's 'input_schema' to OpenAI's 'parameters'
-                    if "input_schema" in function_def:
-                        function_def["parameters"] = function_def.pop("input_schema")
-                    
-                    openai_tool = {
-                        "type": "function",
-                        "function": function_def
-                    }
-                    converted_tools.append(openai_tool)
-                    logger.debug(f"Converted tool {tool.get('name', 'unknown')} to OpenAI format")
+                # Convert from Claude format to OpenAI format
+                function_def = tool.copy()
+                
+                # Convert Claude's 'input_schema' to OpenAI's 'parameters'
+                if "input_schema" in function_def:
+                    function_def["parameters"] = function_def.pop("input_schema")
+                
+                openai_tool = {
+                    "type": "function",
+                    "function": function_def
+                }
+                converted_tools.append(openai_tool)
             else:
                 logger.warning(f"Invalid tool format: {tool}")
                 continue
         
-        logger.info(f"Successfully converted {len(converted_tools)} tools to OpenAI format")
+        logger.debug(f"Auto-converted {len(converted_tools)} tools to OpenAI format")
         return converted_tools
         
     except Exception as e:
         logger.error(f"Tool format conversion failed: {str(e)}")
-        raise ValueError(f"Tool format conversion failed: {str(e)}")
+        return tools  # Return original tools as fallback
 
 
 @app.tool()

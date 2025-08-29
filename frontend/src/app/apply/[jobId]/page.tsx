@@ -1407,7 +1407,7 @@ export default function ApplicationPage({ params }: ApplicationPageProps) {
   const [resolvedParams, setResolvedParams] = useState<{ jobId: string } | null>(null)
   const [jobTitle, setJobTitle] = useState<string>('Loading...')
   const [applicationData, setApplicationData] = useState<{ applicationId: string; currentStep?: number; prefillData?: Record<string, unknown> | null } | null>(null)
-  const hasPreFilledRef = useRef(false)
+  const lastPrefillDataRef = useRef<Record<string, unknown> | null>(null)
   const { toasts, showToast, removeToast, clearAllToasts } = useToast()
   
   useEffect(() => {
@@ -1453,8 +1453,10 @@ export default function ApplicationPage({ params }: ApplicationPageProps) {
       setUser(parsedUser)
       
       // Prefill form if we have data and user has resume
-      if (parsedUser.hasResume && !hasPreFilledRef.current && applicationData?.prefillData) {
-        hasPreFilledRef.current = true
+      // Only prefill if we have new prefill data that we haven't processed yet
+      if (parsedUser.hasResume && applicationData?.prefillData && 
+          applicationData.prefillData !== lastPrefillDataRef.current) {
+        lastPrefillDataRef.current = applicationData.prefillData
         const prefill = applicationData.prefillData as Record<string, unknown> || {}
         
         console.log('Prefilling form data:', prefill) // Debug log
@@ -1556,11 +1558,11 @@ export default function ApplicationPage({ params }: ApplicationPageProps) {
           if (currentStep < steps.length) {
             setCurrentStep(currentStep + 1)
             
-            // Update localStorage with new step
+            // Update localStorage with new step and capture prefill data from API response
             const updatedAppData = {
               ...applicationData,
               currentStep: currentStep + 1,
-              prefillData: null
+              prefillData: result.data.data?.prefill_data || null
             }
             localStorage.setItem('currentApplication', JSON.stringify(updatedAppData))
             setApplicationData(updatedAppData)

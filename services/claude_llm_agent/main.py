@@ -235,28 +235,6 @@ def process_with_tools(
         }
 
 
-@app.tool()
-@mesh.tool(
-    capability="convert_tool_format",
-    version="1.0",
-    tags=["tool_conversion", "format", "claude", "pass_through"],
-    description="Convert tool format (Claude agent pass-through)"
-)
-def convert_tool_format(tools: List[Dict]) -> List[Dict]:
-    """
-    Convert tool format - Claude agent pass-through.
-    
-    Since Claude uses the canonical format, this function just returns
-    the tools as-is. This maintains API compatibility with OpenAI agent.
-    
-    Args:
-        tools: List of tool definitions in Claude format (canonical)
-        
-    Returns:
-        Same list of tool definitions (pass-through)
-    """
-    logger.info(f"Tool format conversion (pass-through): {len(tools)} tools")
-    return tools  # Claude format is the canonical format
 
 
 @app.tool()

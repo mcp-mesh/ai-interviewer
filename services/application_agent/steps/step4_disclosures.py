@@ -83,7 +83,6 @@ async def handle_disclosures_step(
         resume_text: Resume text content (for prefill generation)
         step_data: User-submitted data to save (for save mode)
         llm_service: LLM agent for extraction  
-        convert_tool_format: Tool format converter
         save_data: Whether to save data to database
         
     Returns:

@@ -94,7 +94,6 @@ async def detailed_resume_analysis(
     full_text: str,
     user_agent: McpMeshAgent,
     llm_service: McpMeshAgent,
-    convert_tool_format: McpMeshAgent,
     user_email: str
 ):
     """
@@ -107,7 +106,6 @@ async def detailed_resume_analysis(
         full_text: Complete resume text content
         user_agent: User agent for storing results  
         llm_service: LLM agent for processing
-        convert_tool_format: Tool format converter for LLM provider
         user_email: User's email address
     """
     try:
@@ -117,17 +115,8 @@ async def detailed_resume_analysis(
         # 1. Get comprehensive tool spec for Steps 1 & 2
         comprehensive_tool_spec = get_comprehensive_resume_tool_spec()
         
-        # 2. Convert tool format for LLM provider (OpenAI vs Claude)
-        converted_tools = [comprehensive_tool_spec]
-        if convert_tool_format:
-            try:
-                converted_tools = await convert_tool_format(tools=[comprehensive_tool_spec])
-                logger.info("Successfully converted comprehensive tool spec for LLM provider")
-            except Exception as tool_error:
-                logger.warning(f"Tool conversion failed, using original format: {tool_error}")
-                converted_tools = [comprehensive_tool_spec]
-        else:
-            logger.info("Tool conversion service not available, using Claude format")
+        # 2. LLM service will handle tool format conversion internally
+        tools_to_use = [comprehensive_tool_spec]
         
         # 3. Create comprehensive system prompt
         comprehensive_prompt = f"""You are an expert resume analyzer for job application systems. Extract comprehensive data for Steps 1 & 2 of the application process.
@@ -170,7 +159,7 @@ Focus on extracting data that will perfectly prefill job application forms with 
                 text="Extract comprehensive resume data for application prefill",
                 system_prompt=comprehensive_prompt,
                 messages=[],
-                tools=converted_tools,
+                tools=tools_to_use,
                 force_tool_use=True,
                 temperature=0.1
             ),
@@ -223,10 +212,6 @@ Focus on extracting data that will perfectly prefill job application forms with 
             "tags": ["+openai"],  # tag openai is optional (plus to have)
         },
         {
-            "capability": "convert_tool_format",
-            "tags": ["+openai"],  # tag openai is optional (plus to have)
-        },
-        {
             "capability": "update_detailed_resume_analysis",
             "tags": ["user-management"],  # New user agent capability
         }
@@ -239,8 +224,7 @@ async def extract_text_from_pdf(
     extraction_method: str = "auto",
     user_email: str = None,
     llm_service: McpAgent = None, 
-    convert_tool_format: McpAgent = None,
-    update_detailed_resume_analysis: McpAgent = None
+    update_detailed_resume_analysis: McpAgent = None,
 ) -> Dict[str, Any]:
     """Extract text content from a PDF file."""
     try:
@@ -325,109 +309,91 @@ async def extract_text_from_pdf(
             try:
                 logger.info("Enhancing PDF extraction with LLM analysis")
                 
-                # Define profile analysis tool schema optimized for role matching
+                # Define quick analysis tool schema - basic info only for speed
                 profile_analysis_tool = {
                     "name": "analyze_resume_for_matching",
-                    "description": "Analyze resume content and extract profile data optimized for role matching",
+                    "description": "Quick resume validation and basic profile extraction",
                     "input_schema": {
                         "type": "object",
                         "properties": {
-                            "categories": {
-                                "type": "array",
-                                "items": {
-                                    "type": "string",
-                                    "enum": ["investment_management", "legal_compliance", "marketing", "operations", "relationship_management", "sales", "technology"]
-                                },
-                                "maxItems": 3,
-                                "description": "Business categories that match this candidate's background (max 3, ordered by relevance)"
+                            "is_resume": {
+                                "type": "boolean",
+                                "description": "Whether the document appears to be a resume/CV"
+                            },
+                            "full_name": {
+                                "type": "string",
+                                "description": "Candidate's full name"
                             },
                             "experience_level": {
                                 "type": "string",
                                 "enum": ["intern", "junior", "mid", "senior", "lead", "principal"],
-                                "description": "Overall experience level based on career progression and responsibilities"
+                                "description": "Overall experience level based on career progression"
+                            },
+                            "education_level": {
+                                "type": "string",
+                                "description": "Highest education level achieved (e.g., Bachelor's, Master's, PhD)"
                             },
                             "years_experience": {
                                 "type": "integer",
                                 "minimum": 0,
                                 "maximum": 50,
-                                "description": "Total years of professional experience"
-                            },
-                            "tags": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "maxItems": 20,
-                                "description": "Skills, technologies, tools, and competencies for role matching"
-                            },
-                            "professional_summary": {
-                                "type": "string",
-                                "maxLength": 300,
-                                "description": "Concise professional summary (2-3 sentences)"
-                            },
-                            "education_level": {
-                                "type": "string",
-                                "description": "Highest education level achieved"
+                                "description": "Total years of professional work experience"
                             },
                             "confidence_score": {
                                 "type": "number",
                                 "minimum": 0.0,
                                 "maximum": 1.0,
-                                "description": "LLM confidence in the profile analysis"
-                            },
-                            "profile_strength": {
-                                "type": "string",
-                                "enum": ["excellent", "good", "average", "needs_improvement"],
-                                "description": "Overall profile strength assessment"
+                                "description": "LLM confidence in this analysis"
                             }
                         },
-                        "required": ["categories", "experience_level", "years_experience", "tags", "professional_summary"]
+                        "required": ["is_resume", "full_name", "experience_level", "education_level", "years_experience", "confidence_score"]
                     }
                 }
                 
-                # Convert tools to appropriate format for the LLM provider
-                logger.info("Converting profile analysis tool format for LLM provider")
-                converted_tools = [profile_analysis_tool]  # Default to Claude format
-                
-                if convert_tool_format:
-                    try:
-                        converted_tools = await convert_tool_format(tools=[profile_analysis_tool])
-                        logger.info(f"Successfully converted {len(converted_tools)} profile analysis tools for LLM provider")
-                    except Exception as tool_convert_error:
-                        logger.warning(f"Profile tool conversion failed, using original format: {tool_convert_error}")
-                        converted_tools = [profile_analysis_tool]
-                else:
-                    logger.info("Tool conversion service not available, using Claude format for resume analysis")
+                # LLM service will handle tool format conversion internally
+                tools_to_use = [profile_analysis_tool]
+                logger.info("Using profile analysis tool - LLM service will handle format conversion internally")
 
-                # Create profile analysis system prompt for role matching
-                analysis_system_prompt = f"""You are a professional profile analysis expert. Analyze the provided resume/CV text and extract profile data optimized for role matching systems.
+                # Create quick analysis system prompt with resume validation
+                analysis_system_prompt = f"""You are a resume validation and analysis expert. Your task is to:
+1. First validate if this document is actually a resume/CV
+2. If it is a resume, extract basic profile information for quick processing
 
-RESUME/CV CONTENT TO ANALYZE:
+DOCUMENT CONTENT TO ANALYZE:
 {text[:3000]}{'...' if len(text) > 3000 else ''}
 
-Instructions:
-- Identify 1-3 business categories this candidate best fits (investment_management, legal_compliance, marketing, operations, relationship_management, sales, technology) ordered by relevance
-- Determine overall experience level (intern, junior, mid, senior, lead, principal) based on career progression and responsibilities
-- Extract total years of professional experience as a number (convert "over X years" to actual number)
-- Create a comprehensive tags list of skills, technologies, tools, and competencies (up to 20 items)
-- Write a concise professional summary (2-3 sentences, max 300 characters)
-- Identify highest education level achieved
+IMPORTANT CONTEXT:
+- You are receiving the first few pages of a document that may be a resume
+- A resume may appear incomplete because you're only seeing the beginning
+- Focus on typical resume indicators: name, contact info, work experience, education
+
+VALIDATION CRITERIA:
+- Does this look like a professional resume/CV?
+- Look for: personal name, contact info, work history, education, skills
+- Even if incomplete (first pages only), does it have resume structure?
+
+EXTRACTION INSTRUCTIONS (only if is_resume=true):
+- Extract candidate's full name
+- Determine experience level: intern, junior, mid, senior, lead, principal
+- Calculate total years of professional work experience (0-50)
+- Identify highest education level (Bachelor's, Master's, PhD, High School, etc.)
 - Rate your confidence in this analysis (0.0-1.0)
-- Assess overall profile strength (excellent, good, average, needs_improvement)
 
-Focus on extracting data that enables precise candidate-role matching. Categories should reflect the candidate's primary and secondary areas of expertise. Tags should include both technical skills and soft skills relevant for matching.
+If this is NOT a resume (is_resume=false), still fill required fields with placeholder values but be honest about the validation.
 
-Use the provided tool to return your analysis in the exact structured format."""
+Use the provided tool to return your analysis."""
 
-                # Call LLM service with converted tools
+                # Call LLM service with tools
                 logger.info("Calling LLM service for profile analysis")
                 logger.info(f"Text length: {len(text)} characters")
                 logger.info(f"Tool name: {profile_analysis_tool['name']}")
-                logger.info(f"Converted tools count: {len(converted_tools)}")
+                logger.info(f"Tools count: {len(tools_to_use)}")
                 
                 analysis_result = await llm_service(
                     text="Analyze this resume/CV document content for role matching using the provided tool.",
                     system_prompt=analysis_system_prompt,
                     messages=[],  # Empty messages array
-                    tools=converted_tools,
+                    tools=tools_to_use,
                     force_tool_use=True,
                     temperature=0.1
                 )
@@ -476,7 +442,7 @@ Use the provided tool to return your analysis in the exact structured format."""
 
         # 🚀 Launch background detailed analysis task (don't wait)
         if (update_detailed_resume_analysis and user_email and llm_service and 
-            convert_tool_format and text and len(text.strip()) > 0):
+            text and len(text.strip()) > 0):
             
             logger.info(f"Starting background detailed analysis for {user_email}")
             asyncio.create_task(
@@ -484,7 +450,6 @@ Use the provided tool to return your analysis in the exact structured format."""
                     full_text=text,
                     user_agent=update_detailed_resume_analysis,
                     llm_service=llm_service,
-                    convert_tool_format=convert_tool_format,
                     user_email=user_email
                 )
             )

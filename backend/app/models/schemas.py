@@ -258,13 +258,24 @@ class ResumeUploadRequest(BaseModel):
 
 class ProcessedResumeData(BaseModel):
     """Processed resume data"""
+    categories: List[str] = []
+    experience_level: Optional[str] = None
+    years_experience: int = 0
+    tags: List[str] = []
+    professional_summary: Optional[str] = None
+    education_level: Optional[str] = None
+    confidence_score: float = 0.0
+    profile_strength: Optional[str] = None
+    ai_provider: Optional[str] = None
+    ai_model: Optional[str] = None
+    
+    # Legacy fields for backward compatibility
     skills_extracted: List[str] = []
     experience_years: int = 0
     education: List[Dict[str, Any]] = []
     work_experience: List[Dict[str, Any]] = []
     contact_info: Optional[Dict[str, Any]] = None
     summary: Optional[str] = None
-    confidence_score: float = 0.0
     processing_time: float = 0.0
 
 

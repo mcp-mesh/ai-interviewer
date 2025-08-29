@@ -117,7 +117,7 @@ export default function UploadPage() {
       }
 
       if (!result.success) {
-        throw new Error(result.error || 'Upload failed')
+        throw new Error(result.error || result.message || 'Upload failed')
       }
 
       // Fetch updated user profile with resume analysis data

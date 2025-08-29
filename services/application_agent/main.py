@@ -178,7 +178,6 @@ async def application_start_with_prefill(
         {"capability": "cache_invalidate"},
         {"capability": "get_resume_text"},
         {"capability": "process_with_tools", "tags": ["+openai"]},
-        {"capability": "convert_tool_format", "tags": ["+openai"]}
     ],
     tags=["application-management", "step-management", "intelligent-autofill"],
     description="Save current step data and return next step prefill data"
@@ -192,8 +191,7 @@ async def application_step_save_with_next_prefill(
     job_agent: McpMeshAgent = None,
     cache_agent: McpMeshAgent = None,
     user_agent: McpMeshAgent = None,
-    process_with_tools: McpMeshAgent = None,
-    convert_tool_format: McpMeshAgent = None
+    process_with_tools: McpMeshAgent = None
 ) -> Dict[str, Any]:
     """
     Save current step data and return next step prefill data.
@@ -229,7 +227,6 @@ async def application_step_save_with_next_prefill(
                 "job_agent": job_agent,
                 "user_agent": user_agent,
                 "llm_service": process_with_tools,
-                "convert_tool_format": convert_tool_format,
                 "cache_agent": cache_agent
             })
         

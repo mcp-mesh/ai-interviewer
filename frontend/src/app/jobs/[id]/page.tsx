@@ -9,6 +9,7 @@ import { jobsApi } from '@/lib/api'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Calendar, MapPin, Clock } from 'lucide-react'
+import type { UserApplication } from '@/lib/types'
 
 
 // Mock similar jobs data
@@ -141,6 +142,48 @@ export default function JobDetailPage({ params }: JobDetailProps) {
   const isGuest = !user
   const userState = isGuest ? "guest" : (user.hasResume ? "has-resume" : "no-resume")
 
+  // Find application for this job
+  const currentApplication = user?.applications?.find(app => app.jobId === job?.id)
+  const applicationStatus = currentApplication?.status
+
+  // Helper functions for different actions
+  const handleStartInterview = () => {
+    if (currentApplication) {
+      router.push(`/interview/${currentApplication.jobId}/prepare`)
+    }
+  }
+
+  const handleContinueApplication = async () => {
+    if (!job?.id) return
+    setApplying(true)
+    
+    try {
+      const { applicationsApi } = await import('@/lib/api-client')
+      const result = await applicationsApi.startApplication(job.id)
+      
+      if (result.data) {
+        const { applicationId, prefillData, currentStep } = result.data
+        localStorage.setItem('currentApplication', JSON.stringify({
+          applicationId,
+          jobId: job.id,
+          currentStep: currentStep || 1,
+          prefillData: prefillData || null
+        }))
+        router.push(`/apply/${job.id}`)
+      }
+    } catch (error) {
+      console.error('Error continuing application:', error)
+    } finally {
+      setApplying(false)
+    }
+  }
+
+  const handleContinueInterview = () => {
+    if (currentApplication) {
+      router.push(`/interview/${currentApplication.jobId}/prepare`)
+    }
+  }
+
   const handleApplyNow = async () => {
     if (!job?.id || applying) return
     
@@ -246,18 +289,80 @@ export default function JobDetailPage({ params }: JobDetailProps) {
                     {job.type}
                   </span>
                 </div>
-                <Button 
-                  variant="primary" 
-                  size="lg"
-                  onClick={handleApplyNow}
-                  disabled={loading || applying}
-                  className="flex items-center gap-2"
-                >
-                  {applying && (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  )}
-                  {applying ? 'Starting Application...' : loading ? 'Loading...' : 'Apply Now'}
-                </Button>
+                {/* Dynamic button based on application status */}
+                {!currentApplication ? (
+                  // No application yet - show Apply Now
+                  <Button 
+                    variant="primary" 
+                    size="lg"
+                    onClick={handleApplyNow}
+                    disabled={loading || applying || isGuest}
+                    className="flex items-center gap-2"
+                  >
+                    {applying && (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    )}
+                    {applying ? 'Starting Application...' : loading ? 'Loading...' : 'Apply Now'}
+                  </Button>
+                ) : applicationStatus === 'QUALIFIED' ? (
+                  // Ready for interview - green button
+                  <Button 
+                    variant="success" 
+                    size="lg"
+                    onClick={handleStartInterview}
+                    className="flex items-center gap-2"
+                  >
+                    Start Interview
+                  </Button>
+                ) : applicationStatus === 'STARTED' ? (
+                  // Application in progress
+                  <Button 
+                    variant="primary" 
+                    size="lg"
+                    onClick={handleContinueApplication}
+                    disabled={applying}
+                    className="flex items-center gap-2"
+                  >
+                    {applying && (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    )}
+                    {applying ? 'Continuing...' : 'Continue Application'}
+                  </Button>
+                ) : applicationStatus === 'INPROGRESS' ? (
+                  // Interview in progress
+                  <Button 
+                    variant="primary" 
+                    size="lg"
+                    onClick={handleContinueInterview}
+                    className="flex items-center gap-2"
+                  >
+                    Continue Interview
+                  </Button>
+                ) : applicationStatus === 'APPLIED' ? (
+                  // Application submitted - just a label
+                  <div className="px-6 py-3 bg-blue-100 text-blue-800 rounded-md text-sm font-medium">
+                    Applied
+                  </div>
+                ) : applicationStatus === 'COMPLETED' ? (
+                  // Interview completed - just a label
+                  <div className="px-6 py-3 bg-green-100 text-green-800 rounded-md text-sm font-medium">
+                    Completed
+                  </div>
+                ) : (
+                  // Fallback - show Apply Now
+                  <Button 
+                    variant="primary" 
+                    size="lg"
+                    onClick={handleApplyNow}
+                    disabled={loading || applying}
+                    className="flex items-center gap-2"
+                  >
+                    {applying && (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    )}
+                    {applying ? 'Starting Application...' : loading ? 'Loading...' : 'Apply Now'}
+                  </Button>
+                )}
               </div>
             </div>
 

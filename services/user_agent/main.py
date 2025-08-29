@@ -18,7 +18,7 @@ from mesh.types import McpAgent, McpMeshAgent
 
 # Import database components
 from .database import (
-    User, Resume, get_db_session, UserCache, create_tables, test_connections
+    User, Resume, BackgroundStatus, get_db_session, UserCache, create_tables, test_connections
 )
 
 # Create FastMCP app instance
@@ -456,7 +456,19 @@ async def process_resume_upload(
         
         logger.info(f"PDF extraction successful. Enhanced: {extraction_result.get('analysis_enhanced', False)}")
         
-        # Step 2: Process extraction results
+        # Step 2: Validate that extracted content is actually a resume
+        profile_analysis = extraction_result.get("profile_analysis", {})
+        if extraction_result.get("analysis_enhanced") and profile_analysis:
+            is_resume = profile_analysis.get("is_resume", False)
+            if not is_resume:
+                logger.warning(f"Uploaded document is not a resume: {user_email}")
+                return {
+                    "success": False,
+                    "error": "The uploaded document does not appear to be a resume. Please upload a valid resume/CV.",
+                    "profile_updated": False
+                }
+        
+        # Step 3: Process extraction results
         resume_data = {
             "filename": filename,
             "file_path": file_path,
@@ -472,8 +484,8 @@ async def process_resume_upload(
             "processed_at": datetime.utcnow().isoformat()
         }
         
-        # Step 3: Create Resume record in database with structured fields
-        logger.info(f"Creating Resume record for: {user_email}")
+        # Step 4: Create/Update Resume record in database with proper upsert
+        logger.info(f"Upserting Resume record for: {user_email}")
         
         try:
             with get_db_session() as db:
@@ -488,43 +500,50 @@ async def process_resume_upload(
                         "profile_updated": False
                     }
                 
-                # Delete existing resume if any (one-to-one relationship)
+                # Check existing resume and background status
                 existing_resume = db.query(Resume).filter(Resume.user_id == db_user.id).first()
+                
                 if existing_resume:
-                    logger.info(f"Deleting existing resume for user: {user_email}")
-                    db.delete(existing_resume)
+                    # Check if background processing is still running
+                    from datetime import timedelta
+                    now = datetime.utcnow()
+                    five_minutes_ago = now - timedelta(minutes=5)
+                    
+                    if (existing_resume.background_status in [BackgroundStatus.PENDING, BackgroundStatus.IN_PROGRESS] 
+                        and existing_resume.updated_at > five_minutes_ago):
+                        logger.warning(f"Background processing still active for user: {user_email}")
+                        return {
+                            "success": False,
+                            "error": "Resume processing is still in progress. Please wait a few minutes before uploading again.",
+                            "profile_updated": False
+                        }
                 
                 # Extract structured analysis from PDF processing result
                 profile_analysis = extraction_result.get("profile_analysis", {})
                 
-                # Check if resume already exists for this user (upsert logic)
-                existing_resume = db.query(Resume).filter_by(user_id=db_user.id).first()
-                is_update = existing_resume is not None
-                
                 if existing_resume:
-                    # Update existing resume
+                    # Update existing resume with new file and quick analysis data
                     logger.info(f"Updating existing resume for user: {user_email}")
                     existing_resume.filename = filename
-                    existing_resume.file_path = file_path
+                    existing_resume.file_path = file_path  
                     existing_resume.file_size = file_size
                     existing_resume.minio_url = minio_url
                     existing_resume.uploaded_at = datetime.fromisoformat(uploaded_at.replace('Z', '+00:00'))
                     existing_resume.processed_at = datetime.utcnow()
                     
-                    # Update AI analysis structured fields
-                    existing_resume.categories = profile_analysis.get("categories")
+                    # Update basic analysis fields from quick LLM call
                     existing_resume.experience_level = profile_analysis.get("experience_level")
                     existing_resume.years_experience = profile_analysis.get("years_experience")
-                    existing_resume.tags = profile_analysis.get("tags")
-                    existing_resume.professional_summary = profile_analysis.get("professional_summary")
-                    existing_resume.education_level = profile_analysis.get("education_level")
+                    existing_resume.education_level = profile_analysis.get("education_level") 
                     existing_resume.confidence_score = profile_analysis.get("confidence_score")
-                    existing_resume.profile_strength = profile_analysis.get("profile_strength")
                     
                     # Update AI processing metadata
                     existing_resume.ai_provider = profile_analysis.get("ai_provider")
                     existing_resume.ai_model = profile_analysis.get("ai_model")
                     existing_resume.analysis_enhanced = extraction_result.get("analysis_enhanced", False)
+                    
+                    # Set background processing status
+                    existing_resume.background_status = BackgroundStatus.IN_PROGRESS
                     
                     # Update raw content
                     existing_resume.text_content = extraction_result.get("text_content")
@@ -534,7 +553,7 @@ async def process_resume_upload(
                     
                     resume_record = existing_resume
                 else:
-                    # Create new Resume record
+                    # Create new Resume record with quick analysis data
                     logger.info(f"Creating new resume for user: {user_email}")
                     new_resume = Resume(
                         user_id=db_user.id,
@@ -545,20 +564,17 @@ async def process_resume_upload(
                         uploaded_at=datetime.fromisoformat(uploaded_at.replace('Z', '+00:00')),
                         processed_at=datetime.utcnow(),
                         
-                        # AI analysis structured fields
-                        categories=profile_analysis.get("categories"),
+                        # Basic analysis fields from quick LLM call
                         experience_level=profile_analysis.get("experience_level"),
                         years_experience=profile_analysis.get("years_experience"),
-                        tags=profile_analysis.get("tags"),
-                        professional_summary=profile_analysis.get("professional_summary"),
                         education_level=profile_analysis.get("education_level"),
                         confidence_score=profile_analysis.get("confidence_score"),
-                        profile_strength=profile_analysis.get("profile_strength"),
                         
                         # AI processing metadata
                         ai_provider=profile_analysis.get("ai_provider"),
                         ai_model=profile_analysis.get("ai_model"),
                         analysis_enhanced=extraction_result.get("analysis_enhanced", False),
+                        background_status=BackgroundStatus.IN_PROGRESS,
                         
                         # Raw content for fallback
                         text_content=extraction_result.get("text_content"),
@@ -573,12 +589,9 @@ async def process_resume_upload(
                 db_user.profile_completed = True
                 db_user.updated_at = datetime.utcnow()
                 
-                # Commit changes
+                # Commit changes  
                 db.commit()
-                
-                # Only refresh new records to get generated IDs
-                if not is_update:
-                    db.refresh(resume_record)
+                db.refresh(resume_record)
                 
                 logger.info(f"Resume record processed successfully for: {db_user.full_name}")
                 logger.info(f"Resume ID: {resume_record.id}")
@@ -603,7 +616,14 @@ async def process_resume_upload(
             "resume_data": resume_record.to_dict(),
             "processed_data": resume_record.to_structured_analysis(),
             "profile_updated": True,
-            "message": f"Resume processed and profile updated successfully. AI analysis: {'enhanced' if extraction_result.get('analysis_enhanced') else 'basic'}"
+            "upload": {
+                "quick_analysis_success": extraction_result.get("analysis_enhanced", False),
+                "llm_provider": profile_analysis.get("ai_provider", "unknown"),
+                "analysis_confidence": profile_analysis.get("confidence_score", 0.0),
+                "background_status": resume_record.background_status.value if resume_record.background_status else "pending",
+                "resume_validated": profile_analysis.get("is_resume", True)  # Default to true for backward compatibility
+            },
+            "message": f"Resume processed and profile updated successfully. Quick analysis: {'success' if extraction_result.get('analysis_enhanced') else 'basic'}"
         }
         
     except Exception as e:
@@ -702,6 +722,7 @@ def update_detailed_resume_analysis(
             resume.detailed_experience_info = experience_info
             resume.detailed_analysis_completed = True
             resume.detailed_analysis_at = datetime.utcnow()
+            resume.background_status = BackgroundStatus.COMPLETED
             resume.updated_at = datetime.utcnow()
             
             db.commit()
@@ -731,6 +752,7 @@ def update_detailed_resume_analysis(
             "success": False,
             "error": f"Failed to update detailed analysis: {str(e)}"
         }
+
 
 
 @app.tool()

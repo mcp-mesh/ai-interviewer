@@ -138,8 +138,7 @@ async def assess_qualification_with_llm(
     application_data: Dict[str, Any],
     job_details: Dict[str, Any],
     resume_text: str,
-    llm_service,
-    convert_tool_format
+    llm_service
 ) -> Dict[str, Any]:
     """
     Perform LLM-based qualification assessment.
@@ -149,7 +148,6 @@ async def assess_qualification_with_llm(
         job_details: Job title, description, and requirements
         resume_text: Original resume text content
         llm_service: LLM agent for assessment
-        convert_tool_format: Tool format converter
         
     Returns:
         Dict with qualification assessment results
@@ -160,18 +158,9 @@ async def assess_qualification_with_llm(
         # Get qualification tool specification
         qualification_tool = get_qualification_tool_spec()
         
-        # Convert tools to appropriate format for the LLM provider
-        converted_tools = [qualification_tool]
-        if convert_tool_format:
-            try:
-                converted_result = await convert_tool_format(tools=[qualification_tool])
-                if converted_result:
-                    converted_tools = converted_result
-                    logger.info("Successfully converted qualification tool for LLM provider")
-                else:
-                    logger.warning("Tool conversion returned None, using original format")
-            except Exception as e:
-                logger.warning(f"Tool conversion failed, using original format: {e}")
+        # LLM service will handle tool format conversion internally
+        tools_to_use = [qualification_tool]
+        logger.info("Using qualification tool - LLM service will handle format conversion internally")
         
         # Create comprehensive system prompt
         system_prompt = f"""You are an expert HR professional conducting candidate qualification assessment. Analyze the complete application against job requirements to determine hiring recommendation.
@@ -208,7 +197,7 @@ Use the provided tool to return structured qualification assessment."""
         # Call LLM service
         logger.info(f"Calling LLM service for qualification assessment")
         logger.info(f"llm_service type: {type(llm_service)}, value: {llm_service}")
-        logger.info(f"converted_tools type: {type(converted_tools)}, length: {len(converted_tools) if converted_tools else 'None'}")
+        logger.info(f"tools_to_use type: {type(tools_to_use)}, length: {len(tools_to_use) if tools_to_use else 'None'}")
         
         if llm_service is None:
             logger.error("llm_service is None - cannot perform qualification assessment")
@@ -221,7 +210,7 @@ Use the provided tool to return structured qualification assessment."""
             text="Assess this candidate's qualification for the job using the provided tool.",
             system_prompt=system_prompt,
             messages=[],
-            tools=converted_tools,
+            tools=tools_to_use,
             force_tool_use=True,
             temperature=0.1
         )
@@ -258,7 +247,6 @@ async def handle_review_step(
     job_agent=None,
     user_agent=None,
     llm_service=None,
-    convert_tool_format=None,
     cache_agent=None,
     save_data: bool = True
 ) -> Dict[str, Any]:
@@ -276,7 +264,6 @@ async def handle_review_step(
         job_agent: MCP agent for job details
         user_agent: MCP agent for resume text
         llm_service: LLM agent for qualification assessment
-        convert_tool_format: Tool format converter
         cache_agent: MCP agent for cache invalidation
         save_data: Whether to save assessment data
         
@@ -340,7 +327,7 @@ async def handle_review_step(
             # 4. Perform LLM qualification assessment
             assessment_result = await assess_qualification_with_llm(
                 application_data, job_details, resume_text or "Resume not available", 
-                llm_service, convert_tool_format
+                llm_service
             )
             
             if not assessment_result.get("success"):

@@ -32,6 +32,17 @@ async def verify_recaptcha_token(token: str, expected_action: str = "upload_resu
         - action: str - action name from token
         - error: str - error message if verification failed
     """
+    # TODO: Re-enable reCAPTCHA verification for production
+    # Temporarily disabled for testing resume upload functionality
+    dev_mode = os.getenv("DEV_MODE", "false").lower() == "true"
+    if dev_mode:
+        logger.info("DEV_MODE: Skipping reCAPTCHA verification for testing")
+        return {
+            "success": True,
+            "score": 0.9,
+            "action": expected_action
+        }
+    
     secret_key = os.getenv("RECAPTCHA_SECRET_KEY")
     if not secret_key:
         logger.error("RECAPTCHA_SECRET_KEY environment variable not set")

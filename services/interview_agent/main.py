@@ -187,8 +187,7 @@ async def evaluate_interview_performance(
     conversation: List[Dict], 
     role_description: str, 
     resume_content: str,
-    llm_service: McpAgent,
-    convert_tool_format: McpAgent = None
+    llm_service: McpAgent
 ) -> Dict[str, Any]:
     """Evaluate interview performance using LLM service via MCP Mesh."""
     try:
@@ -310,19 +309,9 @@ Be thorough, fair, and realistic in your evaluation. Prioritize interview comple
             }
         }
         
-        # Convert tools to appropriate format for the LLM provider
-        logger.info("Converting evaluation tool format for LLM provider")
-        converted_evaluation_tools = [evaluation_tool]  # Default to Claude format
-        
-        if convert_tool_format:
-            try:
-                converted_evaluation_tools = await convert_tool_format(tools=[evaluation_tool])
-                logger.info(f"Successfully converted {len(converted_evaluation_tools)} evaluation tools for LLM provider")
-            except Exception as tool_convert_error:
-                logger.warning(f"Evaluation tool conversion failed, using original format: {tool_convert_error}")
-                converted_evaluation_tools = [evaluation_tool]
-        else:
-            logger.info("Tool conversion service not available, using Claude format for evaluation")
+        # LLM service will handle tool format conversion internally
+        tools_to_use = [evaluation_tool]
+        logger.info("Using evaluation tool - LLM service will handle format conversion internally")
         
         # Call LLM service for evaluation
         logger.info("Evaluating interview performance with LLM")
@@ -339,7 +328,7 @@ Be thorough, fair, and realistic in your evaluation. Prioritize interview comple
                 text="Score this candidate now using the tool.",
                 system_prompt=evaluation_system_prompt,
                 messages=conversation_messages,
-                tools=converted_evaluation_tools,
+                tools=tools_to_use,
                 force_tool_use=True,
                 temperature=0.1
             )
@@ -416,10 +405,6 @@ Be thorough, fair, and realistic in your evaluation. Prioritize interview comple
         {
             "capability": "process_with_tools",
             "tags": ["+openai"],  # tag time is optional (plus to have)
-        },
-        {
-            "capability": "convert_tool_format",
-            "tags": ["+openai"],  # tag time is optional (plus to have)
         }
     ],
     tags=["interview", "technical-screening", "ai-interviewer", "session-management"],
@@ -432,8 +417,7 @@ async def conduct_interview(
     user_session_id: str,
     candidate_answer: str = None,
     duration_minutes: int = None,
-    llm_service: McpAgent = None,
-    convert_tool_format: McpAgent = None
+    llm_service: McpAgent = None
 ) -> Dict[str, Any]:
     """
     Conduct a technical interview session with session management.
@@ -632,19 +616,9 @@ Generate the next strategic interview question using the provided tool."""
         # Format conversation history for LLM
         conversation_messages = format_conversation_for_llm(session_data["conversation"])
         
-        # Convert tools to appropriate format for the LLM provider
-        logger.info("Converting tool format for LLM provider")
-        converted_tools = [interview_question_tool]  # Default to Claude format
-        
-        if convert_tool_format:
-            try:
-                converted_tools = await convert_tool_format(tools=[interview_question_tool])
-                logger.info(f"Successfully converted {len(converted_tools)} tools for LLM provider")
-            except Exception as tool_convert_error:
-                logger.warning(f"Tool conversion failed, using original format: {tool_convert_error}")
-                converted_tools = [interview_question_tool]
-        else:
-            logger.info("Tool conversion service not available, using Claude format")
+        # LLM service will handle tool format conversion internally
+        tools_to_use = [interview_question_tool]
+        logger.info("Using interview question tool - LLM service will handle format conversion internally")
         
         # Call LLM service with converted tools
         logger.info("Generating next interview question with LLM")
@@ -652,7 +626,7 @@ Generate the next strategic interview question using the provided tool."""
             text="Generate the next interview question based on the role requirements and conversation history.",
             system_prompt=system_prompt,
             messages=conversation_messages,
-            tools=converted_tools,
+            tools=tools_to_use,
             force_tool_use=True,
             temperature=0.7  # Slight creativity for varied questions
         )
@@ -863,14 +837,10 @@ def get_interview_session(session_id: str) -> Dict[str, Any]:
         {
             "capability": "process_with_tools",
             "tags": ["+openai"],  # tag time is optional (plus to have)
-        },
-        {
-            "capability": "convert_tool_format",
-            "tags": ["+openai"],  # tag time is optional (plus to have)
         }
     ]
 )
-async def finalize_interview(session_id: str, llm_service: McpAgent = None, convert_tool_format: McpAgent = None) -> Dict[str, Any]:
+async def finalize_interview(session_id: str, llm_service: McpAgent = None) -> Dict[str, Any]:
     """
     Manually finalize an interview session with scoring.
     
@@ -930,8 +900,7 @@ async def finalize_interview(session_id: str, llm_service: McpAgent = None, conv
             conversation=conversation,
             role_description=role_description, 
             resume_content=resume_content,
-            llm_service=llm_service,
-            convert_tool_format=convert_tool_format
+            llm_service=llm_service
         )
         
         # Update session with final status and score

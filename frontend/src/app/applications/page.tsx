@@ -267,7 +267,7 @@ export default function ApplicationsPage() {
                 renderJobCard(app, 
                   <Button 
                     onClick={() => handleStartInterview(app)}
-                    variant="primary"
+                    variant="success"
                     size="sm"
                   >
                     Start Interview

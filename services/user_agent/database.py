@@ -7,7 +7,8 @@ import logging
 import json
 from typing import Optional, Dict, Any
 from datetime import datetime
-from sqlalchemy import create_engine, Column, String, DateTime, Boolean, Text, Integer, text, ForeignKey, Float, ARRAY
+import enum
+from sqlalchemy import create_engine, Column, String, DateTime, Boolean, Text, Integer, text, ForeignKey, Float, ARRAY, Enum
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -95,6 +96,14 @@ class User(Base):
         }
 
 
+class BackgroundStatus(enum.Enum):
+    """Background processing status for resume enhancement"""
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress" 
+    COMPLETED = "completed"
+    ERROR = "error"
+
+
 class Resume(Base):
     """
     Resume table - contains structured resume data with proper relational design.
@@ -131,6 +140,7 @@ class Resume(Base):
     ai_provider = Column(String(50), nullable=True)  # openai, claude, etc.
     ai_model = Column(String(100), nullable=True)  # gpt-4o, claude-3-5-sonnet, etc.
     analysis_enhanced = Column(Boolean, default=False)  # Whether LLM analysis succeeded
+    background_status = Column(Enum(BackgroundStatus), default=BackgroundStatus.PENDING)  # Background task status
     
     # Detailed analysis for application prefill (Steps 1 & 2)
     detailed_personal_info = Column(JSONB, nullable=True)  # Step 1: Contact info, URLs, etc.
@@ -172,6 +182,7 @@ class Resume(Base):
             "ai_provider": self.ai_provider,
             "ai_model": self.ai_model,
             "analysis_enhanced": self.analysis_enhanced,
+            "background_status": self.background_status.value if self.background_status else "pending",
             # Detailed Analysis for Application Prefill
             "detailed_personal_info": self.detailed_personal_info,
             "detailed_experience_info": self.detailed_experience_info,

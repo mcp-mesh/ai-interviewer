@@ -85,7 +85,6 @@ async def handle_identity_step(
         resume_text: Resume text content (IGNORED - no LLM extraction)
         step_data: User-submitted EEO data to save (for save mode)
         llm_service: LLM agent (IGNORED - no LLM extraction)
-        convert_tool_format: Tool format converter (IGNORED - no LLM extraction)
         save_data: Whether to save data to database
         
     Returns:
