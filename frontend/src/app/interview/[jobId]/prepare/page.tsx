@@ -5,35 +5,48 @@ import Link from "next/link"
 import { Navigation } from "@/components/navigation"
 import { Button } from "@/components/ui/button"
 import { Markdown } from "@/components/ui/markdown"
-import { ToastContainer, useToast } from "@/components/wireframe"
-import { AlertTriangle, Calendar, MapPin, Clock, Ban, Scale, Wrench, Lightbulb, CheckCircle2, Settings } from "lucide-react"
+import { ToastContainer, useToast } from "@/components/common"
+import { AlertTriangle, Calendar, Clock, Ban, Scale, Wrench, Lightbulb, CheckCircle2, Settings } from "lucide-react"
 import { UserState, User, Job } from "@/lib/types"
-import { jobsApi } from "@/lib/api"
+import { jobsApi, interviewsApi } from "@/lib/api"
+import { useRouter } from 'next/navigation'
 
 interface PreparePageProps {
   params: Promise<{ jobId: string }>
 }
 
 export default function InterviewPreparePage({ params }: PreparePageProps) {
-  // const [jobId, setJobId] = useState<string>("") // TODO: May be needed for future functionality
+  const router = useRouter()
+  const [jobId, setJobId] = useState<string>("")
   const [job, setJob] = useState<Job | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [user] = useState<User | null>({
-    id: "1",
-    name: "Dhyan Raj",
-    email: "dhyan.raj@gmail.com",
-    hasResume: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  })
-  const userState: UserState = "has-resume"
+  const [user, setUser] = useState<User | null>(null)
+  const [userState, setUserState] = useState<UserState>("guest")
+  const [isStartingInterview, setIsStartingInterview] = useState(false)
   const { toasts, showToast, removeToast } = useToast()
+
+  // Load user data from localStorage
+  useEffect(() => {
+    const userData = localStorage.getItem('user')
+    if (userData) {
+      try {
+        const parsedUser = JSON.parse(userData)
+        setUser(parsedUser)
+        setUserState(parsedUser.hasResume ? "has-resume" : "no-resume")
+      } catch (error) {
+        console.error('Failed to parse user data:', error)
+        setUserState("guest")
+      }
+    } else {
+      setUserState("guest")
+    }
+  }, [])
 
   useEffect(() => {
     const resolveParams = async () => {
       const resolvedParams = await params
-      // setJobId(resolvedParams.jobId) // TODO: May be needed for future functionality
+      setJobId(resolvedParams.jobId)
       
       // Fetch job data
       setLoading(true)
@@ -53,12 +66,62 @@ export default function InterviewPreparePage({ params }: PreparePageProps) {
     resolveParams()
   }, [params])
 
-  const handleStartInterview = () => {
+  const handleStartInterview = async () => {
+    if (isStartingInterview) return
+    
+    // Check if user is logged in (authentication is handled by nginx, but we still validate user data)
+    if (!user) {
+      showToast.error('Please log in to start the interview')
+      router.push('/login')
+      return
+    }
+
+    // Check if user has a resume
+    if (!user.hasResume) {
+      showToast.error('Please upload your resume before starting the interview')
+      router.push('/upload')
+      return
+    }
+
+    // Find user's application for this job
+    const application = user.applications?.find(app => app.jobId === jobId)
+    
+    if (!application) {
+      showToast.error('Application not found for this job. Please apply first.')
+      router.push(`/jobs/${jobId}`)
+      return
+    }
+
+    // Check if application is qualified for interview
+    if (!application.qualified) {
+      showToast.error('Your application is not qualified for an interview yet.')
+      router.push('/applications')
+      return
+    }
+
+    setIsStartingInterview(true)
     showToast.info('Starting your interview...')
-    // In a real implementation, this would redirect to the actual interview interface
-    setTimeout(() => {
-      showToast.info('Interview session would start here. This would redirect to the actual AI interview interface.')
-    }, 1500)
+
+    try {
+      const { data: interviewData, error: interviewError } = await interviewsApi.startInterview(jobId, application.jobId) // Using jobId as applicationId for now
+
+      if (interviewError) {
+        throw new Error(interviewError)
+      }
+
+      if (interviewData && interviewData.session_id) {
+        showToast.success('Interview started successfully!')
+        // Redirect to active interview page with session ID
+        router.push(`/interview/${jobId}/active?session=${interviewData.session_id}`)
+      } else {
+        throw new Error('Invalid response from server')
+      }
+    } catch (error: any) {
+      console.error('Failed to start interview:', error)
+      showToast.error(error.message || 'Failed to start interview. Please try again.')
+    } finally {
+      setIsStartingInterview(false)
+    }
   }
 
   const handleGoBack = () => {
@@ -119,14 +182,6 @@ export default function InterviewPreparePage({ params }: PreparePageProps) {
                     <Calendar className="w-4 h-4 text-purple-600" />
                     Interview Duration: {job.interview_duration_minutes || 60} minutes
                   </div>
-                  <div className="flex items-center gap-1">
-                    <MapPin className="w-4 h-4 text-primary-600" />
-                    {job.location}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-4 h-4 text-purple-600" />
-                    {job.type}
-                  </div>
                 </div>
                 <div className="flex gap-4">
                   <Button 
@@ -141,9 +196,10 @@ export default function InterviewPreparePage({ params }: PreparePageProps) {
                     variant="primary" 
                     size="default" 
                     onClick={handleStartInterview}
+                    disabled={isStartingInterview}
                     className="px-6 py-3"
                   >
-                    I&apos;m Ready - Start Interview
+                    {isStartingInterview ? 'Starting...' : "I'm Ready - Start Interview"}
                   </Button>
                 </div>
               </div>
@@ -253,7 +309,6 @@ export default function InterviewPreparePage({ params }: PreparePageProps) {
 
             {/* Role Description */}
             <div className="bg-white border border-gray-200 rounded-xl p-8">
-              <h2 className="text-xl font-semibold text-gray-800 mb-6">About This Role</h2>
               
               <Markdown 
                 content={`${job.description}

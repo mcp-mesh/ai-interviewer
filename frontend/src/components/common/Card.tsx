@@ -1,13 +1,13 @@
 import { forwardRef } from 'react'
 import { cn } from '@/lib/utils'
 
-interface WireframeCardProps extends React.HTMLAttributes<HTMLDivElement> {
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   shimmer?: boolean
   iconColor?: 'blue' | 'green' | 'purple'
   children: React.ReactNode
 }
 
-export const WireframeCard = forwardRef<HTMLDivElement, WireframeCardProps>(
+export const Card = forwardRef<HTMLDivElement, CardProps>(
   ({ className, children, ...props }, ref) => {
     return (
       <div
@@ -16,14 +16,14 @@ export const WireframeCard = forwardRef<HTMLDivElement, WireframeCardProps>(
           // Base card styles
           'relative overflow-hidden rounded-3xl transition-all duration-300',
           'bg-white/5 backdrop-blur-[20px] border border-white/10',
-          'shadow-wireframe-card',
+          'shadow-card',
           
           // Top shimmer line
           'before:content-[""] before:absolute before:top-0 before:left-0 before:right-0 before:h-px',
           'before:bg-gradient-to-r before:from-transparent before:via-white/30 before:to-transparent',
           
           // Hover effects
-          'hover:-translate-y-1 hover:shadow-wireframe-card-hover hover:border-white/20',
+          'hover:-translate-y-1 hover:shadow-card-hover hover:border-white/20',
           
           className
         )}
@@ -35,15 +35,15 @@ export const WireframeCard = forwardRef<HTMLDivElement, WireframeCardProps>(
   }
 )
 
-WireframeCard.displayName = 'WireframeCard'
+Card.displayName = 'Card'
 
-interface WireframeCardIconProps extends React.HTMLAttributes<HTMLDivElement> {
+interface CardIconProps extends React.HTMLAttributes<HTMLDivElement> {
   color?: 'blue' | 'green' | 'purple'
   shimmer?: boolean
   children: React.ReactNode
 }
 
-export const WireframeCardIcon = forwardRef<HTMLDivElement, WireframeCardIconProps>(
+export const CardIcon = forwardRef<HTMLDivElement, CardIconProps>(
   ({ className, color = 'blue', shimmer = true, children, ...props }, ref) => {
     return (
       <div
@@ -63,16 +63,16 @@ export const WireframeCardIcon = forwardRef<HTMLDivElement, WireframeCardIconPro
           
           // Color variants
           color === 'blue' && [
-            'bg-gradient-to-br from-wireframe-blue/20 to-wireframe-blue-dark/30',
-            'text-blue-400 border border-wireframe-blue/30'
+            'bg-gradient-to-br from-brand-blue/20 to-brand-blue-dark/30',
+            'text-blue-400 border border-brand-blue/30'
           ],
           color === 'green' && [
-            'bg-gradient-to-br from-wireframe-green/20 to-wireframe-green-dark/30', 
-            'text-green-400 border border-wireframe-green/30'
+            'bg-gradient-to-br from-brand-green/20 to-brand-green-dark/30', 
+            'text-green-400 border border-brand-green/30'
           ],
           color === 'purple' && [
-            'bg-gradient-to-br from-wireframe-purple/20 to-wireframe-purple-dark/30',
-            'text-purple-400 border border-wireframe-purple/30'
+            'bg-gradient-to-br from-brand-purple/20 to-brand-purple-dark/30',
+            'text-purple-400 border border-brand-purple/30'
           ],
           
           className
@@ -85,9 +85,9 @@ export const WireframeCardIcon = forwardRef<HTMLDivElement, WireframeCardIconPro
   }
 )
 
-WireframeCardIcon.displayName = 'WireframeCardIcon'
+CardIcon.displayName = 'CardIcon'
 
-export const WireframeCardBody = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+export const CardBody = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, children, ...props }, ref) => {
     return (
       <div
@@ -101,4 +101,4 @@ export const WireframeCardBody = forwardRef<HTMLDivElement, React.HTMLAttributes
   }
 )
 
-WireframeCardBody.displayName = 'WireframeCardBody'
+CardBody.displayName = 'CardBody'

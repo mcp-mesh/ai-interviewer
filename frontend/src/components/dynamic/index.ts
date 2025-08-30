@@ -28,9 +28,9 @@ export const DynamicApplicationForm = dynamic(
   }
 )
 
-// Wireframe components
-export const DynamicWireframeCard = dynamic(
-  () => import('@/components/wireframe').then(mod => ({ default: mod.WireframeCard })),
+// Common UI components
+export const DynamicCard = dynamic(
+  () => import('@/components/common').then(mod => ({ default: mod.Card })),
   {
     loading: () => React.createElement('div', { className: 'bg-gray-200 border rounded-xl p-6 animate-pulse' }),
     ssr: false

@@ -297,3 +297,130 @@ class FileUploadResponse(BaseModel):
     processed_data: Optional[ProcessedResumeData] = None
     profile_updated: bool = False
     message: str
+
+
+# Interview-related schemas
+class InterviewStartRequest(BaseModel):
+    """Request model for starting an interview"""
+    job_id: str
+    application_id: str
+
+
+class InterviewAnswerRequest(BaseModel):
+    """Request model for submitting interview answers"""
+    answer: str
+    session_id: Optional[str] = None
+
+
+class InterviewEndRequest(BaseModel):
+    """Request model for ending interview"""
+    reason: Optional[str] = "user_requested"
+
+
+class InterviewQuestion(BaseModel):
+    """Interview question data"""
+    text: str
+    metadata: Dict[str, Any] = {}
+    number: int = 1
+    type: Optional[str] = None
+    difficulty: Optional[str] = None
+    focus_area: Optional[str] = None
+
+
+class InterviewTiming(BaseModel):
+    """Interview timing information"""
+    time_remaining_seconds: int
+    duration_minutes: Optional[int] = None
+    session_started: Optional[str] = None
+
+
+class InterviewSessionInfo(BaseModel):
+    """Interview session information"""
+    questions_asked: int = 0
+    questions_answered: int = 0
+    conversation_length: int = 0
+
+
+class InterviewContext(BaseModel):
+    """Interview context information"""
+    job_title: Optional[str] = None
+    company_name: Optional[str] = None
+    session_started: Optional[str] = None
+    difficulty_level: Optional[str] = None
+    duration_minutes: Optional[int] = None
+
+
+class InterviewEvaluation(BaseModel):
+    """Interview evaluation results"""
+    score: int = 0
+    technical_knowledge: int = 0
+    problem_solving: int = 0
+    communication: int = 0
+    experience_relevance: int = 0
+    hire_recommendation: str = "no"
+    feedback: str = ""
+    evaluation_timestamp: Optional[str] = None
+
+
+class InterviewSessionSummary(BaseModel):
+    """Interview session summary"""
+    questions_asked: int = 0
+    responses_given: int = 0
+    duration_minutes: float = 0.0
+    completion_reason: str = "completed"
+    total_violations: Optional[int] = None
+    average_score: Optional[float] = None
+
+
+class InterviewStartResponse(BaseModel):
+    """Response model for starting an interview"""
+    success: bool = True
+    message: str
+    session_id: str
+    status: str
+    phase: str
+    question: InterviewQuestion
+    interview_context: InterviewContext
+    timing: InterviewTiming
+    session_info: InterviewSessionInfo
+
+
+class InterviewStatusResponse(BaseModel):
+    """Response model for interview status"""
+    has_active_session: bool
+    status: str
+    message: Optional[str] = None
+    session_id: Optional[str] = None
+    role_id: Optional[str] = None
+    started_at: Optional[str] = None
+
+
+class InterviewCurrentResponse(BaseModel):
+    """Response model for current interview question"""
+    success: bool = True
+    session_id: str
+    status: str
+    current_question: Optional[str] = None
+    question_metadata: Dict[str, Any] = {}
+    conversation_history: List[Dict[str, Any]] = []
+    session_info: InterviewSessionInfo
+
+
+class InterviewEndResponse(BaseModel):
+    """Response model for ending interview"""
+    success: bool = True
+    message: str
+    session_id: str
+    status: str
+    application_status: Optional[str] = None
+    session_stats: Dict[str, Any] = {}
+    ended_at: str
+
+
+class InterviewFinalizeResponse(BaseModel):
+    """Response model for interview finalization"""
+    success: bool = True
+    message: str
+    session_id: str
+    evaluation: InterviewEvaluation
+    finalized_at: str

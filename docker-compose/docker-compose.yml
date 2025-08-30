@@ -478,6 +478,15 @@ services:
       - MCP_MESH_REDIS_TRACE_PUBLISHING=true
       - REDIS_URL=redis://redis:6379
       
+      # PostgreSQL configuration for interview data
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-mcpmesh}:${POSTGRES_PASSWORD:-mcpmesh123}@postgres:5432/ai_interviewer
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=ai_interviewer
+      - POSTGRES_USER=${POSTGRES_USER:-mcpmesh}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-mcpmesh123}
+      - POSTGRES_SCHEMA=interview_agent
+      
       # Redis configuration for session management
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -492,6 +501,8 @@ services:
       - ai-interviewer-network
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8090/health"]

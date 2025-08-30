@@ -6,7 +6,7 @@ import { useGoogleReCaptcha } from 'react-google-recaptcha-v3'
 import { Navigation } from '@/components/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { ToastContainer, useToast } from '@/components/wireframe'
+import { ToastContainer, useToast } from '@/components/common'
 import { User } from '@/lib/types'
 import { FileText, Upload, CheckCircle, Shield, RefreshCw } from 'lucide-react'
 

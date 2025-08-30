@@ -144,7 +144,7 @@ export function Navigation({ userState = "guest", user, className, theme = "dark
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 hover:-translate-y-0.5 transition-transform">
-            <div className="w-10 h-10 bg-primary-500 rounded-xl flex items-center justify-center shadow-lg">
+            <div className="w-10 h-10 bg-primary-500 flex items-center justify-center shadow-lg">
               <span className="text-white font-bold text-lg">SCI</span>
             </div>
             <span className={cn("text-xl font-bold", getLogoTextColor())}>

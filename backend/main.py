@@ -22,7 +22,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Import route modules
-from app.routes import jobs, applications, users, files
+from app.routes import jobs, applications, users, files, interviews
 
 
 @asynccontextmanager
@@ -66,6 +66,7 @@ app.include_router(jobs.router, prefix="/api")
 app.include_router(applications.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 app.include_router(files.router, prefix="/api")
+app.include_router(interviews.router, prefix="/api")
 
 # Root endpoint
 @app.get("/")
@@ -80,6 +81,7 @@ async def root():
             "applications": "/api/applications",
             "users": "/api/users",
             "files": "/api/files",
+            "interviews": "/api/interviews",
             "docs": "/docs"
         },
         "mcp_mesh": True

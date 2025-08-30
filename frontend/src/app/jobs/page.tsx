@@ -9,7 +9,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { MapPin, Clock, Search, Zap } from 'lucide-react'
 
-// Mock job data matching wireframe - commented out as not used
+// Mock job data - commented out as not used
 /*
 const mockJobs: Job[] = [
   {

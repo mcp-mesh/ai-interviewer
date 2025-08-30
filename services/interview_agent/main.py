@@ -3,15 +3,25 @@
 Interview Agent - Main Implementation
 
 AI-powered technical interviewer that conducts dynamic interviews based on 
-role requirements and candidate profiles with Redis session management.
+role requirements and candidate profiles with PostgreSQL database storage
+and Redis caching for optimal performance.
 """
 
 import json
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
+
+# Configuration: Time threshold for interview closing
+# When remaining time is less than this percentage of total duration,
+# return a standard closing message instead of generating new questions
+TIME_THRESHOLD_PERCENTAGE = 10  # 10% of total interview duration
+
+# Configuration: Behavioral violation thresholds
+# Auto-terminate interview if total violations exceed this threshold
+VIOLATION_THRESHOLD = 3  # Maximum allowed violations before termination
 
 import mesh
 import redis
@@ -19,6 +29,22 @@ from fastmcp import FastMCP
 
 # Import specific agent types for type hints
 from mesh.types import McpAgent, McpMeshAgent
+
+# Import database models and functions from the new organized structure
+from .database import (
+    # Models
+    Interview, InterviewQuestion, InterviewResponse, InterviewEvaluation,
+    # Database operations
+    create_tables, get_db_session, test_connections,
+    get_interview_by_session_id, create_interview_session,
+    add_interview_question, add_interview_response,
+    get_interview_conversation_pairs, format_conversation_for_llm,
+    # Caching
+    InterviewCache
+)
+
+# Import new modular components
+from .core.interview_conductor import interview_conductor
 
 # Create FastMCP app instance
 app = FastMCP("Interview Agent Service")
@@ -29,6 +55,28 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Initialize database at module level - executed when MCP Mesh loads this module
+logger.info("🚀 Initializing Interview Agent v1.0 (PostgreSQL + Redis)")
+
+# Test database connections
+connections = test_connections()
+if connections["postgres"]:
+    logger.info("✅ PostgreSQL connection successful")
+    # Create tables and schema
+    if create_tables():
+        logger.info("✅ Database schema initialized")
+    else:
+        logger.error("❌ Failed to initialize database schema")
+else:
+    logger.error("❌ PostgreSQL connection failed")
+    
+if connections["redis"]:
+    logger.info("✅ Redis connection successful")
+else:
+    logger.error("❌ Redis connection failed")
+
+logger.info("✅ Interview Agent ready to serve requests")
 
 # Redis connection
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
@@ -400,11 +448,20 @@ Be thorough, fair, and realistic in your evaluation. Prioritize interview comple
 @app.tool()
 @mesh.tool(
     capability="conduct_interview",
-    version="1.0",
+    version="2.0",
     dependencies=[
         {
             "capability": "process_with_tools",
-            "tags": ["+openai"],  # tag time is optional (plus to have)
+            "tags": ["+openai"],  # LLM service - need tag to choose between openai/claude
+        },
+        {
+            "capability": "user_applications_get"  # Application agent - only one provider, no tags needed
+        },
+        {
+            "capability": "job_details_get"  # Job agent - only one provider, no tags needed
+        },
+        {
+            "capability": "application_status_update"  # Application agent - only one provider, no tags needed
         }
     ],
     tags=["interview", "technical-screening", "ai-interviewer", "session-management"],
@@ -412,295 +469,131 @@ Be thorough, fair, and realistic in your evaluation. Prioritize interview comple
     retry_count=2
 )
 async def conduct_interview(
-    resume_content: str,
-    role_description: str,
-    user_session_id: str,
-    candidate_answer: str = None,
-    duration_minutes: int = None,
-    llm_service: McpAgent = None
+    session_id: Optional[str] = None,
+    job_id: Optional[str] = None,
+    user_email: Optional[str] = None,
+    application_id: Optional[str] = None,
+    user_input: Optional[str] = None,
+    user_action: Optional[str] = None,
+    # Legacy parameters for backward compatibility
+    resume_content: Optional[str] = None,
+    role_description: Optional[str] = None,
+    user_session_id: Optional[str] = None,
+    candidate_answer: Optional[str] = None,
+    duration_minutes: Optional[int] = None,
+    # MCP Mesh dependencies (injected automatically)
+    process_with_tools: McpMeshAgent = None,
+    user_applications_get: McpMeshAgent = None,
+    job_details_get: McpMeshAgent = None,
+    application_status_update: McpMeshAgent = None
 ) -> Dict[str, Any]:
     """
-    Conduct a technical interview session with session management.
+    Conduct a technical interview session with modular PostgreSQL-based architecture.
+    
+    This function handles both starting new interviews and continuing existing ones:
+    
+    NEW INTERVIEW (Start):
+    - Requires: job_id, user_email, application_id
+    - Creates new session, gets job/application data, generates first question
+    
+    CONTINUE INTERVIEW (Resume):
+    - Requires: session_id, user_input (optional), user_action (optional)
+    - Processes response, generates next question or completes interview
+    
+    LEGACY SUPPORT:
+    - Still supports old parameters (resume_content, role_description, user_session_id)
+    - Automatically converts to new format for backward compatibility
     
     Args:
-        resume_content: Candidate's resume content (text or structured data)
-        role_description: Job role requirements and description
-        user_session_id: Unique session identifier for this interview
-        candidate_answer: Optional candidate's answer to previous question
-        llm_service: LLM service for generating questions
+        session_id: Existing session ID (for continue operations)
+        job_id: Job posting identifier (for new interview)
+        user_email: User's email address (for new interview)
+        application_id: Application identifier (for new interview)
+        user_input: User's response to current question
+        user_action: User action (answer, skip, end)
+        
+        # Legacy parameters (backward compatibility)
+        resume_content: Candidate's resume (legacy)
+        role_description: Job description (legacy)  
+        user_session_id: Session ID (legacy)
+        candidate_answer: User answer (legacy)
+        duration_minutes: Interview duration (legacy)
+        
+        # MCP Mesh dependencies (auto-injected)
+        process_with_tools: LLM service for questions and evaluation
+        user_applications_get: Application agent for application data
+        job_details_get: Job agent for job details
+        application_status_update: Application agent for status updates
     
     Returns:
-        Dictionary containing next question and session metadata
+        Dictionary containing interview response with question/completion data
     """
     try:
-        logger.info(f"Conducting interview for session: {user_session_id}")
+        logger.info("🚀 Starting modular interview conductor v2.0")
         
-        # Check if LLM service is available
-        logger.info(f"LLM service type: {type(llm_service)}")
-        logger.info(f"LLM service value: {llm_service}")
+        # Handle legacy parameter conversion for backward compatibility
+        if user_session_id and not session_id:
+            session_id = user_session_id
+            logger.info(f"Legacy parameter conversion: user_session_id -> session_id: {session_id}")
         
-        if not llm_service:
-            return {
-                "success": False,
-                "error": "LLM service not available",
-                "session_id": user_session_id
-            }
+        if candidate_answer and not user_input:
+            user_input = candidate_answer
+            logger.info("Legacy parameter conversion: candidate_answer -> user_input")
         
-        # Get or create session
-        session_data = get_session_data(user_session_id)
-        
-        # Check if existing session has expired
-        if session_data and check_session_expiration(session_data):
-            logger.info(f"Session {user_session_id} has expired, ending it")
-            end_session(user_session_id, "timeout")
-            return {
-                "success": False,
-                "error": "Interview session has expired",
-                "session_id": user_session_id,
-                "expired": True
-            }
-        
-        if not session_data:
-            # Create new session with complete metadata
-            logger.info(f"Creating new interview session: {user_session_id}")
-            start_time = datetime.now(timezone.utc)
-            duration_seconds = (duration_minutes * 60) if duration_minutes else DEFAULT_INTERVIEW_DURATION
-            session_data = {
-                "session_id": user_session_id,
-                "role_description": role_description,
-                "resume_content": resume_content,
-                "conversation": [],
-                
-                # Timing and duration
-                "started_at": start_time.isoformat(),
-                "duration_minutes": duration_minutes or (DEFAULT_INTERVIEW_DURATION // 60),
-                "expires_at": (start_time.timestamp() + duration_seconds),
-                
-                # Session state
-                "status": "started",  # started|ended
-                "user_action": "none",  # none|ended_manually|timeout|completed
-                "questions_asked": 0,
-                "current_question": None,
-                "question_metadata": {},
-                "total_score": 0,
-                
-                # Metadata
-                "created_at": start_time.isoformat(),
-                "last_updated": start_time.isoformat(),
-                "ended_at": None
-            }
-            
-            if not store_session_data(user_session_id, session_data):
-                raise RuntimeError("Failed to create session")
-        
-        # Store candidate answer if provided
-        if candidate_answer:
-            logger.info(f"Storing candidate answer for session: {user_session_id}")
-            if not add_to_conversation(user_session_id, "answer", candidate_answer):
-                logger.warning("Failed to store candidate answer")
-            
-            # Refresh session data
-            session_data = get_session_data(user_session_id)
-        
-        # Analyze conversation history to track coverage
-        conversation_messages = format_conversation_for_llm(session_data["conversation"])
-        questions_asked = len([msg for msg in session_data["conversation"] if msg["type"] == "question"])
-        
-        # Prepare context for LLM
-        system_prompt = f"""You are conducting a strategic technical interview for the following role:
-
-ROLE DESCRIPTION:
-{role_description}
-
-CANDIDATE RESUME:
-{resume_content}
-
-INTERVIEW PROGRESS:
-- Questions Asked So Far: {questions_asked}
-- Previous Questions and Answers: See conversation history below
-
-STRATEGIC INTERVIEW APPROACH:
-
-1. **PRIMARY OBJECTIVE**: Systematically assess ALL key requirements from the role description
-2. **COVERAGE STRATEGY**: Plan questions to comprehensively evaluate each requirement area
-3. **ROLE-DRIVEN APPROACH**: Use role requirements as the primary driver, not just candidate's resume
-4. **SYSTEMATIC EVALUATION**: Ensure broad coverage rather than deep diving into one area too early
-
-QUESTION SELECTION PRIORITIES:
-
-**For Question 1 (Opening):**
-- MUST use question_type: "opener" 
-- Start with a friendly, role-relevant opening question that assesses core competencies
-- Use resume as context but focus on role requirements
-- Create a welcoming transition into the technical interview
-
-**For Questions 2-5 (Core Assessment):**
-- Cover the MOST CRITICAL requirements from the role description
-- Ask about specific technologies, frameworks, and skills mentioned in the role
-- Assess hands-on experience with required tools and platforms
-
-**For Questions 6+ (Deep Dive & Gaps):**
-- Fill any remaining coverage gaps from role requirements
-- Ask follow-up questions to probe deeper into critical areas
-- Address any requirements not yet covered
-
-REQUIREMENTS COVERAGE CHECKLIST (extract from role description):
-- Identify 3-5 key technical requirements from the role description
-- Track which requirements have been adequately assessed
-- Prioritize uncovered requirements for next questions
-- Balance technical skills with problem-solving and experience
-
-INTERVIEW TACTICS:
-- Ask specific, measurable questions about role technologies
-- Use scenario-based questions related to actual job responsibilities  
-- Probe for depth of knowledge in role-critical areas
-- Ask for concrete examples from their experience with required skills
-- Follow up with "how would you..." questions for practical application
-
-Your goal is to conduct a comprehensive interview that thoroughly evaluates the candidate against ALL major role requirements, not just areas where they show strength.
-
-QUESTION TYPE SELECTION GUIDE:
-- question_type: "opener" → Use for Question 1 ONLY to create a welcoming start
-- question_type: "technical" → Use for specific technology/skill assessments
-- question_type: "experience" → Use for past experience and accomplishments
-- question_type: "problem_solving" → Use for analytical thinking assessments
-- question_type: "behavioral" → Use for soft skills and work style evaluation
-- question_type: "scenario" → Use for hypothetical situation responses
-- question_type: "requirement_specific" → Use for role-specific capabilities
-
-Generate the next strategic interview question using the provided tool."""
-        
-        # Define tool schema for interview questions
-        interview_question_tool = {
-            "name": "generate_interview_question",
-            "description": "Generate the next strategic interview question based on role requirements and systematic coverage planning",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "question": {
-                        "type": "string",
-                        "description": "The next interview question to ask the candidate"
-                    },
-                    "question_type": {
-                        "type": "string",
-                        "enum": ["opener", "technical", "experience", "problem_solving", "behavioral", "clarification", "scenario", "requirement_specific"],
-                        "description": "Type of question being asked"
-                    },
-                    "focus_area": {
-                        "type": "string",
-                        "description": "The skill or competency area this question targets"
-                    },
-                    "difficulty_level": {
-                        "type": "string",
-                        "enum": ["basic", "intermediate", "advanced"],
-                        "description": "Difficulty level of the question"
-                    },
-                    "role_requirement_addressed": {
-                        "type": "string",
-                        "description": "Specific role requirement or skill this question is designed to assess"
-                    },
-                    "coverage_strategy": {
-                        "type": "string",
-                        "enum": ["opening_assessment", "core_requirement", "gap_filling", "depth_probe", "comprehensive_coverage"],
-                        "description": "Strategic purpose of this question in the overall interview plan"
-                    },
-                    "expected_assessment": {
-                        "type": "string",
-                        "description": "What specific aspect of the candidate's competency this question will reveal"
-                    }
-                },
-                "required": ["question", "question_type", "focus_area", "role_requirement_addressed", "coverage_strategy"]
-            }
+        # Prepare MCP Mesh dependencies dictionary
+        dependencies = {
+            "process_with_tools": process_with_tools,
+            "user_applications_get": user_applications_get,
+            "job_details_get": job_details_get,
+            "application_status_update": application_status_update
         }
         
-        # Format conversation history for LLM
-        conversation_messages = format_conversation_for_llm(session_data["conversation"])
+        # Validate critical dependencies
+        if not process_with_tools:
+            raise Exception("LLM service (process_with_tools) not available")
         
-        # LLM service will handle tool format conversion internally
-        tools_to_use = [interview_question_tool]
-        logger.info("Using interview question tool - LLM service will handle format conversion internally")
+        logger.info(f"Dependencies available: {list(dependencies.keys())}")
         
-        # Call LLM service with converted tools
-        logger.info("Generating next interview question with LLM")
-        llm_response = await llm_service(
-            text="Generate the next interview question based on the role requirements and conversation history.",
-            system_prompt=system_prompt,
-            messages=conversation_messages,
-            tools=tools_to_use,
-            force_tool_use=True,
-            temperature=0.7  # Slight creativity for varied questions
+        # Use the modular interview conductor
+        result = await interview_conductor.conduct_interview(
+            session_id=session_id,
+            job_id=job_id,
+            user_email=user_email,
+            application_id=application_id,
+            user_input=user_input,
+            user_action=user_action,
+            dependencies=dependencies
         )
         
-        logger.info(f"LLM response type: {type(llm_response)}")
-        logger.info(f"LLM response: {llm_response}")
+        # Convert result to legacy format if needed for backward compatibility
+        if isinstance(result, dict):
+            # Ensure we have a success field for legacy compatibility
+            if "success" not in result:
+                result["success"] = result.get("status") == "active" or result.get("status") == "completed"
+            
+            # Legacy response format compatibility
+            if "question" in result and isinstance(result["question"], dict):
+                result["question_text"] = result["question"].get("text", result["question"].get("question", ""))
+                result["question_metadata"] = {
+                    "type": result["question"].get("type", "technical"),
+                    "focus_area": result["question"].get("focus_area", "general"),
+                    "difficulty": result["question"].get("difficulty", "medium"),
+                    "question_number": result["question"].get("number", 1)
+                }
+            
+            logger.info(f"Interview operation completed successfully for session {result.get('session_id')}")
         
-        if not llm_response.get("success") or not llm_response.get("tool_calls"):
-            logger.error(f"LLM failed to generate question: {llm_response.get('error', 'No tool calls')}")
-            return {
-                "success": False,
-                "error": "Failed to generate interview question",
-                "session_id": user_session_id
-            }
-        
-        # Extract question from LLM response
-        question_data = llm_response["tool_calls"][0]["parameters"]
-        question = question_data["question"]
-        
-        # Store question in conversation with metadata and update session state
-        question_number = len([m for m in session_data["conversation"] if m["type"] == "question"]) + 1
-        question_metadata = {
-            "type": question_data.get("question_type", "unknown"),
-            "focus_area": question_data.get("focus_area", "general"),
-            "difficulty": question_data.get("difficulty_level", "intermediate"),
-            "question_number": question_number,
-            "role_requirement_addressed": question_data.get("role_requirement_addressed", "general"),
-            "coverage_strategy": question_data.get("coverage_strategy", "comprehensive_coverage"),
-            "expected_assessment": question_data.get("expected_assessment", "")
-        }
-        
-        if not add_to_conversation(user_session_id, "question", question, question_metadata):
-            logger.warning("Failed to store interview question")
-        
-        # Update session state with new question
-        session_data = get_session_data(user_session_id)  # Refresh after conversation update
-        if session_data:
-            session_data["questions_asked"] = question_number
-            session_data["current_question"] = question
-            session_data["question_metadata"] = question_metadata
-            session_data["last_updated"] = datetime.now(timezone.utc).isoformat()
-            store_session_data(user_session_id, session_data)
-        
-        # Prepare response
-        response = {
-            "success": True,
-            "session_id": user_session_id,
-            "question": question,
-            "question_metadata": {
-                "type": question_data.get("question_type", "unknown"),
-                "focus_area": question_data.get("focus_area", "general"),
-                "difficulty": question_data.get("difficulty_level", "intermediate"),
-                "question_number": len([m for m in session_data["conversation"] if m["type"] == "question"]),
-                "role_requirement_addressed": question_data.get("role_requirement_addressed", "general"),
-                "coverage_strategy": question_data.get("coverage_strategy", "comprehensive_coverage"),
-                "expected_assessment": question_data.get("expected_assessment", "")
-            },
-            "session_info": {
-                "created_at": session_data["created_at"],
-                "last_updated": datetime.now(timezone.utc).isoformat(),
-                "total_questions": len([m for m in session_data["conversation"] if m["type"] == "question"]),
-                "total_answers": len([m for m in session_data["conversation"] if m["type"] == "answer"])
-            }
-        }
-        
-        logger.info(f"Generated question for session {user_session_id}: {question_data.get('question_type', 'unknown')} question")
-        return response
+        return result
         
     except Exception as e:
-        logger.error(f"Interview failed for session {user_session_id}: {str(e)}")
+        logger.error(f"Modular interview operation failed: {e}")
+        
+        # Legacy error format for backward compatibility
         return {
             "success": False,
             "error": str(e),
-            "session_id": user_session_id
+            "session_id": session_id or user_session_id or "unknown",
+            "version": "2.0_modular"
         }
 
 
@@ -754,22 +647,116 @@ def get_session_status(session_id: str) -> Dict[str, Any]:
 
 
 @app.tool()
-@mesh.tool(capability="end_interview_session")
-def end_interview_session(session_id: str, reason: str = "ended_manually") -> Dict[str, Any]:
-    """End an interview session."""
+@mesh.tool(
+    capability="end_interview_session",
+    dependencies=[
+        {
+            "capability": "application_status_update"  # Application agent for status updates
+        }
+    ]
+)
+async def end_interview_session(
+    session_id: str, 
+    reason: str = "ended_manually",
+    application_status_update: McpMeshAgent = None
+) -> Dict[str, Any]:
+    """
+    End an interview session with proper database updates and application status changes.
+    
+    Args:
+        session_id: Session identifier to end
+        reason: Reason for ending (ended_manually, user_requested, etc.)
+        application_status_update: Application agent for status updates (auto-injected)
+    
+    Returns:
+        Dictionary with success status and session details
+    """
     try:
-        if end_session(session_id, reason):
-            return {
-                "success": True,
-                "session_id": session_id,
-                "message": f"Interview session ended: {reason}"
-            }
-        else:
+        from .services.storage_service import storage_service
+        
+        # Get interview session from PostgreSQL
+        interview = await storage_service.get_interview_by_session_id(session_id)
+        if not interview:
             return {
                 "success": False,
-                "error": "Failed to end session or session not found",
+                "error": "Interview session not found",
                 "session_id": session_id
             }
+        
+        # Check if already terminated
+        if interview.status in ["completed", "terminated", "abandoned"]:
+            return {
+                "success": False,
+                "error": f"Interview session already {interview.status}",
+                "session_id": session_id,
+                "current_status": interview.status
+            }
+        
+        # Update interview status in PostgreSQL
+        status_mapping = {
+            "ended_manually": "completed",
+            "user_requested": "completed", 
+            "time_expired": "completed",
+            "abandoned": "abandoned"
+        }
+        new_status = status_mapping.get(reason, "completed")
+        
+        success = await storage_service.update_interview_status(
+            session_id=session_id,
+            status=new_status,
+            metadata_updates={
+                "ended_at": datetime.now(timezone.utc).isoformat(),
+                "end_reason": reason
+            }
+        )
+        
+        if not success:
+            return {
+                "success": False,
+                "error": "Failed to update interview status in database",
+                "session_id": session_id
+            }
+        
+        # Update application status in application agent
+        application_status = "INTERVIEW_COMPLETED"  # Default status for all manual ends
+        if reason == "abandoned":
+            application_status = "DECISION_PENDING"  # For abandoned interviews
+        
+        try:
+            # Extract application_id from session metadata
+            metadata = interview.session_metadata or {}
+            application_id = metadata.get("application_id")
+            
+            if application_id and application_status_update:
+                await application_status_update(
+                    application_id=application_id,
+                    new_status=application_status
+                )
+                logger.info(f"Updated application {application_id} status to {application_status}")
+            else:
+                logger.warning(f"Could not update application status: application_id={application_id}, agent_available={application_status_update is not None}")
+                
+        except Exception as e:
+            logger.warning(f"Failed to update application status: {e}")
+            # Don't fail the interview end for application status update failure
+        
+        # Get session statistics for response
+        stats = await storage_service.get_session_statistics(session_id)
+        
+        return {
+            "success": True,
+            "session_id": session_id,
+            "message": f"Interview session ended: {reason}",
+            "status": new_status,
+            "application_status": application_status,
+            "session_stats": {
+                "questions_asked": stats.get("question_count", 0),
+                "responses_given": stats.get("response_count", 0),
+                "duration_minutes": stats.get("duration_minutes", 0),
+                "ended_reason": reason
+            }
+        }
+        
     except Exception as e:
         logger.error(f"Failed to end session {session_id}: {str(e)}")
         return {
@@ -792,32 +779,37 @@ def get_interview_session(session_id: str) -> Dict[str, Any]:
         Dictionary containing session data and conversation history
     """
     try:
-        logger.info(f"Retrieving session data: {session_id}")
+        logger.info(f"Retrieving PostgreSQL session data: {session_id}")
         
-        session_data = get_session_data(session_id)
-        if not session_data:
+        with get_db_session() as db:
+            # Get interview from PostgreSQL database
+            interview = get_interview_by_session_id(session_id, db)
+            if not interview:
+                return {
+                    "success": False,
+                    "error": "Session not found",
+                    "session_id": session_id
+                }
+            
+            # Get conversation history in the format expected by the frontend
+            conversation_history = get_interview_conversation_pairs(interview.id, db)
+            
+            # Calculate session info
+            questions_asked = len([pair for pair in conversation_history if pair.get("question")])
+            questions_answered = len([pair for pair in conversation_history if pair.get("question") and pair.get("response")])
+            time_remaining_seconds = interview.time_remaining_seconds
+            
             return {
-                "success": False,
-                "error": "Session not found",
+                "success": True,
+                "status": interview.status,
+                "conversation_history": conversation_history,
+                "session_info": {
+                    "questions_asked": questions_asked,
+                    "questions_answered": questions_answered,
+                    "time_remaining_seconds": time_remaining_seconds
+                },
                 "session_id": session_id
             }
-        
-        # Calculate session statistics
-        conversation = session_data.get("conversation", [])
-        questions = [m for m in conversation if m["type"] == "question"]
-        answers = [m for m in conversation if m["type"] == "answer"]
-        
-        return {
-            "success": True,
-            "session_data": session_data,
-            "statistics": {
-                "total_questions": len(questions),
-                "total_answers": len(answers),
-                "session_duration": session_data.get("created_at"),
-                "last_activity": session_data.get("last_updated"),
-                "status": session_data.get("status", "active")
-            }
-        }
         
     except Exception as e:
         logger.error(f"Failed to retrieve session {session_id}: {str(e)}")
@@ -936,104 +928,21 @@ async def finalize_interview(session_id: str, llm_service: McpAgent = None) -> D
         }
 
 
-@app.tool()
-@mesh.tool(capability="health_check", tags=["interview_service", "session_management", "ai_interviewer"])
-def get_agent_status() -> Dict[str, Any]:
-    """
-    Get interview agent status and configuration.
-    
-    Returns:
-        Dictionary containing agent status and capabilities
-    """
-    try:
-        # Test Redis connectivity
-        redis_status = "connected"
-        redis_info = {}
-        
-        if redis_client:
-            try:
-                redis_client.ping()
-                info = redis_client.info()
-                redis_info = {
-                    "version": info.get("redis_version", "unknown"),
-                    "connected_clients": info.get("connected_clients", 0),
-                    "used_memory_human": info.get("used_memory_human", "unknown")
-                }
-            except Exception as e:
-                redis_status = f"error: {str(e)}"
-        else:
-            redis_status = "not_connected"
-        
-        return {
-            "agent_name": "Interview Agent",
-            "version": "1.0.0",
-            "status": "healthy",
-            "capabilities": [
-                "interview-service",
-                "session-management", 
-                "conversation-tracking",
-                "dynamic-questioning"
-            ],
-            "dependencies": {
-                "llm-service": "required",
-                "redis": redis_status
-            },
-            "configuration": {
-                "redis_host": REDIS_HOST,
-                "redis_port": REDIS_PORT,
-                "session_ttl": "dynamic (based on role duration)",
-                "session_prefix": SESSION_PREFIX
-            },
-            "redis_info": redis_info,
-            "supported_operations": [
-                "conduct_interview",
-                "get_interview_session", 
-                "end_interview_session",
-                "finalize_interview",
-                "get_agent_status"
-            ]
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to get agent status: {str(e)}")
-        return {
-            "status": "error",
-            "error": str(e)
-        }
-
-
-# Agent class definition - MCP Mesh will auto-discover and run the FastMCP app
+# Agent class definition - MCP Mesh pattern
 @mesh.agent(
     name="interview-agent",
     auto_run=True
 )
-class InterviewAgent:
+class InterviewAgent(McpAgent):
     """
-    Interview Agent for AI Interviewer System
+    Interview Agent for AI Interviewer Phase 2
     
-    Conducts dynamic technical interviews based on role requirements and 
-    candidate profiles with Redis-based session management.
-    
-    MCP Mesh automatically:
-    1. Discovers the 'app' FastMCP instance
-    2. Applies dependency injection for LLM service
-    3. Starts HTTP server on port 8084
-    4. Registers capabilities with mesh registry
+    Handles technical interview sessions with modular PostgreSQL-based architecture.
+    Capabilities: conduct_interview, get_session_status, end_interview_session, 
+    get_interview_session, finalize_interview
     """
-    
-    def __init__(self):
-        logger.info("Initializing Interview Agent v1.0.0")
-        logger.info(f"Redis connection: {'Connected' if redis_client else 'Not available'}")
-        logger.info("Interview agent ready for technical screening sessions")
-        
-        if redis_client:
-            logger.info("Session management enabled with dynamic TTL based on role duration")
-        else:
-            logger.warning("Redis not available - session management disabled")
+    pass  # Database initialization already done at module level
 
 
-# MCP Mesh handles everything automatically:
-# - FastMCP server discovery and startup
-# - Dependency injection (LLM service)
-# - HTTP server on port 8084  
-# - Service registration with mesh registry
+if __name__ == "__main__":
+    logger.info("Interview Agent starting...")

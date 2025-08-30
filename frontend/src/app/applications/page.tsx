@@ -90,7 +90,7 @@ export default function ApplicationsPage() {
   }
 
   const handleContinueApplication = async (application: ApplicationWithJob) => {
-    setContinuingApp(application.id) // Set loading state for this specific app
+    setContinuingApp(application.jobId) // Set loading state for this specific app
     
     try {
       // Call API to get/resume application - this will return existing application ID and correct step
@@ -290,13 +290,13 @@ export default function ApplicationsPage() {
                     onClick={() => handleContinueApplication(app)}
                     variant="primary"
                     size="sm"
-                    disabled={continuingApp === app.id}
+                    disabled={continuingApp === app.jobId}
                     className="flex items-center gap-2"
                   >
-                    {continuingApp === app.id && (
+                    {continuingApp === app.jobId && (
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     )}
-                    {continuingApp === app.id ? 'Continuing Application...' : 'Continue Application'}
+                    {continuingApp === app.jobId ? 'Continuing Application...' : 'Continue Application'}
                   </Button>
                 )
               )}

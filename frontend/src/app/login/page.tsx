@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { OAuthButton } from '@/components/wireframe/OAuthButton'
+import { OAuthButton } from '@/components/common/OAuthButton'
 import { Bot, Target, Mail, BarChart3, Zap } from 'lucide-react'
 
 const benefits = [
@@ -11,25 +11,25 @@ const benefits = [
     icon: Bot,
     title: 'Instant AI-Based Interviews',
     description: 'Get immediate feedback and practice with our AI interview system before meeting with real recruiters.',
-    color: 'bg-wireframe-blue'
+    color: 'bg-brand-blue'
   },
   {
     icon: Target,
     title: 'Smart Profile Matching',
     description: 'Our AI automatically matches your skills and experience to the most relevant job opportunities.',
-    color: 'bg-wireframe-green'
+    color: 'bg-brand-green'
   },
   {
     icon: Mail,
     title: 'Job Alerts & Notifications',
     description: 'Stay updated with personalized notifications when new positions matching your profile are posted.',
-    color: 'bg-wireframe-yellow'
+    color: 'bg-brand-yellow'
   },
   {
     icon: BarChart3,
     title: 'Application Tracking',
     description: 'Keep track of all your applications, interview schedules, and follow-ups in one centralized dashboard.',
-    color: 'bg-wireframe-purple'
+    color: 'bg-brand-purple'
   },
   {
     icon: Zap,
@@ -70,7 +70,7 @@ export default function LoginPage() {
       <header className="bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm absolute top-0 left-0 right-0 z-50 transition-all duration-300 py-3">
         <div className="max-w-[1400px] mx-auto px-6 flex justify-between items-center h-16">
           <Link href="/" className="flex items-center gap-3 font-bold text-xl text-gray-900 no-underline transition-all duration-300 hover:-translate-y-px">
-            <div className="w-10 h-10 bg-gradient-to-br from-wireframe-blue to-wireframe-blue-dark rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-[0_4px_15px_rgba(59,130,246,0.3)]">
+            <div className="w-10 h-10 bg-gradient-to-br from-brand-blue to-brand-blue-dark flex items-center justify-center text-white font-bold text-lg shadow-[0_4px_15px_rgba(59,130,246,0.3)]">
               SCI
             </div>
             <span>S Corp.</span>
@@ -119,14 +119,6 @@ export default function LoginPage() {
                 })}
               </div>
 
-              <div className="mt-8 p-6 bg-slate-50 rounded-xl border-l-4 border-wireframe-blue">
-                <p className="italic text-gray-700 mb-2">
-                  &ldquo;S Corp. helped me land my dream job in just 2 weeks. The AI matching was incredibly accurate!&rdquo;
-                </p>
-                <p className="text-sm text-gray-600 font-medium">
-                  — Sarah Chen, Software Engineer at TechCorp
-                </p>
-              </div>
             </div>
           </div>
 
@@ -155,11 +147,11 @@ export default function LoginPage() {
                 <div className="mt-8 pt-6 border-t border-gray-200 text-center">
                   <p className="text-gray-600 text-xs leading-relaxed">
                     By continuing, you agree to S Corp.&apos;s{' '}
-                    <Link href="#" className="text-wireframe-blue underline hover:text-wireframe-blue-dark">
+                    <Link href="#" className="text-brand-blue underline hover:text-brand-blue-dark">
                       Terms of Service
                     </Link>
                     {' '}and{' '}
-                    <Link href="#" className="text-wireframe-blue underline hover:text-wireframe-blue-dark">
+                    <Link href="#" className="text-brand-blue underline hover:text-brand-blue-dark">
                       Privacy Policy
                     </Link>
                   </p>
@@ -169,7 +161,7 @@ export default function LoginPage() {
               <div className="text-center mt-6">
                 <p className="text-gray-600 text-sm">
                   Just browsing?{' '}
-                  <Link href="/jobs" className="text-wireframe-blue underline hover:text-wireframe-blue-dark font-medium">
+                  <Link href="/jobs" className="text-brand-blue underline hover:text-brand-blue-dark font-medium">
                     Continue without signing up
                   </Link>
                 </p>

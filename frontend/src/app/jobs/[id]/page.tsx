@@ -106,11 +106,15 @@ export default function JobDetailPage({ params }: JobDetailProps) {
     loadJobData()
   }, [resolvedParams])
 
+  // Calculate user state early for use in all render paths
+  const isGuest = !user
+  const userState = isGuest ? "guest" : (user.hasResume ? "has-resume" : "no-resume")
+
   // Loading state
   if (loading) {
     return (
       <div className="page-light min-h-screen">
-        <Navigation userState="guest" user={null} theme="light" />
+        <Navigation userState={userState} user={user} theme="light" />
         <main className="container max-w-[1400px] mx-auto px-6 pt-20">
           <div className="text-center py-20">
             <h1 className="text-2xl font-bold text-gray-900 mb-4">Loading...</h1>
@@ -125,7 +129,7 @@ export default function JobDetailPage({ params }: JobDetailProps) {
   if (error || !job) {
     return (
       <div className="page-light min-h-screen">
-        <Navigation userState="guest" user={null} theme="light" />
+        <Navigation userState={userState} user={user} theme="light" />
         <main className="container max-w-[1400px] mx-auto px-6 pt-20">
           <div className="text-center py-20">
             <h1 className="text-2xl font-bold text-gray-900 mb-4">Job Not Found</h1>
@@ -138,9 +142,6 @@ export default function JobDetailPage({ params }: JobDetailProps) {
       </div>
     )
   }
-
-  const isGuest = !user
-  const userState = isGuest ? "guest" : (user.hasResume ? "has-resume" : "no-resume")
 
   // Find application for this job
   const currentApplication = user?.applications?.find(app => app.jobId === job?.id)
@@ -296,7 +297,7 @@ export default function JobDetailPage({ params }: JobDetailProps) {
                     variant="primary" 
                     size="lg"
                     onClick={handleApplyNow}
-                    disabled={loading || applying || isGuest}
+                    disabled={loading || applying}
                     className="flex items-center gap-2"
                   >
                     {applying && (

@@ -172,7 +172,7 @@ export const jobsApi = {
         if (userData) {
           const user = JSON.parse(userData)
           if (user.applications && user.applications.length > 0) {
-            const appliedJobIds = user.applications.map((app: any) => app.jobId)
+            const appliedJobIds = user.applications.map((app: { jobId: string }) => app.jobId)
             result.data = result.data.filter(job => !appliedJobIds.includes(job.id))
           }
         }
@@ -227,7 +227,7 @@ export const jobsApi = {
         if (userData) {
           const user = JSON.parse(userData)
           if (user.applications && user.applications.length > 0) {
-            const appliedJobIds = user.applications.map((app: any) => app.jobId)
+            const appliedJobIds = user.applications.map((app: { jobId: string }) => app.jobId)
             matchedJobs = matchedJobs.filter(job => !appliedJobIds.includes(job.id))
           }
         }
@@ -357,6 +357,88 @@ export const fileApi = {
     } catch (error) {
       console.error('Failed to get file status:', error)
       return { data: null, error: 'Failed to get file status' }
+    }
+  }
+}
+
+// Interview API - matches our backend interview endpoints using nginx auth pattern  
+export const interviewsApi = {
+  // Start new interview
+  startInterview: async (jobId: string, applicationId: string): Promise<{ data: any | null; error?: string }> => {
+    try {
+      const response = await apiClient.post<any>('/interviews/start', {
+        job_id: jobId,
+        application_id: applicationId
+      })
+      return { data: response }
+    } catch (error: any) {
+      console.error('Failed to start interview:', error)
+      return { data: null, error: error.message || 'Failed to start interview' }
+    }
+  },
+
+  // Get current question and session status
+  getCurrentQuestion: async (sessionId: string): Promise<{ data: any | null; error?: string }> => {
+    try {
+      const response = await apiClient.get<any>(`/interviews/${sessionId}/current`)
+      return { data: response }
+    } catch (error: any) {
+      console.error('Failed to get current question:', error)
+      return { data: null, error: error.message || 'Failed to get current question' }
+    }
+  },
+
+  // Submit answer (returns streaming response for SSE)
+  submitAnswer: async (sessionId: string, answer: string): Promise<Response> => {
+    // For streaming responses, we need to use fetch directly but with cookies
+    const response = await fetch(`${API_BASE_URL}/interviews/${sessionId}/answer`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream'
+      },
+      credentials: 'include', // Use cookies for auth like other endpoints
+      body: JSON.stringify({ answer })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Failed to submit answer' }))
+      throw new Error(errorData.detail || 'Failed to submit answer')
+    }
+
+    return response
+  },
+
+  // End interview session
+  endInterview: async (sessionId: string, reason: string = 'user_requested'): Promise<{ data: any | null; error?: string }> => {
+    try {
+      const response = await apiClient.post<any>(`/interviews/${sessionId}/end`, { reason })
+      return { data: response }
+    } catch (error: any) {
+      console.error('Failed to end interview:', error)
+      return { data: null, error: error.message || 'Failed to end interview' }
+    }
+  },
+
+  // Get interview status
+  getStatus: async (): Promise<{ data: any | null; error?: string }> => {
+    try {
+      const response = await apiClient.get<any>('/interviews/status')
+      return { data: response }
+    } catch (error: any) {
+      console.error('Failed to get interview status:', error)
+      return { data: null, error: error.message || 'Failed to get interview status' }
+    }
+  },
+
+  // Finalize interview scoring
+  finalizeInterview: async (sessionId: string): Promise<{ data: any | null; error?: string }> => {
+    try {
+      const response = await apiClient.post<any>(`/interviews/${sessionId}/finalize`, {})
+      return { data: response }
+    } catch (error: any) {
+      console.error('Failed to finalize interview:', error)
+      return { data: null, error: error.message || 'Failed to finalize interview' }
     }
   }
 }

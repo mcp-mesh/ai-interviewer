@@ -1,4 +1,4 @@
-// API Types based on wireframe analysis
+// API Types
 
 export interface UserApplication {
   jobId: string
@@ -158,7 +158,7 @@ export interface ApiResponse<T> {
   error?: string
 }
 
-// User State Types (from wireframe analysis)
+// User State Types
 export type UserState = 
   | 'guest'           // Not logged in
   | 'no-resume'       // Logged in but no resume uploaded
