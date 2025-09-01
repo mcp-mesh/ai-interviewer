@@ -16,7 +16,7 @@ export default function ActiveInterviewPage({ params }: ActiveInterviewPageProps
   const router = useRouter()
   const searchParams = useSearchParams()
   const [jobId, setJobId] = useState<string>("")
-  const [sessionId, setSessionId] = useState<string | null>(null)
+  // Session ID will be handled by InterviewChat component
   const [job, setJob] = useState<Job | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -43,17 +43,7 @@ export default function ActiveInterviewPage({ params }: ActiveInterviewPageProps
     }
   }, [router])
 
-  // Get session ID from URL params
-  useEffect(() => {
-    const session = searchParams.get('session')
-    if (session) {
-      setSessionId(session)
-    } else {
-      // No session ID provided, redirect back to prepare
-      router.push(`/interview/${jobId}/prepare`)
-      return
-    }
-  }, [searchParams, jobId, router])
+  // Session ID is no longer required - InterviewChat will handle it via jobId
 
   useEffect(() => {
     const resolveParams = async () => {
@@ -107,7 +97,7 @@ export default function ActiveInterviewPage({ params }: ActiveInterviewPageProps
     )
   }
 
-  if (error || !job || !sessionId) {
+  if (error || !job) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navigation userState={userState} user={user} theme="light" />
@@ -134,7 +124,6 @@ export default function ActiveInterviewPage({ params }: ActiveInterviewPageProps
     <div className="min-h-screen bg-gray-50">
       {/* Navigation is hidden during interview for focus */}
       <InterviewChat
-        sessionId={sessionId}
         job={job}
         user={user}
         onComplete={handleInterviewComplete}

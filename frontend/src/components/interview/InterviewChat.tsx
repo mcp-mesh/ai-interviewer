@@ -12,7 +12,7 @@ import { interviewsApi } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 interface InterviewChatProps {
-  sessionId: string
+  sessionId?: string // Now optional, will be extracted from API response
   job: Job
   user: User | null
   onComplete?: (reason: 'completed' | 'terminated' | 'time_up') => void
@@ -21,7 +21,7 @@ interface InterviewChatProps {
 }
 
 export function InterviewChat({
-  sessionId,
+  sessionId: initialSessionId,
   job,
   user,
   onComplete,
@@ -34,6 +34,7 @@ export function InterviewChat({
   const [isCompleted, setIsCompleted] = useState(false)
   const [isEndingInterview, setIsEndingInterview] = useState(false)
   const [timeRemaining, setTimeRemaining] = useState(300) // Default 5 minutes, will be updated
+  const [sessionId, setSessionId] = useState<string | null>(initialSessionId || null)
   const [sessionInfo, setSessionInfo] = useState<{
     questions_asked: number
     questions_answered: number
@@ -46,6 +47,7 @@ export function InterviewChat({
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const isLoadingRef = useRef<boolean>(false) // Prevent duplicate API calls
 
   // Security configuration
   const isSecurityEnabled = process.env.NEXT_PUBLIC_SECURITY_ENABLED === 'true'
@@ -53,7 +55,7 @@ export function InterviewChat({
   // Load interview state on mount
   useEffect(() => {
     loadInterviewState()
-  }, [sessionId])
+  }, [job.id]) // Now depends on job.id instead of sessionId
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -65,15 +67,23 @@ export function InterviewChat({
   }
 
   const loadInterviewState = async () => {
+    // Prevent duplicate calls
+    if (isLoadingRef.current) {
+      console.log('Already loading interview state, skipping duplicate call')
+      return
+    }
+    
+    isLoadingRef.current = true
     try {
-      console.log('Loading interview state for session:', sessionId)
+      console.log('Loading interview state for job:', job.id)
       
-      const { data, error } = await interviewsApi.getCurrentQuestion(sessionId)
+      // Use new unified API endpoint with jobId parameter
+      const { data, error } = await interviewsApi.getCurrentInterviewState(job.id)
       
       if (error) {
         console.error('Failed to load interview state:', error)
         if (error.includes('not found')) {
-          onError?.('Interview session not found. Please start a new interview.')
+          onError?.('No interview found for this job. Please start a new interview.')
         } else if (error.includes('expired')) {
           onError?.('Interview session has expired.')
         } else {
@@ -83,6 +93,12 @@ export function InterviewChat({
       }
 
       console.log('Interview state loaded:', data)
+      
+      // Extract session_id from response if not already set
+      if (data.session_id && !sessionId) {
+        setSessionId(data.session_id)
+        console.log('Session ID set from API response:', data.session_id)
+      }
       
       // Load conversation history
       const conversationHistory = data.conversation_history || []
@@ -152,6 +168,8 @@ export function InterviewChat({
     } catch (error) {
       console.error('Error loading interview state:', error)
       onError?.('Failed to load interview state. Please try again.')
+    } finally {
+      isLoadingRef.current = false
     }
   }
 

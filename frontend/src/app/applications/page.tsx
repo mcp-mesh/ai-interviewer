@@ -65,7 +65,7 @@ export default function ApplicationsPage() {
   const qualifiedApplications = applications.filter(app => app.status === 'QUALIFIED')
   const startedApplications = applications.filter(app => app.status === 'STARTED')
   const appliedApplications = applications.filter(app => app.status === 'APPLIED')
-  const completedApplications = applications.filter(app => app.status === 'COMPLETED')
+  const completedApplications = applications.filter(app => app.status === 'COMPLETED' || app.status === 'INTERVIEW_COMPLETED')
 
   const handleStartInterview = (application: ApplicationWithJob) => {
     // Update status to INPROGRESS and redirect to interview
@@ -330,7 +330,7 @@ export default function ApplicationsPage() {
               {completedApplications.map(app => 
                 renderJobCard(app, 
                   <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                    Completed
+                    {app.status === 'INTERVIEW_COMPLETED' ? 'Interview Completed' : 'Completed'}
                   </span>
                 )
               )}

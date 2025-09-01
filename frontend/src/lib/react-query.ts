@@ -26,8 +26,8 @@ export const queryClient = new QueryClient({
         // Retry up to 3 times for other errors
         return failureCount < 3
       },
-      // Refetch on window focus for important data
-      refetchOnWindowFocus: true,
+      // Disable refetch on window focus to prevent duplicate calls
+      refetchOnWindowFocus: false,
       // Don't refetch on reconnect by default
       refetchOnReconnect: false,
     },

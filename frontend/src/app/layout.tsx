@@ -51,6 +51,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Disable StrictMode to prevent double API calls in development
+  // StrictMode intentionally double-invokes effects to detect side effects
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Organization",

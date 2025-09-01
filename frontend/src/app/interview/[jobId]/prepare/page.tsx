@@ -102,23 +102,14 @@ export default function InterviewPreparePage({ params }: PreparePageProps) {
     setIsStartingInterview(true)
     showToast.info('Starting your interview...')
 
+    // With the new unified API, we don't need to start interview separately
+    // Just redirect to active page and let it handle the interview state
     try {
-      const { data: interviewData, error: interviewError } = await interviewsApi.startInterview(jobId, application.jobId) // Using jobId as applicationId for now
-
-      if (interviewError) {
-        throw new Error(interviewError)
-      }
-
-      if (interviewData && interviewData.session_id) {
-        showToast.success('Interview started successfully!')
-        // Redirect to active interview page with session ID
-        router.push(`/interview/${jobId}/active?session=${interviewData.session_id}`)
-      } else {
-        throw new Error('Invalid response from server')
-      }
+      showToast.success('Loading your interview...')
+      router.push(`/interview/${jobId}/active`)
     } catch (error: any) {
-      console.error('Failed to start interview:', error)
-      showToast.error(error.message || 'Failed to start interview. Please try again.')
+      console.error('Failed to navigate to interview:', error)
+      showToast.error('Failed to start interview. Please try again.')
     } finally {
       setIsStartingInterview(false)
     }

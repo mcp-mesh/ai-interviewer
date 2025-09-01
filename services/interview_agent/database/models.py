@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime
 from typing import Dict, Any, List
 from enum import Enum
-from sqlalchemy import Column, String, DateTime, Boolean, Text, Integer, ForeignKey, Float, ARRAY
+from sqlalchemy import Column, String, DateTime, Boolean, Text, Integer, ForeignKey, Float, ARRAY, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from .base import Base
@@ -64,7 +64,10 @@ class Interview(Base):
     Central entity that coordinates questions, responses, and evaluations.
     """
     __tablename__ = "interviews"
-    __table_args__ = {"schema": "interview_agent"}
+    __table_args__ = (
+        UniqueConstraint('user_email', 'job_id', name='unique_user_job_interview'),
+        {"schema": "interview_agent"}
+    )
     
     # Primary identifiers
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

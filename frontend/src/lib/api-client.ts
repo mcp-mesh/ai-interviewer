@@ -377,7 +377,7 @@ export const interviewsApi = {
     }
   },
 
-  // Get current question and session status
+  // Get current question and session status (OLD - will be deprecated)
   getCurrentQuestion: async (sessionId: string): Promise<{ data: any | null; error?: string }> => {
     try {
       const response = await apiClient.get<any>(`/interviews/${sessionId}/current`)
@@ -385,6 +385,17 @@ export const interviewsApi = {
     } catch (error: any) {
       console.error('Failed to get current question:', error)
       return { data: null, error: error.message || 'Failed to get current question' }
+    }
+  },
+
+  // Get current interview state by jobId (NEW unified endpoint)
+  getCurrentInterviewState: async (jobId: string): Promise<{ data: any | null; error?: string }> => {
+    try {
+      const response = await apiClient.get<any>(`/interviews/current?jobId=${encodeURIComponent(jobId)}`)
+      return { data: response }
+    } catch (error: any) {
+      console.error('Failed to get current interview state:', error)
+      return { data: null, error: error.message || 'Failed to get current interview state' }
     }
   },
 

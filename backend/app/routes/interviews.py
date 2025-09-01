@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 
 import mesh
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse
 from mesh.types import McpMeshAgent
 from pydantic import BaseModel
@@ -107,6 +107,79 @@ async def start_interview(
     except Exception as e:
         logger.error(f"Failed to start interview: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to start interview: {str(e)}")
+
+
+@router.get("/current")
+@mesh.route(dependencies=["get_current_interview_state"])
+async def get_current_interview_state(
+    request: Request,
+    jobId: str = Query(...),
+    interview_state_getter: McpMeshAgent = None
+) -> Dict[str, Any]:
+    """
+    Get or create interview state for user-job pair.
+    
+    Single unified endpoint that replaces the 2-step flow:
+    - Finds existing interview (any status) 
+    - Creates new if none exists
+    - Applies business rules (active/completed/terminated)
+    - Returns appropriate state for frontend
+    """
+    try:
+        # Extract user info from JWT token - authentication required
+        user_info = require_user_from_request(request)
+        user_email = user_info["email"]
+        
+        logger.info(f"Getting interview state for user: {user_email}, job: {jobId}")
+        
+        # Call interview agent via MCP Mesh to get/create interview state
+        interview_result = await interview_state_getter(
+            job_id=jobId,
+            user_email=user_email
+        )
+        
+        if not interview_result or not interview_result.get("success"):
+            error_msg = interview_result.get("error", "Failed to get interview state") if interview_result else "No response from interview agent"
+            logger.error(f"Interview state request failed: {error_msg}")
+            raise HTTPException(status_code=500, detail=error_msg)
+        
+        # Handle different interview states
+        status = interview_result.get("status")
+        logger.info(f"Interview state retrieved: status={status}, session_id={interview_result.get('session_id')}")
+        
+        if status == "active":
+            # Return active interview data
+            return {
+                "success": True,
+                "status": "active",
+                "session_id": interview_result.get("session_id"),
+                "current_question": interview_result.get("current_question"),
+                "question_metadata": interview_result.get("question_metadata", {}),
+                "conversation_history": interview_result.get("conversation_history", []),
+                "session_info": interview_result.get("session_info", {})
+            }
+            
+        elif status in ["completed", "terminated"]:
+            # Return completion state
+            return {
+                "success": True,
+                "status": status,
+                "session_id": interview_result.get("session_id"),
+                "completion_reason": interview_result.get("completion_reason"),
+                "completed_at": interview_result.get("completed_at") or interview_result.get("terminated_at"),
+                "message": interview_result.get("message", f"Interview {status}")
+            }
+            
+        else:
+            # Unknown status
+            logger.error(f"Unknown interview status: {status}")
+            raise HTTPException(status_code=500, detail=f"Unknown interview status: {status}")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get interview state: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get interview state: {str(e)}")
 
 
 @router.get("/status")

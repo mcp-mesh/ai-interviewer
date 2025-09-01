@@ -723,18 +723,19 @@ async def end_interview_session(
             application_status = "DECISION_PENDING"  # For abandoned interviews
         
         try:
-            # Extract application_id from session metadata
-            metadata = interview.session_metadata or {}
-            application_id = metadata.get("application_id")
-            
-            if application_id and application_status_update:
-                await application_status_update(
-                    application_id=application_id,
+            # Use job_id and user_email to update application status
+            if application_status_update:
+                status_result = await application_status_update(
+                    job_id=interview.job_id,
+                    user_email=interview.user_email,
                     new_status=application_status
                 )
-                logger.info(f"Updated application {application_id} status to {application_status}")
+                if status_result.get("success"):
+                    logger.info(f"Updated application status to {application_status}: {status_result}")
+                else:
+                    logger.warning(f"Failed to update application status: {status_result}")
             else:
-                logger.warning(f"Could not update application status: application_id={application_id}, agent_available={application_status_update is not None}")
+                logger.warning("application_status_update agent not available")
                 
         except Exception as e:
             logger.warning(f"Failed to update application status: {e}")
@@ -926,6 +927,309 @@ async def finalize_interview(session_id: str, llm_service: McpAgent = None) -> D
             "error": str(e),
             "session_id": session_id
         }
+
+
+@app.tool()
+@mesh.tool(
+    capability="get_current_interview_state",
+    dependencies=[
+        {"capability": "user_applications_get"},     # For getting user data
+        {"capability": "job_details_get"},           # For getting job data  
+        {"capability": "application_status_update"}, # For updating application status
+        {"capability": "process_with_tools", "tags": ["+openai"]}  # For LLM service (interview creation)
+    ]
+)
+async def get_current_interview_state(
+    job_id: str, 
+    user_email: str,
+    user_applications_get: McpMeshAgent = None,
+    job_details_get: McpMeshAgent = None,
+    application_status_update: McpMeshAgent = None,
+    process_with_tools: McpMeshAgent = None
+) -> Dict[str, Any]:
+    """
+    Get or create interview state for user-job pair.
+    
+    Single unified endpoint to handle all interview state logic:
+    - Find existing interview (any status)
+    - Create new if none exists  
+    - Apply business rules based on current state
+    - Return appropriate state for frontend
+    
+    Args:
+        job_id: Job posting identifier
+        user_email: User's email address
+        user_applications_get: MCP agent for getting user data
+        job_details_get: MCP agent for getting job data
+        
+    Returns:
+        Dictionary containing interview state and data
+    """
+    try:
+        logger.info(f"Getting interview state for user={user_email}, job={job_id}")
+        
+        # Find existing interview (no status filter - gets ANY interview)
+        from .services.storage_service import storage_service
+        existing = await storage_service.get_interview_by_user_and_job(user_email, job_id)
+        
+        if not existing:
+            logger.info("No existing interview found, creating new one")
+            return await _create_new_interview(job_id, user_email, job_details_get, user_applications_get, application_status_update, process_with_tools)
+        
+        logger.info(f"Found existing interview: session_id={existing.session_id}, status={existing.status}")
+        
+        # Apply business rules based on existing interview status
+        if existing.status == "active":
+            if _is_expired(existing):
+                logger.info("Interview expired, terminating")
+                await storage_service.update_interview_status(
+                    existing.session_id, 
+                    "terminated", 
+                    {"completion_reason": "time_expired"}
+                )
+                return _format_terminated_response(existing, "time_expired")
+            else:
+                logger.info("Resuming active interview")
+                return await _format_active_response(existing)
+        
+        elif existing.status in ["completed", "terminated"]:
+            logger.info(f"Interview already {existing.status}")
+            return _format_completed_response(existing)
+        
+        elif existing.status == "error":
+            logger.info("Interview had errors, creating new one")
+            return await _create_new_interview(job_id, user_email, job_details_get, user_applications_get, application_status_update, process_with_tools)
+        
+        else:
+            raise ValueError(f"Unknown interview status: {existing.status}")
+            
+    except Exception as e:
+        logger.error(f"Error in get_current_interview_state: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "status": "error"
+        }
+
+
+async def _create_new_interview(job_id: str, user_email: str, job_details_get: McpMeshAgent, user_applications_get: McpMeshAgent, application_status_update: McpMeshAgent, process_with_tools: McpMeshAgent) -> Dict[str, Any]:
+    """Create new interview session and return first question."""
+    try:
+        # Get job data from job agent
+        job_data_raw = await job_details_get(job_id=job_id)
+        logger.info(f"Job data response: {job_data_raw}")
+        
+        # MCP mesh returns data in different formats, handle both
+        if not job_data_raw:
+            raise ValueError("Failed to get job data: No response")
+        
+        # Extract job data from MCP response
+        if isinstance(job_data_raw, dict) and 'id' in job_data_raw:
+            # Direct job data (when MCP mesh returns the job object directly)
+            job_data = job_data_raw
+        elif isinstance(job_data_raw, dict) and job_data_raw.get("success"):
+            # Wrapped response format
+            job_data = job_data_raw.get("job", {})
+        else:
+            # Log the actual response for debugging
+            logger.error(f"Unexpected job data format: {job_data_raw}")
+            raise ValueError(f"Failed to get job data: Unexpected response format")
+        
+        # Get user applications from user agent  
+        user_apps_raw = await user_applications_get(user_email=user_email)
+        if not user_apps_raw or not user_apps_raw.get("success"):
+            logger.warning(f"Could not get user applications: {user_apps_raw.get('error') if user_apps_raw else 'No response'}")
+            user_apps = {"applications": []}  # Provide default
+        else:
+            user_apps = user_apps_raw
+        
+        # Create interview session
+        session_id = str(uuid.uuid4())
+        from .services.storage_service import storage_service
+        
+        # Extract resume data from user applications
+        applications = user_apps.get("applications", [])
+        resume_data = {
+            "skills": [],
+            "experience": "No application data available"
+        }
+        
+        # If user has applications, extract resume info from the first one
+        if applications and len(applications) > 0:
+            first_app = applications[0]
+            if isinstance(first_app, dict):
+                resume_data["skills"] = first_app.get("skills", [])
+                resume_data["experience"] = first_app.get("experience", "Not specified")
+        
+        # Handle potential race condition where duplicate requests try to create the same interview
+        try:
+            interview = await storage_service.create_interview_session(
+                session_id=session_id,
+                job_id=job_id,
+                user_email=user_email,
+                application_id=f"app_{session_id[:8]}",  # Generate application ID
+                job_data=job_data,
+                resume_data=resume_data
+            )
+        except Exception as e:
+            # Check if this is a UniqueViolation (duplicate interview)
+            error_msg = str(e).lower()
+            if "unique_user_job_interview" in error_msg or "duplicate key" in error_msg:
+                logger.info(f"Interview already exists for user={user_email}, job={job_id}, retrieving existing")
+                # Get the existing interview that was just created by the parallel request
+                existing = await storage_service.get_interview_by_user_and_job(user_email, job_id)
+                if existing:
+                    logger.info(f"Retrieved existing interview: {existing.session_id}")
+                    return await _format_active_response(existing)
+                else:
+                    # Fallback if we can't retrieve the existing interview
+                    raise Exception("Failed to create or retrieve interview session")
+            else:
+                # Re-raise other database errors
+                raise e
+        
+        # Update application status to INTERVIEW_STARTED
+        try:
+            status_result = await application_status_update(
+                job_id=job_id,
+                user_email=user_email,
+                new_status="INTERVIEW_STARTED"
+            )
+            if status_result.get("success"):
+                logger.info(f"Application status updated to INTERVIEW_STARTED: {status_result}")
+            else:
+                logger.warning(f"Failed to update application status: {status_result}")
+        except Exception as e:
+            logger.error(f"Error updating application status to INTERVIEW_STARTED: {e}")
+        
+        # Generate first question using interview conductor
+        dependencies = {
+            "process_with_tools": process_with_tools,  # LLM service for generating questions
+            "job_details_get": job_details_get,
+            "user_applications_get": user_applications_get,
+            "application_status_update": application_status_update
+        }
+        first_question = await interview_conductor.conduct_interview(
+            session_id=session_id,
+            job_id=job_id,
+            user_email=user_email,
+            application_id=f"app_{session_id[:8]}",
+            dependencies=dependencies
+        )
+        
+        # Calculate time remaining
+        duration_minutes = job_data.get("interview_duration_minutes", 60)
+        time_remaining_seconds = duration_minutes * 60
+        
+        return {
+            "success": True,
+            "status": "active",
+            "session_id": session_id,
+            "current_question": first_question.get("question_text"),
+            "question_metadata": first_question.get("question_metadata", {}),
+            "conversation_history": [],
+            "session_info": {
+                "questions_asked": 1,
+                "questions_answered": 0,
+                "time_remaining_seconds": time_remaining_seconds
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error creating new interview: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "status": "error"
+        }
+
+
+async def _format_active_response(interview) -> Dict[str, Any]:
+    """Format response for active interview."""
+    try:
+        from .services.storage_service import storage_service
+        conversation = await storage_service.get_conversation_history(interview.session_id)
+        
+        # Get current unanswered question
+        current_question = None
+        current_metadata = {}
+        if conversation and not conversation[-1].get("response"):
+            current_question = conversation[-1]["question"]["text"]
+            current_metadata = {
+                "type": conversation[-1]["question"]["type"],
+                "difficulty": conversation[-1]["question"]["difficulty"],
+                "focus_area": conversation[-1]["question"]["focus_area"],
+                "question_number": conversation[-1]["question"]["number"]
+            }
+        
+        # Calculate time remaining
+        # Ensure both datetimes are timezone-aware
+        now_utc = datetime.now(timezone.utc)
+        created_at_utc = interview.created_at.replace(tzinfo=timezone.utc) if interview.created_at.tzinfo is None else interview.created_at
+        elapsed = (now_utc - created_at_utc).total_seconds()
+        duration_seconds = interview.duration_minutes * 60
+        time_remaining = max(0, duration_seconds - elapsed)
+        
+        return {
+            "success": True,
+            "status": "active",
+            "session_id": interview.session_id,
+            "current_question": current_question,
+            "question_metadata": current_metadata,
+            "conversation_history": [c for c in conversation if c.get("response")],
+            "session_info": {
+                "questions_asked": len(conversation),
+                "questions_answered": len([c for c in conversation if c.get("response")]),
+                "time_remaining_seconds": int(time_remaining)
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error formatting active response: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "status": "error"
+        }
+
+
+def _format_completed_response(interview) -> Dict[str, Any]:
+    """Format response for completed/terminated interview."""
+    return {
+        "success": True,
+        "status": interview.status,
+        "session_id": interview.session_id,
+        "completion_reason": interview.session_metadata.get("completion_reason") if interview.session_metadata else None,
+        "completed_at": interview.updated_at.isoformat(),
+        "message": f"Interview {interview.status}. No further action possible."
+    }
+
+
+def _format_terminated_response(interview, reason: str) -> Dict[str, Any]:
+    """Format response for terminated interview."""
+    return {
+        "success": True,
+        "status": "terminated", 
+        "session_id": interview.session_id,
+        "completion_reason": reason,
+        "terminated_at": datetime.now(timezone.utc).isoformat(),
+        "message": "Interview terminated due to time expiration."
+    }
+
+
+def _is_expired(interview) -> bool:
+    """Check if interview has expired."""
+    if not interview.expires_at:
+        return False
+    
+    current_time = datetime.now(timezone.utc)
+    expires_at = interview.expires_at
+    
+    # Handle timezone-naive datetime
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    
+    return current_time > expires_at
 
 
 # Agent class definition - MCP Mesh pattern

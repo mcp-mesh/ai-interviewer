@@ -132,12 +132,30 @@ class QuestionGenerator:
                 temperature=0.7  # Slightly higher temperature for creativity
             )
             
+            # Debug logging for LLM response structure
+            self.logger.info(f"LLM response structure: {type(llm_response)} - {list(llm_response.keys()) if isinstance(llm_response, dict) else 'Not a dict'}")
+            
             if not llm_response.get("success") or not llm_response.get("tool_calls"):
                 raise Exception(f"LLM failed to generate question: {llm_response.get('error', 'No tool calls')}")
             
             # Extract question from tool response
             tool_call = llm_response["tool_calls"][0]
-            question_data = tool_call["parameters"]
+            self.logger.info(f"Tool call structure: {type(tool_call)} - {list(tool_call.keys()) if isinstance(tool_call, dict) else 'Not a dict'}")
+            
+            # Debug the parameters structure
+            parameters = tool_call["parameters"]
+            self.logger.info(f"Parameters structure: {type(parameters)} - {parameters if isinstance(parameters, dict) else f'List with {len(parameters)} items' if isinstance(parameters, list) else 'Unknown type'}")
+            
+            # Handle both dict and list formats
+            if isinstance(parameters, dict):
+                question_data = parameters
+            elif isinstance(parameters, list) and len(parameters) > 0:
+                # If parameters is a list, take the first item
+                question_data = parameters[0] if isinstance(parameters[0], dict) else {}
+            else:
+                raise Exception(f"Unexpected parameters format: {type(parameters)}")
+            
+            self.logger.info(f"Final question_data: {type(question_data)} - {list(question_data.keys()) if isinstance(question_data, dict) else 'Not a dict'}")
             
             # Format final question response
             result = {

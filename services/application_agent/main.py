@@ -189,7 +189,7 @@ async def application_step_save_with_next_prefill(
     user_email: str,
     get_detailed_resume_analysis: McpMeshAgent = None,
     job_agent: McpMeshAgent = None,
-    cache_agent: McpMeshAgent = None,
+    cache_invalidate: McpMeshAgent = None,
     user_agent: McpMeshAgent = None,
     process_with_tools: McpMeshAgent = None
 ) -> Dict[str, Any]:
@@ -227,7 +227,7 @@ async def application_step_save_with_next_prefill(
                 "job_agent": job_agent,
                 "user_agent": user_agent,
                 "llm_service": process_with_tools,
-                "cache_agent": cache_agent
+                "cache_agent": cache_invalidate
             })
         
         save_result = await current_step_handler(**save_handler_args)
@@ -238,6 +238,19 @@ async def application_step_save_with_next_prefill(
                 error=f"Failed to save step {step_number}",
                 details={"save_error": save_result.get("error")}
             )
+        
+        # Invalidate user cache after successful step save since application data changed
+        try:
+            if cache_invalidate:
+                cache_result = await cache_invalidate(user_email=user_email)
+                if cache_result.get("success"):
+                    logger.info(f"User cache invalidated after step {step_number} save")
+                else:
+                    logger.warning(f"Failed to invalidate user cache after step save: {cache_result}")
+            else:
+                logger.warning("cache_invalidate agent not available")
+        except Exception as cache_error:
+            logger.warning(f"Cache invalidation error after step save (non-fatal): {cache_error}")
         
         # 2. Update application to next step
         next_step_number = get_next_step(step_number)
@@ -591,6 +604,102 @@ async def get_user_applications(
 
 @app.tool()
 @mesh.tool(
+    capability="application_status_update",
+    dependencies=[
+        {"capability": "cache_invalidate"}  # User agent cache invalidation
+    ],
+    tags=["application-management"],
+    description="Update application status (QUALIFIED -> INTERVIEW_STARTED -> INTERVIEW_COMPLETED)"
+)
+async def update_application_status(
+    job_id: str,
+    user_email: str, 
+    new_status: str,
+    additional_data: Optional[Dict[str, Any]] = None,
+    cache_invalidate: McpMeshAgent = None
+) -> Dict[str, Any]:
+    """
+    Update application status for interview workflow.
+    
+    Args:
+        job_id: Job identifier
+        user_email: User's email address  
+        new_status: New application status (INTERVIEW_STARTED, INTERVIEW_COMPLETED, etc.)
+        additional_data: Optional additional metadata to store
+        
+    Returns:
+        Dictionary with success status and updated application data
+    """
+    try:
+        from .database import get_db_session, Application
+        
+        logger.info(f"Updating application status: user={user_email}, job={job_id}, status={new_status}")
+        
+        with get_db_session() as db:
+            # Find the application
+            application = db.query(Application).filter(
+                Application.job_id == job_id,
+                Application.user_email == user_email
+            ).first()
+            
+            if not application:
+                logger.warning(f"Application not found: user={user_email}, job={job_id}")
+                return {
+                    "success": False,
+                    "error": "Application not found",
+                    "job_id": job_id,
+                    "user_email": user_email
+                }
+            
+            # Update status and timestamp
+            old_status = application.status
+            application.status = new_status
+            application.updated_at = datetime.utcnow()
+            
+            # Store additional metadata if provided
+            if additional_data:
+                # You could add additional fields or metadata here if needed
+                logger.info(f"Additional data provided: {additional_data}")
+            
+            db.commit()
+            
+            logger.info(f"Application status updated: {old_status} -> {new_status}")
+            
+            # Invalidate user cache since application status changed
+            try:
+                if cache_invalidate:
+                    cache_result = await cache_invalidate(user_email=user_email)
+                    if cache_result.get("success"):
+                        logger.info(f"User cache invalidated for {user_email}")
+                    else:
+                        logger.warning(f"Failed to invalidate user cache: {cache_result}")
+                else:
+                    logger.warning("cache_invalidate agent not available")
+            except Exception as cache_error:
+                logger.warning(f"Cache invalidation error (non-fatal): {cache_error}")
+            
+            return {
+                "success": True,
+                "application_id": str(application.id),
+                "job_id": job_id,
+                "user_email": user_email,
+                "old_status": old_status,
+                "new_status": new_status,
+                "updated_at": application.updated_at.isoformat() + "Z"
+            }
+            
+    except Exception as e:
+        logger.error(f"Failed to update application status: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "job_id": job_id,
+            "user_email": user_email
+        }
+
+
+@app.tool()
+@mesh.tool(
     capability="health_check",
     tags=["application-management", "monitoring"],
     description="Application agent health check"
@@ -607,7 +716,8 @@ def get_agent_status() -> Dict[str, Any]:
             "application_step_save_with_next_prefill", 
             "application_get_status",
             "application_get_review_data",
-            "user_applications_get"
+            "user_applications_get",
+            "application_status_update"
         ],
         "step_handlers": [
             "personal_info",

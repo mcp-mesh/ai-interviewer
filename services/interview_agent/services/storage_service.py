@@ -143,8 +143,8 @@ class StorageService:
             with get_db_session() as db:
                 interview = db.query(Interview).filter(
                     Interview.user_email == user_email,
-                    Interview.job_id == job_id,
-                    Interview.status == "active"  # Only get active sessions
+                    Interview.job_id == job_id
+                    # REMOVED: Interview.status == "active" filter - now finds ANY interview
                 ).first()
                 
                 if interview:

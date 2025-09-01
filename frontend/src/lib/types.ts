@@ -3,7 +3,7 @@
 export interface UserApplication {
   jobId: string
   qualified: boolean
-  status?: 'STARTED' | 'APPLIED' | 'QUALIFIED' | 'INPROGRESS' | 'COMPLETED'
+  status?: 'STARTED' | 'APPLIED' | 'QUALIFIED' | 'INPROGRESS' | 'COMPLETED' | 'INTERVIEW_COMPLETED'
   interviewSession?: string
   appliedAt: string
   completedAt?: string
