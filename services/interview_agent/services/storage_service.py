@@ -82,7 +82,7 @@ class StorageService:
                     user_email=user_email,
                     role_description=role_description,
                     resume_content=resume_content,
-                    status="active",
+                    status="INPROGRESS",
                     expires_at=expires_at,
                     duration_minutes=job_duration,
                     session_metadata={
@@ -506,7 +506,7 @@ class StorageService:
                 
                 # Calculate session duration
                 duration_minutes = None
-                if interview.status == "completed":
+                if interview.status == "COMPLETED":
                     duration = interview.updated_at - interview.created_at
                     duration_minutes = duration.total_seconds() / 60
                 

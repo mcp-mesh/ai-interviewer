@@ -65,7 +65,7 @@ export default function ApplicationsPage() {
   const qualifiedApplications = applications.filter(app => app.status === 'QUALIFIED')
   const startedApplications = applications.filter(app => app.status === 'STARTED')
   const appliedApplications = applications.filter(app => app.status === 'APPLIED')
-  const completedApplications = applications.filter(app => app.status === 'COMPLETED' || app.status === 'INTERVIEW_COMPLETED')
+  const completedApplications = applications.filter(app => app.status === 'COMPLETED')
 
   const handleStartInterview = (application: ApplicationWithJob) => {
     // Update status to INPROGRESS and redirect to interview
@@ -141,7 +141,7 @@ export default function ApplicationsPage() {
 
     const job = application.job
     return (
-      <Card key={application.jobId} className="mb-4 hover:shadow-md transition-shadow border border-gray-200">
+      <Card key={application.jobId} className="mb-4 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 border border-gray-200">
         <CardContent className="p-6">
           <div className="flex justify-between items-start">
             <div className="flex-1">
@@ -246,7 +246,7 @@ export default function ApplicationsPage() {
                 renderJobCard(app, 
                   <Button 
                     onClick={() => handleContinueInterview(app)}
-                    variant="primary"
+                    variant="success"
                     size="sm"
                   >
                     Continue Interview

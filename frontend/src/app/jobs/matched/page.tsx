@@ -417,7 +417,7 @@ export default function MatchedJobsPage() {
               {loading ? (
                 // Loading state
                 Array.from({ length: 5 }, (_, i) => (
-                  <div key={i} className="bg-white border border-gray-200 rounded-xl p-6 animate-pulse">
+                  <div key={i} className="bg-white border border-gray-200 rounded-xl p-6 animate-pulse shadow-sm">
                     <div className="h-6 bg-gray-200 rounded mb-3"></div>
                     <div className="h-4 bg-gray-200 rounded mb-2 w-2/3"></div>
                     <div className="h-16 bg-gray-200 rounded"></div>
@@ -425,7 +425,7 @@ export default function MatchedJobsPage() {
                 ))
               ) : filteredJobs.length > 0 ? (
                 filteredJobs.map((job) => (
-                  <div key={job.id} className="bg-white border border-gray-200 rounded-xl p-6">
+                  <div key={job.id} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200">
                     <Link href={`/jobs/${job.id}`}>
                       <h3 className="text-lg font-semibold text-red-600 hover:text-red-700 cursor-pointer underline mb-3">
                         {job.title}
@@ -453,7 +453,7 @@ export default function MatchedJobsPage() {
                 ))
               ) : (
                 // No results
-                <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
+                <div className="bg-white border border-gray-200 rounded-xl p-12 text-center shadow-sm">
                   <Search className="w-16 h-16 mb-4 mx-auto text-gray-400" />
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">No jobs found</h3>
                   <p className="text-gray-600 mb-6">

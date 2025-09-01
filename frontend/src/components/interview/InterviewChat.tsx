@@ -33,17 +33,14 @@ export function InterviewChat({
   const [isProcessing, setIsProcessing] = useState(false)
   const [isCompleted, setIsCompleted] = useState(false)
   const [isEndingInterview, setIsEndingInterview] = useState(false)
-  const [timeRemaining, setTimeRemaining] = useState(300) // Default 5 minutes, will be updated
+  const [isLoadingInterview, setIsLoadingInterview] = useState(true) // New loading state
+  const [timeRemaining, setTimeRemaining] = useState(0) // No default value
   const [sessionId, setSessionId] = useState<string | null>(initialSessionId || null)
   const [sessionInfo, setSessionInfo] = useState<{
     questions_asked: number
     questions_answered: number
     time_remaining_seconds: number
-  }>({
-    questions_asked: 1,
-    questions_answered: 0,
-    time_remaining_seconds: 300
-  })
+  } | null>(null) // Start as null instead of default values
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -146,14 +143,14 @@ export function InterviewChat({
       
       setMessages(historyMessages)
       
-      // Update session info and timing
+      // Update session info and timing with actual data
       setSessionInfo({
-        questions_asked: data.session_info?.questions_asked || 1,
+        questions_asked: data.session_info?.questions_asked || 0,
         questions_answered: data.session_info?.questions_answered || 0,
-        time_remaining_seconds: data.session_info?.time_remaining_seconds || 300
+        time_remaining_seconds: data.session_info?.time_remaining_seconds || 0
       })
       
-      setTimeRemaining(data.session_info?.time_remaining_seconds || 300)
+      setTimeRemaining(data.session_info?.time_remaining_seconds || 0)
       
       // Check if interview is already completed
       if (data.status !== 'active') {
@@ -165,9 +162,13 @@ export function InterviewChat({
         }
       }
       
+      // Set loading to false only after we have real data
+      setIsLoadingInterview(false)
+      
     } catch (error) {
       console.error('Error loading interview state:', error)
       onError?.('Failed to load interview state. Please try again.')
+      setIsLoadingInterview(false) // Also clear loading on error
     } finally {
       isLoadingRef.current = false
     }
@@ -402,22 +403,33 @@ export function InterviewChat({
       {/* Main Content Area - Fixed Sidebar + Scrollable Chat */}
       <div className="flex-1 flex">
         
-        {/* Left Sidebar - Fixed Position */}
-        <div className="w-80 flex-shrink-0 sticky top-16 self-start">
-          <InterviewSidebar
-            job={job}
-            user={user}
-            timeRemaining={timeRemaining}
-            questionsAsked={sessionInfo.questions_asked}
-            questionsAnswered={sessionInfo.questions_answered}
-            isEndingInterview={isEndingInterview}
-            isSecurityEnabled={isSecurityEnabled}
-            onEndInterview={handleEndInterview}
-            onTimeUpdate={setTimeRemaining}
-            onTimeExpired={handleTimeExpired}
-            className="h-[calc(100vh-4rem)] overflow-y-auto"
-          />
-        </div>
+        {/* Show loading state until we have real interview data */}
+        {isLoadingInterview ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Starting Your Interview</h3>
+              <p className="text-gray-600">Generating your first question...</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Left Sidebar - Fixed Position */}
+            <div className="w-80 flex-shrink-0 sticky top-16 self-start">
+              <InterviewSidebar
+                job={job}
+                user={user}
+                timeRemaining={timeRemaining}
+                questionsAsked={sessionInfo?.questions_asked || 0}
+                questionsAnswered={sessionInfo?.questions_answered || 0}
+                isEndingInterview={isEndingInterview}
+                isSecurityEnabled={isSecurityEnabled}
+                onEndInterview={handleEndInterview}
+                onTimeUpdate={setTimeRemaining}
+                onTimeExpired={handleTimeExpired}
+                className="h-[calc(100vh-4rem)] overflow-y-auto"
+              />
+            </div>
 
         {/* Main Chat Area - Scrollable */}
         <div className="flex-1 flex flex-col min-h-0">
@@ -469,6 +481,8 @@ export function InterviewChat({
           )}
           
         </div>
+        </>
+      )}
       </div>
 
       {/* Security Monitor */}

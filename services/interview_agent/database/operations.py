@@ -349,7 +349,7 @@ def create_interview_evaluation(
     if interview:
         interview.final_score = evaluation_data["overall_score"]
         interview.evaluation_completed = True
-        interview.status = "completed"
+        interview.status = "COMPLETED"
         db.commit()
     
     return evaluation

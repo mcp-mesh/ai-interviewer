@@ -569,7 +569,7 @@ async def conduct_interview(
         if isinstance(result, dict):
             # Ensure we have a success field for legacy compatibility
             if "success" not in result:
-                result["success"] = result.get("status") == "active" or result.get("status") == "completed"
+                result["success"] = result.get("status") == "INPROGRESS" or result.get("status") == "COMPLETED"
             
             # Legacy response format compatibility
             if "question" in result and isinstance(result["question"], dict):
@@ -694,12 +694,12 @@ async def end_interview_session(
         
         # Update interview status in PostgreSQL
         status_mapping = {
-            "ended_manually": "completed",
-            "user_requested": "completed", 
-            "time_expired": "completed",
-            "abandoned": "abandoned"
+            "ended_manually": "COMPLETED",
+            "user_requested": "COMPLETED", 
+            "time_expired": "COMPLETED",
+            "abandoned": "ABANDONED"
         }
-        new_status = status_mapping.get(reason, "completed")
+        new_status = status_mapping.get(reason, "COMPLETED")
         
         success = await storage_service.update_interview_status(
             session_id=session_id,
@@ -718,7 +718,7 @@ async def end_interview_session(
             }
         
         # Update application status in application agent
-        application_status = "INTERVIEW_COMPLETED"  # Default status for all manual ends
+        application_status = "COMPLETED"  # Default status for all manual ends
         if reason == "abandoned":
             application_status = "DECISION_PENDING"  # For abandoned interviews
         
@@ -865,7 +865,7 @@ async def finalize_interview(session_id: str, llm_service: McpAgent = None) -> D
         
         # Check if already completed
         current_status = session_data.get("status")
-        if current_status == "completed":
+        if current_status == "COMPLETED":
             return {
                 "success": True,
                 "session_id": session_id,
@@ -979,7 +979,7 @@ async def get_current_interview_state(
         logger.info(f"Found existing interview: session_id={existing.session_id}, status={existing.status}")
         
         # Apply business rules based on existing interview status
-        if existing.status == "active":
+        if existing.status == "INPROGRESS":
             if _is_expired(existing):
                 logger.info("Interview expired, terminating")
                 await storage_service.update_interview_status(
@@ -1088,34 +1088,47 @@ async def _create_new_interview(job_id: str, user_email: str, job_details_get: M
                 # Re-raise other database errors
                 raise e
         
-        # Update application status to INTERVIEW_STARTED
+        # Update application status to INPROGRESS
         try:
             status_result = await application_status_update(
                 job_id=job_id,
                 user_email=user_email,
-                new_status="INTERVIEW_STARTED"
+                new_status="INPROGRESS"
             )
             if status_result.get("success"):
-                logger.info(f"Application status updated to INTERVIEW_STARTED: {status_result}")
+                logger.info(f"Application status updated to INPROGRESS: {status_result}")
             else:
                 logger.warning(f"Failed to update application status: {status_result}")
         except Exception as e:
-            logger.error(f"Error updating application status to INTERVIEW_STARTED: {e}")
+            logger.error(f"Error updating application status to INPROGRESS: {e}")
         
         # Generate first question using interview conductor
+        logger.info(f"Starting interview question generation for session {session_id}")
         dependencies = {
             "process_with_tools": process_with_tools,  # LLM service for generating questions
             "job_details_get": job_details_get,
             "user_applications_get": user_applications_get,
             "application_status_update": application_status_update
         }
-        first_question = await interview_conductor.conduct_interview(
-            session_id=session_id,
-            job_id=job_id,
-            user_email=user_email,
-            application_id=f"app_{session_id[:8]}",
-            dependencies=dependencies
-        )
+        
+        try:
+            first_question = await interview_conductor.conduct_interview(
+                session_id=session_id,
+                job_id=job_id,
+                user_email=user_email,
+                application_id=f"app_{session_id[:8]}",
+                dependencies=dependencies
+            )
+            
+            # Validate question data is complete
+            if not first_question or not first_question.get("question", {}).get("text"):
+                raise Exception(f"Question generation failed - no question text returned")
+                
+            logger.info(f"First question generated successfully for session {session_id}")
+            
+        except Exception as question_error:
+            logger.error(f"Failed to generate first question for session {session_id}: {question_error}")
+            raise Exception(f"Interview start failed: Unable to generate first question - {str(question_error)}")
         
         # Calculate time remaining
         duration_minutes = job_data.get("interview_duration_minutes", 60)
@@ -1125,8 +1138,13 @@ async def _create_new_interview(job_id: str, user_email: str, job_details_get: M
             "success": True,
             "status": "active",
             "session_id": session_id,
-            "current_question": first_question.get("question_text"),
-            "question_metadata": first_question.get("question_metadata", {}),
+            "current_question": first_question.get("question", {}).get("text"),
+            "question_metadata": {
+                "type": first_question.get("question", {}).get("type"),
+                "difficulty": first_question.get("question", {}).get("difficulty"),
+                "focus_area": first_question.get("question", {}).get("focus_area"),
+                "question_number": first_question.get("question", {}).get("number")
+            },
             "conversation_history": [],
             "session_info": {
                 "questions_asked": 1,

@@ -23,13 +23,10 @@ logger = logging.getLogger(__name__)
 # Application Status Enum
 class ApplicationStatus(Enum):
     STARTED = "STARTED"
-    COMPLETED = "COMPLETED"
-    SUBMITTED = "SUBMITTED"
-    QUALIFIED = "QUALIFIED"
-    INTERVIEW_STARTED = "INTERVIEW_STARTED"
-    INTERVIEW_COMPLETED = "INTERVIEW_COMPLETED" 
+    APPLIED = "APPLIED"
+    QUALIFIED = "QUALIFIED" 
     INPROGRESS = "INPROGRESS"  # For active interviews
-    DECISION_PENDING = "DECISION_PENDING"
+    COMPLETED = "COMPLETED"
 
 # Database Configuration
 DATABASE_URL = os.getenv(

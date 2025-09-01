@@ -48,8 +48,8 @@ export function InterviewSidebar({
   
   const progressPercentage = questionsAsked > 0 ? (questionsAnswered / questionsAsked) * 100 : 0
   
-  // Calculate time percentage (assuming 60 minutes default)
-  const totalMinutes = 75 // This should come from job.interview_duration_minutes || 60
+  // Calculate time percentage using job's interview duration
+  const totalMinutes = job.interview_duration_minutes || 60 // Use job duration or default to 60
   const timePercentage = Math.max(0, (timeRemaining / (totalMinutes * 60)) * 100)
   
   const getTimeStatus = () => {

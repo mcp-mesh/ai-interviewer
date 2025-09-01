@@ -170,6 +170,20 @@ export default function JobDetailPage({ params }: JobDetailProps) {
           currentStep: currentStep || 1,
           prefillData: prefillData || null
         }))
+        
+        // Refresh user profile to get updated applications list with new STARTED status
+        try {
+          const { userApi } = await import('@/lib/api')
+          const userResult = await userApi.getProfile()
+          if (userResult.data) {
+            localStorage.setItem('user', JSON.stringify(userResult.data))
+            console.log('User profile refreshed after starting application')
+          }
+        } catch (profileError) {
+          console.error('Failed to refresh user profile:', profileError)
+          // Don't block the flow if profile refresh fails
+        }
+        
         router.push(`/apply/${job.id}`)
       }
     } catch (error) {
@@ -221,6 +235,19 @@ export default function JobDetailPage({ params }: JobDetailProps) {
           currentStep: currentStep || 1,
           prefillData: prefillData || null
         }))
+        
+        // Refresh user profile to get updated applications list with new STARTED status
+        try {
+          const { userApi } = await import('@/lib/api')
+          const userResult = await userApi.getProfile()
+          if (userResult.data) {
+            localStorage.setItem('user', JSON.stringify(userResult.data))
+            console.log('User profile refreshed after starting application')
+          }
+        } catch (profileError) {
+          console.error('Failed to refresh user profile:', profileError)
+          // Don't block the flow if profile refresh fails
+        }
         
         console.log('Application started:', { applicationId, currentStep, hasPrefillData: !!prefillData })
         router.push(`/apply/${job.id}`)

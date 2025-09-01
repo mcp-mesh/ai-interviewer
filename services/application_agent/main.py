@@ -67,7 +67,8 @@ logger.info("✅ Application Agent ready with modular step processing")
     capability="application_start_with_prefill",
     dependencies=[
         {"capability": "get_detailed_resume_analysis"},
-        {"capability": "job_details_get"}
+        {"capability": "job_details_get"},
+        {"capability": "cache_invalidate"}
     ],
     tags=["application-management", "step-specific-llm", "intelligent-autofill"],
     description="Start application with smart resume logic - returns target step with prefill data"
@@ -76,19 +77,22 @@ async def application_start_with_prefill(
     job_id: str,
     user_email: str,
     get_detailed_resume_analysis: McpMeshAgent = None,
-    job_agent: McpMeshAgent = None
+    job_agent: McpMeshAgent = None,
+    cache_invalidate: McpMeshAgent = None
 ) -> Dict[str, Any]:
     """
     Start application with smart resume logic:
     - Check for existing application (implements user's resume feature)
     - Return target step based on current progress
     - Generate prefill data for target step using appropriate handler
+    - Invalidate user cache when new application is created
     
     Args:
         job_id: Job ID to apply for
         user_email: User's email address
         get_detailed_resume_analysis: MCP Mesh agent for detailed analysis retrieval
         job_agent: MCP Mesh agent for job operations
+        cache_invalidate: MCP Mesh agent for cache invalidation
         
     Returns:
         Dict with application details and target step prefill data
@@ -99,6 +103,20 @@ async def application_start_with_prefill(
         # 1. Get or create application (implements smart resume logic)
         application = await get_or_create_application(user_email, job_id)
         target_step_str = application["step"]
+        
+        # Invalidate user cache after creating/retrieving application
+        # This ensures user profile will show the new application
+        try:
+            if cache_invalidate:
+                cache_result = await cache_invalidate(user_email=user_email)
+                if cache_result.get("success"):
+                    logger.info(f"User cache invalidated after application start")
+                else:
+                    logger.warning(f"Failed to invalidate user cache: {cache_result}")
+            else:
+                logger.warning("cache_invalidate agent not available")
+        except Exception as cache_error:
+            logger.warning(f"Cache invalidation error (non-fatal): {cache_error}")
         
         # Convert step string to integer for handler (STEP_1 -> 1)
         target_step = int(target_step_str.replace("STEP_", ""))
@@ -624,7 +642,7 @@ async def update_application_status(
     Args:
         job_id: Job identifier
         user_email: User's email address  
-        new_status: New application status (INTERVIEW_STARTED, INTERVIEW_COMPLETED, etc.)
+        new_status: New application status (STARTED, APPLIED, QUALIFIED, INPROGRESS, COMPLETED)
         additional_data: Optional additional metadata to store
         
     Returns:
@@ -632,6 +650,14 @@ async def update_application_status(
     """
     try:
         from .database import get_db_session, Application
+        
+        # Validate status
+        valid_statuses = {"STARTED", "APPLIED", "QUALIFIED", "INPROGRESS", "COMPLETED"}
+        if new_status not in valid_statuses:
+            return {
+                "success": False,
+                "error": f"Invalid status '{new_status}'. Must be one of: {', '.join(sorted(valid_statuses))}"
+            }
         
         logger.info(f"Updating application status: user={user_email}, job={job_id}, status={new_status}")
         

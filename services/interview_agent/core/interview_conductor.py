@@ -176,13 +176,13 @@ class InterviewConductor:
                 resume_data=resume_data
             )
             
-            # Update application status to INTERVIEW_STARTED
+            # Update application status to INPROGRESS
             try:
                 await dependency_service.update_application_status(
                     application_id=application_id,
-                    new_status="INTERVIEW_STARTED"
+                    new_status="INPROGRESS"
                 )
-                self.logger.info(f"Updated application {application_id} status to INTERVIEW_STARTED")
+                self.logger.info(f"Updated application {application_id} status to INPROGRESS")
             except Exception as e:
                 self.logger.warning(f"Failed to update application status: {e}")
                 # Don't fail the interview start for status update failure
@@ -298,14 +298,14 @@ class InterviewConductor:
                         metadata_updates={"expired_at": current_time.isoformat()}
                     )
                     
-                    # Update application status to INTERVIEW_COMPLETED
+                    # Update application status to COMPLETED
                     try:
                         metadata = interview.session_metadata or {}
                         application_id = metadata.get("application_id")
                         if application_id:
                             await dependency_service.update_application_status(
                                 application_id=application_id,
-                                new_status="INTERVIEW_COMPLETED"
+                                new_status="COMPLETED"
                             )
                     except Exception as e:
                         self.logger.warning(f"Failed to update application status for expired session: {e}")
@@ -316,7 +316,7 @@ class InterviewConductor:
                     
                     raise Exception(f"Interview session has ended due to timeout. The session expired {expired_minutes} minutes ago.")
             
-            if session_context["status"] != "active":
+            if session_context["status"] != "INPROGRESS":
                 raise Exception(f"Interview session {session_id} is not active (status: {session_context['status']})")
             
             # Handle user actions
@@ -822,14 +822,14 @@ class InterviewConductor:
                 final_evaluation=evaluation_result
             )
             
-            # Update application status to INTERVIEW_COMPLETED
+            # Update application status to COMPLETED
             try:
                 application_id = session_context["application_id"]
                 await dependency_service.update_application_status(
                     application_id=application_id,
-                    new_status="INTERVIEW_COMPLETED"
+                    new_status="COMPLETED"
                 )
-                self.logger.info(f"Updated application {application_id} status to INTERVIEW_COMPLETED")
+                self.logger.info(f"Updated application {application_id} status to COMPLETED")
             except Exception as e:
                 self.logger.warning(f"Failed to update application status: {e}")
             
@@ -954,7 +954,7 @@ class InterviewConductor:
                 application_id = session_context["application_id"]
                 await dependency_service.update_application_status(
                     application_id=application_id,
-                    new_status="INTERVIEW_COMPLETED"  # Still completed, just with poor outcome
+                    new_status="COMPLETED"  # Still completed, just with poor outcome
                 )
                 self.logger.info(f"Updated application {application_id} status after violation termination")
             except Exception as e:
@@ -1038,14 +1038,14 @@ class InterviewConductor:
                 final_evaluation=evaluation_result
             )
             
-            # Update application status to INTERVIEW_COMPLETED
+            # Update application status to COMPLETED
             try:
                 application_id = session_context["application_id"]
                 await dependency_service.update_application_status(
                     application_id=application_id,
-                    new_status="INTERVIEW_COMPLETED"
+                    new_status="COMPLETED"
                 )
-                self.logger.info(f"Updated application {application_id} status to INTERVIEW_COMPLETED")
+                self.logger.info(f"Updated application {application_id} status to COMPLETED")
             except Exception as e:
                 self.logger.warning(f"Failed to update application status: {e}")
             
@@ -1164,7 +1164,7 @@ class InterviewConductor:
             
             self.logger.info(f"_find_existing_session result: interview={'found' if interview else 'not found'}")
             
-            if interview and interview.status == "active":
+            if interview and interview.status == "INPROGRESS":
                 try:
                     # Check if the session has expired
                     from datetime import datetime, timezone
@@ -1184,14 +1184,14 @@ class InterviewConductor:
                             metadata_updates={"expired_at": current_time.isoformat()}
                         )
                         
-                        # Update application status to INTERVIEW_COMPLETED
+                        # Update application status to COMPLETED
                         try:
                             metadata = interview.session_metadata or {}
                             application_id = metadata.get("application_id")
                             if application_id:
                                 await dependency_service.update_application_status(
                                     application_id=application_id,
-                                    new_status="INTERVIEW_COMPLETED"
+                                    new_status="COMPLETED"
                                 )
                         except Exception as e:
                             self.logger.warning(f"Failed to update application status for expired session: {e}")
@@ -1257,14 +1257,14 @@ class InterviewConductor:
                         metadata_updates={"expired_at": current_time.isoformat()}
                     )
                     
-                    # Update application status to INTERVIEW_COMPLETED
+                    # Update application status to COMPLETED
                     try:
                         metadata = interview.session_metadata or {}
                         application_id = metadata.get("application_id")
                         if application_id:
                             await dependency_service.update_application_status(
                                 application_id=application_id,
-                                new_status="INTERVIEW_COMPLETED"
+                                new_status="COMPLETED"
                             )
                     except Exception as e:
                         self.logger.warning(f"Failed to update application status for expired session: {e}")
@@ -1299,7 +1299,7 @@ class InterviewConductor:
                 phase = "questioning"
             else:
                 # All questions answered - interview is complete or needs evaluation
-                status = "completed" 
+                status = "COMPLETED" 
                 phase = "evaluation"
                 current_question = None
             
