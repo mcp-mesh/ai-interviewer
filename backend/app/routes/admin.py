@@ -238,6 +238,12 @@ async def create_admin_job(
             create_params["company"] = job_create.company
         if job_create.location:
             create_params["location"] = job_create.location
+        if job_create.city:
+            create_params["city"] = job_create.city
+        if job_create.state:
+            create_params["state"] = job_create.state
+        if job_create.country:
+            create_params["country"] = job_create.country
         if job_create.job_type:
             create_params["job_type"] = job_create.job_type
         if job_create.category:
@@ -322,6 +328,12 @@ async def update_admin_job(
             update_params["company"] = job_update.company
         if job_update.location is not None:
             update_params["location"] = job_update.location
+        if job_update.city is not None:
+            update_params["city"] = job_update.city
+        if job_update.state is not None:
+            update_params["state"] = job_update.state
+        if job_update.country is not None:
+            update_params["country"] = job_update.country
         if job_update.job_type is not None:
             update_params["job_type"] = job_update.job_type
         if job_update.category is not None:

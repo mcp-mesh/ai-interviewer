@@ -330,7 +330,7 @@ export default function ApplicationsPage() {
               {completedApplications.map(app => 
                 renderJobCard(app, 
                   <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                    {app.status === 'INTERVIEW_COMPLETED' ? 'Interview Completed' : 'Completed'}
+                    Completed
                   </span>
                 )
               )}

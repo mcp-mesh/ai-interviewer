@@ -217,6 +217,7 @@ class UserData(BaseModel):
     last_name: Optional[str] = None
     hasResume: bool = False
     isApplicationsAvailable: bool = True
+    detailedAnalysisCompleted: Optional[bool] = False
     profile: UserProfile
     preferences: Optional[UserPreferences] = None
     resume_analysis: Optional[ResumeAnalysis] = None
@@ -511,6 +512,9 @@ class AdminJobCreate(BaseModel):
     duration: int = 60  # interview duration in minutes
     company: Optional[str] = None
     location: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
     job_type: Optional[str] = "Full-time"
     category: Optional[str] = None
     experience_level: Optional[str] = None
@@ -537,6 +541,9 @@ class AdminJobUpdate(BaseModel):
     duration: Optional[int] = None
     company: Optional[str] = None
     location: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
     job_type: Optional[str] = None
     category: Optional[str] = None
     experience_level: Optional[str] = None

@@ -69,11 +69,11 @@ export function SecurityMonitor({
   // Security measures to prevent cheating during interview
   useEffect(() => {
     if (!isEnabled) {
-      console.log('🔓 Security features disabled')
+      console.log('🔓 Security features disabled - development mode')
       return
     }
 
-    console.log('🔒 Security features enabled')
+    console.log('🔒 Security features enabled - production mode')
 
     // Disable right-click context menu
     const handleContextMenu = (e: Event) => {
@@ -126,11 +126,11 @@ export function SecurityMonitor({
   // Focus monitoring to detect tab switching or window changes
   useEffect(() => {
     if (!isEnabled) {
-      console.log('🔓 Focus monitoring disabled')
+      console.log('🔓 Focus monitoring disabled - development mode')
       return
     }
 
-    console.log('🔒 Focus monitoring enabled')
+    console.log('🔒 Focus monitoring enabled - production mode')
 
     const handleVisibilityChange = () => {
       if (document.hidden && !isCompleted && !isEndingInterview) {

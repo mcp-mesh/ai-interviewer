@@ -226,6 +226,9 @@ def build_frontend_user_profile(db_user: User) -> Dict[str, Any]:
         "availableJobs": 0,
         "matchedJobs": 0,
         
+        # Detailed analysis completion flag for UI messaging
+        "detailedAnalysisCompleted": structured_analysis.get("detailed_analysis_completed", False),
+        
         # Enhanced profile structure with resume data
         "profile": {
             "skills": structured_analysis.get("tags", []),
@@ -734,7 +737,7 @@ def update_detailed_resume_analysis(
             
             # Invalidate cache since resume data changed
             try:
-                invalidate_user_cache(user_email)
+                UserCache.delete(user_email)
                 logger.info(f"Cache invalidated for user {user_email}")
             except Exception as cache_error:
                 logger.warning(f"Cache invalidation failed for {user_email}: {cache_error}")

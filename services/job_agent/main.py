@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 import mesh
 from fastmcp import FastMCP
-from mesh.types import McpAgent
+from mesh.types import McpAgent, McpMeshAgent
 from .database import (
     Job, get_db_session, create_tables, insert_sample_data, test_connection
 )
@@ -166,12 +166,16 @@ async def _search_jobs_with_filters(
 @mesh.tool(
     capability="jobs_all_listing",
     tags=["job-management", "listing", "search"],
-    description="List all available jobs with optional filtering and pagination"
+    description="List all available jobs with optional filtering and pagination",
+    dependencies=[
+        {"capability": "get_job_interviews"}  # interview_agent
+    ]
 )
 async def jobs_all_listing(
     filters: Optional[Dict[str, Any]] = None,
     page: int = 1,
-    limit: int = 20
+    limit: int = 20,
+    get_job_interviews: McpMeshAgent = None
 ) -> Dict[str, Any]:
     """
     List all jobs with optional filtering.
@@ -180,9 +184,10 @@ async def jobs_all_listing(
         filters: Optional filters (category, location, experience_level, job_type)
         page: Page number for pagination (1-based)
         limit: Number of jobs per page
+        get_job_interviews: Interview agent function (auto-injected by MCP Mesh)
         
     Returns:
-        Dict with jobs list, total count, and pagination info
+        Dict with jobs list, total count, and pagination info with interview statistics
     """
     # Convert legacy filter format to new format
     parsed_filters = {}
@@ -192,8 +197,34 @@ async def jobs_all_listing(
                 # Convert single values to arrays for consistency
                 parsed_filters[key] = [value] if isinstance(value, str) else value
     
-    # Delegate to internal filtering function
-    return await _search_jobs_with_filters(parsed_filters, page, limit)
+    # Get jobs from internal filtering function
+    result = await _search_jobs_with_filters(parsed_filters, page, limit)
+    
+    # Enhance jobs with interview statistics if interview agent is available
+    if get_job_interviews and result.get("jobs"):
+        logger.info(f"Enhancing {len(result['jobs'])} jobs with interview statistics")
+        
+        for job in result["jobs"]:
+            try:
+                # Get interview statistics for this job
+                interview_stats = await get_job_interviews(job_id=job["id"])
+                
+                if interview_stats and interview_stats.get("success"):
+                    statistics = interview_stats.get("statistics", {})
+                    # Update interview counts with real data
+                    job["interview_count"] = statistics.get("total_interviews", 0)
+                    job["active_interviews"] = 0  # Only completed interviews are returned by get_job_interviews
+                    
+                    logger.debug(f"Updated job {job['id']}: interview_count={job['interview_count']}")
+                else:
+                    logger.debug(f"No interview data found for job {job['id']}")
+                    
+            except Exception as e:
+                logger.warning(f"Failed to get interview stats for job {job['id']}: {e}")
+                # Keep default values if interview agent call fails
+                pass
+    
+    return result
 
 
 @app.tool()
@@ -520,7 +551,10 @@ async def jobs_search(
 @mesh.tool(
     capability="job_create",
     tags=["job-management", "create", "admin"],
-    description="Create a new job posting"
+    description="Create a new job posting with auto-generated content enhancement",
+    dependencies=[
+        {"capability": "process_with_tools", "tags": ["+openai"]}  # LLM service for content generation
+    ]
 )
 async def job_create(
     title: str,
@@ -530,57 +564,174 @@ async def job_create(
     company: str = "S. Corp",
     location: str = "Remote",
     city: str = "Remote",
+    state: str = None,
     country: str = "United States of America",
     job_type: str = "Full-time",
     category: str = "Engineering",
-    created_by: str = None
+    experience_level: str = None,
+    remote: bool = False,
+    requirements: List[str] = None,
+    benefits: List[str] = None,
+    salary_min: int = None,
+    salary_max: int = None,
+    salary_currency: str = "USD",
+    created_by: str = None,
+    llm_service: McpAgent = None
 ) -> Dict[str, Any]:
     """
-    Create a new job posting with admin fields.
+    Create a new job posting with enhanced manual input fields.
+    Auto-generates short_description and skills_required via LLM.
     
     Args:
         title: Job title
-        description: Job description
+        description: Full job description (markdown)
         status: Job status (open, closed, on_hold)
         interview_duration_minutes: Interview duration in minutes
         company: Company name (defaults to S. Corp)
         location: Job location display text
         city: City name
+        state: State/province name (optional)
         country: Country name
         job_type: Type of job (Full-time, Part-time, Contract, Internship)
         category: Job category (Engineering, Operations, Finance, Marketing, Sales, Other)
+        experience_level: Experience level (Entry, Mid, Senior, Executive)
+        remote: Whether job is remote-eligible
+        requirements: List of job requirements
+        benefits: List of job benefits
+        salary_min: Minimum salary (optional)
+        salary_max: Maximum salary (optional)
+        salary_currency: Salary currency (default USD)
         created_by: Admin user who created the job
         
     Returns:
-        Dict with created job data or error
+        Dict with created job data (including LLM-generated fields) or error
     """
     try:
         logger.info(f"Creating new job: {title}")
         
         with get_db_session() as db:
-            # Create new job instance
+            # Create new job instance with all manual input fields
             new_job = Job(
                 title=title,
                 company=company,
                 location=location,
                 city=city,
-                state=None,  # Will be populated if needed
+                state=state,
                 country=country,
                 job_type=job_type,
                 category=category,
-                remote=city.lower() == "remote",
+                experience_level=experience_level,
+                remote=remote,
                 description=description,
-                short_description=description[:500] if len(description) > 500 else description,
+                # LLM will populate these fields later:
+                short_description=None,
+                skills_required=None,
+                # Arrays from manual input
+                requirements=requirements or [],
+                benefits=benefits or [],
+                # Salary information
+                salary_min=salary_min,
+                salary_max=salary_max,
+                salary_currency=salary_currency,
+                # Interview and status
                 interview_duration_minutes=interview_duration_minutes,
                 status=status,
                 created_by=created_by,
                 is_active=status == "open"
             )
             
-            # Add to database
+            # Add to database first
             db.add(new_job)
             db.commit()
             db.refresh(new_job)
+            
+            # Generate enhanced content via LLM if available
+            if llm_service:
+                try:
+                    logger.info(f"Generating enhanced content for job: {new_job.title}")
+                    
+                    # Build system prompt for job content generation
+                    system_prompt = """You are an expert job content analyzer. Given a job title, description, and requirements, you will:
+
+1. Create a concise summary (short_description) under 100 words that captures the key role responsibilities and appeal
+2. Extract and identify relevant technical skills as a comma-separated list (skills_required)
+
+Focus on:
+- Technical skills, frameworks, tools, and technologies mentioned
+- Programming languages and platforms
+- Industry-specific expertise and certifications
+- Relevant software and methodologies
+
+Be precise and avoid generic soft skills. Extract only skills that are specifically mentioned or directly implied by the job content."""
+
+                    # Prepare job content for analysis
+                    job_content = f"""Job Title: {title}
+
+Job Description:
+{description}
+
+Requirements:
+{chr(10).join(['- ' + req for req in (requirements or [])])}"""
+
+                    # Define tool schema for structured output
+                    content_generation_tool = {
+                        "name": "generate_job_content",
+                        "description": "Generate enhanced job content with short description and skills",
+                        "input_schema": {
+                            "type": "object",
+                            "properties": {
+                                "short_description": {
+                                    "type": "string",
+                                    "description": "Concise 1-2 sentence summary under 100 words highlighting key responsibilities and appeal"
+                                },
+                                "skills_required": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "List of specific technical skills, tools, frameworks, and technologies"
+                                }
+                            },
+                            "required": ["short_description", "skills_required"]
+                        }
+                    }
+                    
+                    # Call LLM service with structured output
+                    llm_result = await llm_service(
+                        text="Generate enhanced content for this job posting using the tool.",
+                        system_prompt=system_prompt,
+                        messages=[{"role": "user", "content": job_content}],
+                        tools=[content_generation_tool],
+                        force_tool_use=True,
+                        temperature=0.3
+                    )
+                    
+                    # Process LLM response
+                    if llm_result.get("success") and llm_result.get("tool_calls"):
+                        tool_calls = llm_result.get("tool_calls", [])
+                        if len(tool_calls) > 0:
+                            try:
+                                content = tool_calls[0]["parameters"]
+                                
+                                # Update job with LLM-generated fields
+                                new_job.short_description = content.get("short_description")
+                                new_job.skills_required = content.get("skills_required", [])
+                                
+                                db.commit()
+                                db.refresh(new_job)
+                                
+                                logger.info(f"Enhanced content generated for job: {new_job.id}")
+                                logger.debug(f"Generated short_description: {new_job.short_description}")
+                                logger.debug(f"Generated skills_required: {new_job.skills_required}")
+                            except (KeyError, IndexError) as e:
+                                logger.error(f"Failed to extract content parameters: {e}")
+                        else:
+                            logger.warning(f"No tool calls in LLM response for job: {new_job.id}")
+                    else:
+                        logger.warning(f"LLM content generation failed for job: {new_job.id}")
+                        logger.debug(f"LLM response: {llm_result}")
+                        
+                except Exception as llm_error:
+                    logger.warning(f"LLM content generation error: {str(llm_error)}")
+                    # Continue without LLM enhancement
             
             # Convert to dict for response
             job_dict = new_job.to_dict()
@@ -604,7 +755,10 @@ async def job_create(
 @mesh.tool(
     capability="job_update",
     tags=["job-management", "update", "admin"],
-    description="Update an existing job posting"
+    description="Update an existing job posting with auto-regenerated content",
+    dependencies=[
+        {"capability": "process_with_tools", "tags": ["+openai"]}  # LLM service for content generation
+    ]
 )
 async def job_update(
     job_id: str,
@@ -615,13 +769,23 @@ async def job_update(
     company: str = None,
     location: str = None,
     city: str = None,
+    state: str = None,
     country: str = None,
     job_type: str = None,
     category: str = None,
-    updated_by: str = None
+    experience_level: str = None,
+    remote: bool = None,
+    requirements: List[str] = None,
+    benefits: List[str] = None,
+    salary_min: int = None,
+    salary_max: int = None,
+    salary_currency: str = None,
+    updated_by: str = None,
+    llm_service: McpAgent = None
 ) -> Dict[str, Any]:
     """
-    Update an existing job posting.
+    Update an existing job posting with enhanced fields.
+    Re-generates short_description and skills_required if content changes.
     
     Args:
         job_id: Job ID to update
@@ -632,13 +796,21 @@ async def job_update(
         company: Updated company name
         location: Updated location display text
         city: Updated city name
+        state: Updated state/province name
         country: Updated country name
         job_type: Updated job type
         category: Updated job category
+        experience_level: Updated experience level
+        remote: Updated remote eligibility
+        requirements: Updated list of job requirements
+        benefits: Updated list of job benefits
+        salary_min: Updated minimum salary
+        salary_max: Updated maximum salary
+        salary_currency: Updated salary currency
         updated_by: Admin user who updated the job
         
     Returns:
-        Dict with updated job data or error
+        Dict with updated job data (including LLM-regenerated fields if needed) or error
     """
     try:
         logger.info(f"Updating job: {job_id}")
@@ -653,12 +825,23 @@ async def job_update(
                     "error": f"Job not found: {job_id}"
                 }
             
+            # Track if content changed (for LLM regeneration)
+            content_changed = False
+            
             # Update fields if provided
             if title is not None:
                 job.title = title
+                content_changed = True
             if description is not None:
                 job.description = description
-                job.short_description = description[:500] if len(description) > 500 else description
+                content_changed = True
+                # LLM will regenerate short_description later
+                job.short_description = None
+            if requirements is not None:
+                job.requirements = requirements
+                content_changed = True
+                # LLM will regenerate skills_required later
+                job.skills_required = None
             if status is not None:
                 job.status = status
                 job.is_active = (status == "open")
@@ -670,22 +853,123 @@ async def job_update(
                 job.location = location
             if city is not None:
                 job.city = city
-                job.remote = city.lower() == "remote"
+            if state is not None:
+                job.state = state
             if country is not None:
                 job.country = country
             if job_type is not None:
                 job.job_type = job_type
             if category is not None:
                 job.category = category
+            if experience_level is not None:
+                job.experience_level = experience_level
+            if remote is not None:
+                job.remote = remote
+            if benefits is not None:
+                job.benefits = benefits
+            if salary_min is not None:
+                job.salary_min = salary_min
+            if salary_max is not None:
+                job.salary_max = salary_max
+            if salary_currency is not None:
+                job.salary_currency = salary_currency
             if updated_by is not None:
                 job.updated_by = updated_by
             
             # Update timestamp
             job.updated_at = func.now()
             
-            # Commit changes
+            # Commit changes first
             db.commit()
             db.refresh(job)
+            
+            # Regenerate enhanced content if content changed and LLM is available
+            if content_changed and llm_service:
+                try:
+                    logger.info(f"Regenerating enhanced content for updated job: {job.title}")
+                    
+                    # Use same system prompt and tool schema as job_create
+                    system_prompt = """You are an expert job content analyzer. Given a job title, description, and requirements, you will:
+
+1. Create a concise summary (short_description) under 100 words that captures the key role responsibilities and appeal
+2. Extract and identify relevant technical skills as a comma-separated list (skills_required)
+
+Focus on:
+- Technical skills, frameworks, tools, and technologies mentioned
+- Programming languages and platforms
+- Industry-specific expertise and certifications
+- Relevant software and methodologies
+
+Be precise and avoid generic soft skills. Extract only skills that are specifically mentioned or directly implied by the job content."""
+
+                    # Prepare job content for analysis
+                    job_content = f"""Job Title: {job.title}
+
+Job Description:
+{job.description}
+
+Requirements:
+{chr(10).join(['- ' + req for req in (job.requirements or [])])}"""
+
+                    # Define tool schema for structured output
+                    content_generation_tool = {
+                        "name": "generate_job_content",
+                        "description": "Generate enhanced job content with short description and skills",
+                        "input_schema": {
+                            "type": "object",
+                            "properties": {
+                                "short_description": {
+                                    "type": "string",
+                                    "description": "Concise 1-2 sentence summary under 100 words highlighting key responsibilities and appeal"
+                                },
+                                "skills_required": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "List of specific technical skills, tools, frameworks, and technologies"
+                                }
+                            },
+                            "required": ["short_description", "skills_required"]
+                        }
+                    }
+                    
+                    # Call LLM service with structured output
+                    llm_result = await llm_service(
+                        text="Generate enhanced content for this updated job posting using the tool.",
+                        system_prompt=system_prompt,
+                        messages=[{"role": "user", "content": job_content}],
+                        tools=[content_generation_tool],
+                        force_tool_use=True,
+                        temperature=0.3
+                    )
+                    
+                    # Process LLM response
+                    if llm_result.get("success") and llm_result.get("tool_calls"):
+                        tool_calls = llm_result.get("tool_calls", [])
+                        if len(tool_calls) > 0:
+                            try:
+                                content = tool_calls[0]["parameters"]
+                                
+                                # Update job with LLM-regenerated fields
+                                job.short_description = content.get("short_description")
+                                job.skills_required = content.get("skills_required", [])
+                                
+                                db.commit()
+                                db.refresh(job)
+                                
+                                logger.info(f"Enhanced content regenerated for job: {job_id}")
+                                logger.debug(f"Regenerated short_description: {job.short_description}")
+                                logger.debug(f"Regenerated skills_required: {job.skills_required}")
+                            except (KeyError, IndexError) as e:
+                                logger.error(f"Failed to extract content parameters: {e}")
+                        else:
+                            logger.warning(f"No tool calls in LLM response for job: {job_id}")
+                    else:
+                        logger.warning(f"LLM content regeneration failed for job: {job_id}")
+                        logger.debug(f"LLM response: {llm_result}")
+                        
+                except Exception as llm_error:
+                    logger.warning(f"LLM content regeneration error: {str(llm_error)}")
+                    # Continue without LLM enhancement
             
             # Convert to dict for response
             job_dict = job.to_dict()

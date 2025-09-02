@@ -17,6 +17,8 @@ export interface User {
   resumeUrl?: string
   avatar?: string
   provider?: 'google' | 'github' | 'email'
+  isAdmin?: boolean  // Admin flag for navigation and access control
+  is_admin?: boolean // Backend API field for admin status
   profile?: {
     skills: string[]
     experience_years: number

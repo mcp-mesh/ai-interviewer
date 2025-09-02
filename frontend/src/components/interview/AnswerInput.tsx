@@ -113,7 +113,17 @@ export function AnswerInput({
   return (
     <div className={cn("bg-white border-t border-gray-200 shadow-lg", className)}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="relative w-full">
+        <div className="flex items-start gap-3 w-full">
+          {/* Security Mode Indicator */}
+          <div className={`flex-shrink-0 inline-flex items-center px-2 py-1 rounded text-xs font-medium mt-3 ${
+            isSecurityEnabled 
+              ? 'bg-green-100 text-green-800' 
+              : 'bg-yellow-100 text-yellow-800'
+          }`}>
+            {isSecurityEnabled ? '🔒 Secure' : '🔓 Dev'}
+          </div>
+          
+          <div className="relative flex-1">
           <textarea
             ref={textareaRef}
             value={value}
@@ -179,6 +189,7 @@ export function AnswerInput({
           >
             <Send className="h-4 w-4" />
           </Button>
+          </div>
         </div>
         
         {/* Processing indicator */}

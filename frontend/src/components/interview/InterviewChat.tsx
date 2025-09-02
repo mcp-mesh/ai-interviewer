@@ -46,8 +46,10 @@ export function InterviewChat({
   const abortControllerRef = useRef<AbortController | null>(null)
   const isLoadingRef = useRef<boolean>(false) // Prevent duplicate API calls
 
-  // Security configuration
-  const isSecurityEnabled = process.env.NEXT_PUBLIC_SECURITY_ENABLED === 'true'
+  // Security configuration - enabled when NOT in dev mode
+  // DEV_MODE=true means security DISABLED (development)
+  // DEV_MODE=false means security ENABLED (production)
+  const isSecurityEnabled = process.env.NEXT_PUBLIC_DEV_MODE !== 'true'
 
   // Load interview state on mount
   useEffect(() => {

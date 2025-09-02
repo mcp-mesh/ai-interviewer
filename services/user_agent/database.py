@@ -210,7 +210,9 @@ class Resume(Base):
             "confidence_score": self.confidence_score,
             "profile_strength": self.profile_strength,
             "ai_provider": self.ai_provider,
-            "ai_model": self.ai_model
+            "ai_model": self.ai_model,
+            "detailed_analysis_completed": self.detailed_analysis_completed,
+            "detailed_analysis_at": self.detailed_analysis_at.isoformat() + "Z" if self.detailed_analysis_at else None
         }
 
 

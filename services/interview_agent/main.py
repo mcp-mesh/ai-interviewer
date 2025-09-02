@@ -712,7 +712,8 @@ async def end_interview_session(
             "ended_manually": "COMPLETED",
             "user_requested": "COMPLETED", 
             "time_expired": "COMPLETED",
-            "abandoned": "ABANDONED"
+            "abandoned": "COMPLETED",
+            "security_violation": "COMPLETED"
         }
         new_status = status_mapping.get(reason, "COMPLETED")
         

@@ -340,7 +340,9 @@ export default function DashboardPage() {
                 {/* AI Analysis Info */}
                 <div className="bg-white/80 rounded-lg p-4 border border-blue-100">
                   <p className="text-sm text-[#6b7280] mb-3">
-                    🤖 Your resume was automatically analyzed by AI to extract this structured information.
+                    {user?.detailedAnalysisCompleted 
+                      ? "🤖 Your resume was automatically analyzed by AI to extract this structured information."
+                      : "🤖 Your resume will be analyzed by AI to extract structured information."}
                   </p>
                   <div className="flex items-center gap-6 text-xs text-[#6b7280]">
                     <div className="flex items-center gap-2">

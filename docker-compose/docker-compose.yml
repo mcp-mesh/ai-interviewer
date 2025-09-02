@@ -57,6 +57,11 @@ services:
       - NODE_ENV=development
       - NEXT_PUBLIC_API_BASE_URL=http://fastapi:8080
       - PORT=3000
+      # Security configuration - controlled by DEV_MODE
+      # When DEV_MODE=true (development), security features are DISABLED
+      # When DEV_MODE=false (production), security features are ENABLED
+      # Note: This maps DEV_MODE to SECURITY_ENABLED with inverse logic
+      - NEXT_PUBLIC_DEV_MODE=${DEV_MODE:-false}
     networks:
       - ai-interviewer-network
     restart: unless-stopped

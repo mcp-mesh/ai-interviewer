@@ -12,7 +12,7 @@ interface NavigationProps {
   user?: User | null
   className?: string
   theme?: "dark" | "light"
-  currentPage?: "dashboard" | "jobs" | "applications" | "matched" | null
+  currentPage?: "dashboard" | "jobs" | "applications" | "matched" | "admin" | null
 }
 
 export function Navigation({ userState = "guest", user, className, theme = "dark", currentPage }: NavigationProps) {
@@ -215,6 +215,11 @@ export function Navigation({ userState = "guest", user, className, theme = "dark
                     </span>
                   </div>
                 )}
+
+                {/* Show Admin link only for admin users */}
+                {(user?.isAdmin || user?.is_admin) && (
+                  renderNavLink("/admin", "Admin", "admin")
+                )}
               </>
             )}
           </nav>
@@ -343,6 +348,12 @@ export function Navigation({ userState = "guest", user, className, theme = "dark
                       </span>
                     </div>
                   )}
+
+                  {/* Show Admin link only for admin users */}
+                  {(user?.isAdmin || user?.is_admin) && (
+                    renderMobileNavLink("/admin", "Admin", "admin")
+                  )}
+
                   <div className="pt-4 border-t border-border">
                     <Button variant="ghost" size="sm" className="w-full" onClick={handleLogout}>
                       Logout
