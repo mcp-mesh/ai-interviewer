@@ -227,6 +227,7 @@ class UserData(BaseModel):
     updatedAt: str
     profile_completed: Optional[bool] = None
     onboarding_completed: Optional[bool] = None
+    is_admin: Optional[bool] = False
 
 
 class UserProfileResponse(BaseModel):
@@ -424,3 +425,173 @@ class InterviewFinalizeResponse(BaseModel):
     session_id: str
     evaluation: InterviewEvaluation
     finalized_at: str
+
+
+# Admin-related schemas
+class AdminUserSummary(BaseModel):
+    """User summary for admin user listing"""
+    id: str
+    email: str
+    name: str
+    first_name: str
+    last_name: str
+    is_admin: bool
+    profile_completed: bool
+    has_resume: bool
+    created_at: str
+    last_active_at: Optional[str] = None
+    admin_notes: str = ""
+
+
+class AdminUsersResponse(BaseModel):
+    """Admin users listing API response"""
+    data: List[AdminUserSummary]
+    total_count: int
+    success: bool = True
+
+
+class AdminUserUpdate(BaseModel):
+    """Admin user update request"""
+    admin: Optional[bool] = None
+    blocked: Optional[bool] = None
+    notes: Optional[str] = None
+
+
+class AdminUserUpdateResponse(BaseModel):
+    """Admin user update API response"""
+    data: AdminUserSummary
+    success: bool = True
+    message: str
+
+
+class AdminJobSummary(BaseModel):
+    """Job summary for admin dashboard with admin-specific fields"""
+    id: str
+    title: str
+    company: str
+    location: str
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
+    job_type: str
+    category: str
+    experience_level: Optional[str] = None
+    remote: bool = False
+    status: str  # open, closed, on_hold
+    is_active: bool = True
+    salary_min: Optional[int] = None
+    salary_max: Optional[int] = None
+    salary_currency: str = "USD"
+    interview_duration_minutes: int = 60
+    interview_count: int = 0
+    created_by: Optional[str] = None
+    updated_by: Optional[str] = None
+    posted_date: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    # Additional computed fields for admin dashboard
+    applications_count: Optional[int] = 0
+    active_interviews: Optional[int] = 0
+
+
+class AdminJobsResponse(BaseModel):
+    """Admin jobs listing API response"""
+    data: List[AdminJobSummary]
+    total: int
+    page: int
+    limit: int
+    success: bool = True
+
+
+class AdminJobCreate(BaseModel):
+    """Admin job creation request"""
+    title: str
+    description: str
+    status: str = "open"
+    duration: int = 60  # interview duration in minutes
+    company: Optional[str] = None
+    location: Optional[str] = None
+    job_type: Optional[str] = "Full-time"
+    category: Optional[str] = None
+    experience_level: Optional[str] = None
+    requirements: Optional[List[str]] = []
+    benefits: Optional[List[str]] = []
+    salary_min: Optional[int] = None
+    salary_max: Optional[int] = None
+    salary_currency: str = "USD"
+    remote: bool = False
+
+
+class AdminJobCreateResponse(BaseModel):
+    """Admin job creation API response"""
+    data: AdminJobSummary
+    success: bool = True
+    message: str
+
+
+class AdminJobUpdate(BaseModel):
+    """Admin job update request"""
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    duration: Optional[int] = None
+    company: Optional[str] = None
+    location: Optional[str] = None
+    job_type: Optional[str] = None
+    category: Optional[str] = None
+    experience_level: Optional[str] = None
+    requirements: Optional[List[str]] = None
+    benefits: Optional[List[str]] = None
+    salary_min: Optional[int] = None
+    salary_max: Optional[int] = None
+    salary_currency: Optional[str] = None
+    remote: Optional[bool] = None
+
+
+class AdminJobUpdateResponse(BaseModel):
+    """Admin job update API response"""
+    data: AdminJobSummary
+    success: bool = True
+    message: str
+
+
+class AdminJobDeleteResponse(BaseModel):
+    """Admin job deletion API response"""
+    success: bool = True
+    message: str
+    job_id: str
+
+
+class AdminJobDetailsInterview(BaseModel):
+    """Interview data for admin job details"""
+    session_id: str
+    candidate_name: str
+    candidate_email: str
+    interview_date: Optional[str] = None
+    overall_score: Optional[float] = None
+    technical_knowledge: Optional[float] = None
+    problem_solving: Optional[float] = None
+    communication: Optional[float] = None
+    experience_relevance: Optional[float] = None
+    hire_recommendation: str = "not_evaluated"
+    feedback: str = ""
+    completion_reason: Optional[str] = None
+    ended_at: Optional[str] = None
+    duration: Optional[int] = None  # in seconds
+
+
+class AdminJobDetailsStatistics(BaseModel):
+    """Statistics for admin job details"""
+    total_interviews: int = 0
+    average_score: float = 0.0
+    strong_yes_count: int = 0
+    yes_count: int = 0
+    hire_rate: float = 0.0  # percentage
+
+
+class AdminJobDetailsResponse(BaseModel):
+    """Admin job details API response with interviews and statistics"""
+    success: bool = True
+    job: dict  # Job details from job agent
+    interviews: List[AdminJobDetailsInterview] = []
+    statistics: AdminJobDetailsStatistics

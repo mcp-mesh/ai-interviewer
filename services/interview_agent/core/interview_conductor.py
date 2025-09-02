@@ -220,7 +220,7 @@ class InterviewConductor:
             # Build response
             response = {
                 "session_id": session_id,
-                "status": "active",
+                "status": "INPROGRESS",
                 "phase": "questioning",
                 "question": {
                     "id": question_record.id,
@@ -294,7 +294,7 @@ class InterviewConductor:
                     # Session has expired - mark it as expired and return error
                     await storage_service.update_interview_status(
                         session_id=session_id,
-                        status="expired",
+                        status="COMPLETED",
                         metadata_updates={"expired_at": current_time.isoformat()}
                     )
                     
@@ -409,19 +409,53 @@ class InterviewConductor:
                         total_duration_minutes=interview.duration_minutes
                     )
                 else:
-                    # Generate next question with full conversation history
+                    # Check if there are unanswered questions before generating new ones
+                    conversation_pairs = interview_with_relations.get_conversation_pairs() if interview_with_relations else []
+                    unanswered_questions = [pair for pair in conversation_pairs if not pair.get("response")]
+                    
+                    if unanswered_questions:
+                        # Return existing unanswered question instead of generating new one
+                        current_question = unanswered_questions[0]["question"]
+                        next_question = {
+                            "id": current_question.get("id"),
+                            "text": current_question.get("text"), 
+                            "type": current_question.get("type"),
+                            "difficulty": current_question.get("difficulty"),
+                            "focus_area": current_question.get("focus_area"),
+                            "number": current_question.get("number")
+                        }
+                        self.logger.info(f"Returning existing unanswered question #{next_question['number']} for session {session_id}")
+                    else:
+                        # Generate next question with full conversation history
+                        next_question = await self._generate_next_question_with_history(
+                            session_context=session_context,
+                            conversation_history=full_conversation,
+                            llm_service=llm_service
+                        )
+            else:
+                # Fallback: Check for unanswered questions first, then generate if needed
+                conversation_pairs = interview_with_relations.get_conversation_pairs() if interview_with_relations else []
+                unanswered_questions = [pair for pair in conversation_pairs if not pair.get("response")]
+                
+                if unanswered_questions:
+                    # Return existing unanswered question
+                    current_question = unanswered_questions[0]["question"]
+                    next_question = {
+                        "id": current_question.get("id"),
+                        "text": current_question.get("text"), 
+                        "type": current_question.get("type"),
+                        "difficulty": current_question.get("difficulty"),
+                        "focus_area": current_question.get("focus_area"),
+                        "number": current_question.get("number")
+                    }
+                    self.logger.info(f"Returning existing unanswered question #{next_question['number']} for session {session_id}")
+                else:
+                    # Generate regular question if no unanswered questions exist
                     next_question = await self._generate_next_question_with_history(
                         session_context=session_context,
                         conversation_history=full_conversation,
                         llm_service=llm_service
                     )
-            else:
-                # Fallback: Generate regular question if interview not found
-                next_question = await self._generate_next_question_with_history(
-                    session_context=session_context,
-                    conversation_history=full_conversation,
-                    llm_service=llm_service
-                )
             
             # Get the interview record to access time_remaining_seconds
             interview = await storage_service.get_interview_by_session_id(session_id)
@@ -429,7 +463,7 @@ class InterviewConductor:
             # Build continuation response
             response = {
                 "session_id": session_id,
-                "status": "active", 
+                "status": "INPROGRESS", 
                 "phase": session_context["phase"],
                 "question": next_question,
                 "interview_context": {
@@ -546,7 +580,7 @@ class InterviewConductor:
                 "type": question_data["question_type"],
                 "difficulty": question_data["difficulty"],
                 "focus_area": question_data.get("focus_area"),
-                "number": len(conversation_history) + 1
+                "number": question_record.question_number
             }
             
             return question_response
@@ -1180,7 +1214,7 @@ class InterviewConductor:
                         # Session has expired - mark it as completed (expired)
                         await storage_service.update_interview_status(
                             session_id=interview.session_id,
-                            status="expired",
+                            status="COMPLETED",
                             metadata_updates={"expired_at": current_time.isoformat()}
                         )
                         
@@ -1253,7 +1287,7 @@ class InterviewConductor:
                     # Session has expired - mark it as expired and return error
                     await storage_service.update_interview_status(
                         session_id=session_id,
-                        status="expired",
+                        status="COMPLETED",
                         metadata_updates={"expired_at": current_time.isoformat()}
                     )
                     

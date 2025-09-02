@@ -21,5 +21,10 @@ def get_job_data():
         'salary_currency': 'USD',
         'interview_duration_minutes': 30,
         'posted_date': datetime.fromisoformat('2025-07-10T00:00:00+00:00'),
-        'is_active': True
+        'is_active': True,
+        # Admin fields
+        'created_by': 'system',
+        'updated_by': None,
+        'status': 'open',
+        'interview_count': 0
     }

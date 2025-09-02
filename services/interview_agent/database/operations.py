@@ -29,7 +29,7 @@ def get_active_interviews_by_user(user_email: str, db: Session) -> List[Intervie
     """Get all active interviews for a user"""
     return db.query(Interview).filter(
         Interview.user_email == user_email,
-        Interview.status.in_(["started", "active"])
+        Interview.status == "INPROGRESS"
     ).all()
 
 
@@ -75,7 +75,7 @@ def update_interview_status(
     interview.status = status
     if completion_reason:
         interview.completion_reason = completion_reason
-    if status in ["completed", "expired", "terminated"]:
+    if status == "COMPLETED":
         interview.ended_at = datetime.utcnow()
     
     db.commit()
@@ -370,12 +370,12 @@ def cleanup_expired_interviews(db: Session) -> int:
     
     expired_interviews = db.query(Interview).filter(
         Interview.expires_at < current_time,
-        Interview.status.in_(["started", "active"])
+        Interview.status == "INPROGRESS"
     ).all()
     
     count = 0
     for interview in expired_interviews:
-        interview.status = "expired"
+        interview.status = "COMPLETED"
         interview.completion_reason = "timeout"
         interview.ended_at = current_time
         count += 1
@@ -388,5 +388,5 @@ def get_active_interview_count() -> int:
     """Get count of currently active interviews across all users"""
     with get_db_session() as db:
         return db.query(Interview).filter(
-            Interview.status.in_(["started", "active"])
+            Interview.status == "INPROGRESS"
         ).count()

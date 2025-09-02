@@ -119,37 +119,32 @@ async def _search_jobs_with_filters(
             jobs_query = query.order_by(Job.posted_date.desc(), Job.created_at.desc())
             jobs_rows = jobs_query.offset(offset).limit(limit).all()
             
-            # Convert to frontend-expected format
+            # Convert to format with all fields (including admin fields)
             jobs = []
             for job in jobs_rows:
-                # Parse salary range into object format
-                salary_range = None
+                # Use the model's to_dict method which includes all fields
+                job_dict = job.to_dict()
+                
+                # Add frontend-specific formatting for backward compatibility
                 if job.salary_min and job.salary_max:
-                    salary_range = {
+                    job_dict["salaryRange"] = {
                         "min": job.salary_min,
                         "max": job.salary_max,
                         "currency": job.salary_currency or "USD"
                     }
                 
-                job_dict = {
-                    "id": str(job.id),
-                    "title": job.title,
-                    "company": job.company,
-                    "location": job.location,
-                    "city": job.city,
-                    "state": job.state,
-                    "country": job.country,
-                    "type": job.job_type,
-                    "category": job.category,
-                    "description": job.short_description,
-                    "requirements": job.requirements or [],
-                    "benefits": job.benefits or [],
-                    "salaryRange": salary_range,
-                    "interview_duration_minutes": job.interview_duration_minutes,
-                    "remote": job.remote,
-                    "postedAt": job.posted_date.isoformat() if job.posted_date else None,
-                    "matchScore": 0  # Will be implemented with matching algorithm
-                }
+                # Frontend expects "type" instead of "job_type"
+                job_dict["type"] = job_dict["job_type"]
+                
+                # Frontend expects "description" for short description
+                job_dict["description"] = job_dict["short_description"]
+                
+                # Frontend expects "postedAt" instead of "posted_date"
+                job_dict["postedAt"] = job_dict["posted_date"]
+                
+                # Add match score placeholder
+                job_dict["matchScore"] = 0  # Will be implemented with matching algorithm
+                
                 jobs.append(job_dict)
         
         result = {
@@ -439,6 +434,7 @@ async def jobs_filters_all() -> Dict[str, Any]:
         return {"categories": [], "job_types": [], "cities": [], "states": [], "countries": [], "error": str(e)}
 
 
+
 @app.tool()
 @mesh.tool(
     capability="jobs_search",
@@ -520,6 +516,252 @@ async def jobs_search(
         return {"jobs": [], "total": 0, "page": page, "limit": limit, "query": query, "error": str(e)}
 
 
+@app.tool()
+@mesh.tool(
+    capability="job_create",
+    tags=["job-management", "create", "admin"],
+    description="Create a new job posting"
+)
+async def job_create(
+    title: str,
+    description: str,
+    status: str = "open",
+    interview_duration_minutes: int = 60,
+    company: str = "S. Corp",
+    location: str = "Remote",
+    city: str = "Remote",
+    country: str = "United States of America",
+    job_type: str = "Full-time",
+    category: str = "Engineering",
+    created_by: str = None
+) -> Dict[str, Any]:
+    """
+    Create a new job posting with admin fields.
+    
+    Args:
+        title: Job title
+        description: Job description
+        status: Job status (open, closed, on_hold)
+        interview_duration_minutes: Interview duration in minutes
+        company: Company name (defaults to S. Corp)
+        location: Job location display text
+        city: City name
+        country: Country name
+        job_type: Type of job (Full-time, Part-time, Contract, Internship)
+        category: Job category (Engineering, Operations, Finance, Marketing, Sales, Other)
+        created_by: Admin user who created the job
+        
+    Returns:
+        Dict with created job data or error
+    """
+    try:
+        logger.info(f"Creating new job: {title}")
+        
+        with get_db_session() as db:
+            # Create new job instance
+            new_job = Job(
+                title=title,
+                company=company,
+                location=location,
+                city=city,
+                state=None,  # Will be populated if needed
+                country=country,
+                job_type=job_type,
+                category=category,
+                remote=city.lower() == "remote",
+                description=description,
+                short_description=description[:500] if len(description) > 500 else description,
+                interview_duration_minutes=interview_duration_minutes,
+                status=status,
+                created_by=created_by,
+                is_active=status == "open"
+            )
+            
+            # Add to database
+            db.add(new_job)
+            db.commit()
+            db.refresh(new_job)
+            
+            # Convert to dict for response
+            job_dict = new_job.to_dict()
+            
+            logger.info(f"Successfully created job: {new_job.title} (ID: {new_job.id})")
+            return {
+                "success": True,
+                "job": job_dict,
+                "message": f"Job '{title}' created successfully"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error in job_create: {str(e)}")
+        return {
+            "success": False,
+            "error": f"Failed to create job: {str(e)}"
+        }
+
+
+@app.tool()
+@mesh.tool(
+    capability="job_update",
+    tags=["job-management", "update", "admin"],
+    description="Update an existing job posting"
+)
+async def job_update(
+    job_id: str,
+    title: str = None,
+    description: str = None,
+    status: str = None,
+    interview_duration_minutes: int = None,
+    company: str = None,
+    location: str = None,
+    city: str = None,
+    country: str = None,
+    job_type: str = None,
+    category: str = None,
+    updated_by: str = None
+) -> Dict[str, Any]:
+    """
+    Update an existing job posting.
+    
+    Args:
+        job_id: Job ID to update
+        title: Updated job title
+        description: Updated job description
+        status: Updated job status (open, closed, on_hold)
+        interview_duration_minutes: Updated interview duration
+        company: Updated company name
+        location: Updated location display text
+        city: Updated city name
+        country: Updated country name
+        job_type: Updated job type
+        category: Updated job category
+        updated_by: Admin user who updated the job
+        
+    Returns:
+        Dict with updated job data or error
+    """
+    try:
+        logger.info(f"Updating job: {job_id}")
+        
+        with get_db_session() as db:
+            # Find job by ID
+            job = db.query(Job).filter(Job.id == job_id).first()
+            
+            if not job:
+                return {
+                    "success": False,
+                    "error": f"Job not found: {job_id}"
+                }
+            
+            # Update fields if provided
+            if title is not None:
+                job.title = title
+            if description is not None:
+                job.description = description
+                job.short_description = description[:500] if len(description) > 500 else description
+            if status is not None:
+                job.status = status
+                job.is_active = (status == "open")
+            if interview_duration_minutes is not None:
+                job.interview_duration_minutes = interview_duration_minutes
+            if company is not None:
+                job.company = company
+            if location is not None:
+                job.location = location
+            if city is not None:
+                job.city = city
+                job.remote = city.lower() == "remote"
+            if country is not None:
+                job.country = country
+            if job_type is not None:
+                job.job_type = job_type
+            if category is not None:
+                job.category = category
+            if updated_by is not None:
+                job.updated_by = updated_by
+            
+            # Update timestamp
+            job.updated_at = func.now()
+            
+            # Commit changes
+            db.commit()
+            db.refresh(job)
+            
+            # Convert to dict for response
+            job_dict = job.to_dict()
+            
+            logger.info(f"Successfully updated job: {job.title} (ID: {job_id})")
+            return {
+                "success": True,
+                "job": job_dict,
+                "message": f"Job '{job.title}' updated successfully"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error in job_update: {str(e)}")
+        return {
+            "success": False,
+            "error": f"Failed to update job: {str(e)}"
+        }
+
+
+@app.tool()
+@mesh.tool(
+    capability="job_delete",
+    tags=["job-management", "delete", "admin"],
+    description="Delete a job posting"
+)
+async def job_delete(
+    job_id: str,
+    deleted_by: str = None
+) -> Dict[str, Any]:
+    """
+    Delete a job posting (soft delete by setting is_active=False).
+    
+    Args:
+        job_id: Job ID to delete
+        deleted_by: Admin user who deleted the job
+        
+    Returns:
+        Dict with success status and message
+    """
+    try:
+        logger.info(f"Deleting job: {job_id}")
+        
+        with get_db_session() as db:
+            # Find job by ID
+            job = db.query(Job).filter(Job.id == job_id).first()
+            
+            if not job:
+                return {
+                    "success": False,
+                    "error": f"Job not found: {job_id}"
+                }
+            
+            # Soft delete by setting is_active=False and status=closed
+            job.is_active = False
+            job.status = "closed"
+            job.updated_by = deleted_by
+            job.updated_at = func.now()
+            
+            # Commit changes
+            db.commit()
+            
+            logger.info(f"Successfully deleted job: {job.title} (ID: {job_id})")
+            return {
+                "success": True,
+                "message": f"Job '{job.title}' deleted successfully",
+                "job_id": job_id
+            }
+            
+    except Exception as e:
+        logger.error(f"Error in job_delete: {str(e)}")
+        return {
+            "success": False,
+            "error": f"Failed to delete job: {str(e)}"
+        }
+
+
 # Register as MCP agent
 @mesh.agent(
     name="job-agent",
@@ -530,13 +772,16 @@ class JobAgent(McpAgent):
     name = "job-agent"
     description = "Manages job postings with PostgreSQL database backend"
     capabilities = [
-        "jobs_all_listing",
+        "jobs_all_listing",      # Now includes admin fields (created_by, updated_by, status, interview_count)
         "job_details_get", 
         "jobs_featured_listing",
         "jobs_categories_list",
         "jobs_filters_all",
         "jobs_search_filtered",
-        "jobs_search"
+        "jobs_search",
+        "job_create",           # Create new job postings (admin)
+        "job_update",           # Update existing job postings (admin)
+        "job_delete"            # Delete job postings (admin, soft delete)
     ]
     
     def __init__(self):

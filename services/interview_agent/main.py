@@ -27,6 +27,47 @@ import mesh
 import redis
 from fastmcp import FastMCP
 
+# Redis client for lock management
+redis_client = redis.from_url(os.getenv("REDIS_URL", "redis://redis:6379"), decode_responses=True)
+
+# Redis lock constants for interview finalization
+FINALIZE_LOCK_KEY = "interview_finalization_lock"
+FINALIZE_LOCK_TTL = 300  # 5 minutes
+
+async def acquire_finalization_lock() -> bool:
+    """Acquire Redis lock for interview finalization to prevent concurrent processing."""
+    try:
+        # Use SET with NX (not exists) and EX (expiry) for atomic lock acquisition
+        result = redis_client.set(
+            FINALIZE_LOCK_KEY,
+            f"locked_{datetime.now(timezone.utc).isoformat()}",
+            nx=True,  # Only set if key doesn't exist
+            ex=FINALIZE_LOCK_TTL  # Auto-expire in 5 minutes
+        )
+        if result:
+            logger.info("Successfully acquired interview finalization lock")
+            return True
+        else:
+            logger.info("Interview finalization lock is already held by another instance")
+            return False
+    except Exception as e:
+        logger.error(f"Failed to acquire finalization lock: {e}")
+        return False
+
+async def release_finalization_lock() -> bool:
+    """Release Redis lock for interview finalization."""
+    try:
+        result = redis_client.delete(FINALIZE_LOCK_KEY)
+        if result:
+            logger.info("Successfully released interview finalization lock")
+            return True
+        else:
+            logger.warning("Finalization lock was not present when trying to release")
+            return False
+    except Exception as e:
+        logger.error(f"Failed to release finalization lock: {e}")
+        return False
+
 # Import specific agent types for type hints
 from mesh.types import McpAgent, McpMeshAgent
 
@@ -357,19 +398,11 @@ Be thorough, fair, and realistic in your evaluation. Prioritize interview comple
             }
         }
         
-        # LLM service will handle tool format conversion internally
+        # Prepare tools for LLM service (handles conversion internally)
         tools_to_use = [evaluation_tool]
-        logger.info("Using evaluation tool - LLM service will handle format conversion internally")
         
         # Call LLM service for evaluation
-        logger.info("Evaluating interview performance with LLM")
-        logger.info("🎯 USING TRANSCRIPT-IN-SYSTEM-PROMPT APPROACH (empty messages)")
-        logger.info(f"System prompt length: {len(evaluation_system_prompt)} chars")
-        logger.info(f"Transcript length: {len(conversation_transcript)} chars")
-        logger.info(f"Messages count: {len(conversation_messages)} (should be 0)")
-        logger.info(f"Tool name: {evaluation_tool['name']}")
-        logger.info(f"Converted tools count: {len(converted_evaluation_tools)}")
-        logger.info(f"Force tool use: True")
+        logger.info(f"Evaluating interview performance with LLM - {questions_asked} questions, {answers_given} answers")
         
         try:
             llm_response = await llm_service(
@@ -380,45 +413,29 @@ Be thorough, fair, and realistic in your evaluation. Prioritize interview comple
                 force_tool_use=True,
                 temperature=0.1
             )
-            logger.info("LLM service call completed successfully")
+            logger.info("LLM evaluation completed successfully")
         except Exception as llm_call_error:
             logger.error(f"LLM service call failed: {llm_call_error}")
             return {"score": 0, "feedback": "LLM service call failed", "error": str(llm_call_error)}
         
-        logger.info(f"LLM response keys: {list(llm_response.keys()) if isinstance(llm_response, dict) else 'Not a dict'}")
-        
-        # Debug the raw values and their truthiness
-        success_value = llm_response.get("success")
-        tool_calls_value = llm_response.get("tool_calls")
-        logger.info(f"SUCCESS raw value: {success_value} (type: {type(success_value)}, bool: {bool(success_value)})")
-        logger.info(f"TOOL_CALLS raw value: {tool_calls_value} (type: {type(tool_calls_value)}, bool: {bool(tool_calls_value)})")
-        
+        # Validate LLM response structure
         if not llm_response.get("success") or not llm_response.get("tool_calls"):
-            logger.error(f"LLM failed to evaluate interview: {llm_response.get('error', 'No tool calls')}")
-            return {"score": 0, "feedback": "Evaluation failed", "error": "LLM evaluation error"}
+            error_msg = llm_response.get('error', 'No tool calls returned')
+            logger.error(f"LLM evaluation failed: {error_msg}")
+            return {"score": 0, "feedback": "Evaluation failed", "error": error_msg}
         
-        # Debug the tool_calls structure in detail
+        # Extract evaluation from tool calls
         tool_calls = llm_response.get("tool_calls", [])
-        logger.info(f"Tool calls count: {len(tool_calls)}")
-        logger.info(f"Full tool_calls structure: {tool_calls}")
-        
         if len(tool_calls) == 0:
             logger.error("No tool calls found in LLM response")
-            return {"score": 0, "feedback": "No tool calls", "error": "No tool calls in response"}
+            return {"score": 0, "feedback": "No evaluation data", "error": "No tool calls in response"}
         
-        # Extract evaluation from tool calls with detailed logging
-        tool_call = tool_calls[0]
-        logger.info(f"First tool call structure: {tool_call}")
-        logger.info(f"Tool call keys: {list(tool_call.keys()) if isinstance(tool_call, dict) else 'Not a dict'}")
-        
-        # Extract evaluation using the same pattern as working interview questions
+        # Get evaluation parameters from first tool call
         try:
-            evaluation_result = tool_call["parameters"]
-            logger.info(f"Successfully extracted evaluation parameters: {evaluation_result}")
-        except KeyError as e:
-            logger.error(f"Missing 'parameters' key in tool_call: {tool_call}")
-            logger.error(f"Available keys: {list(tool_call.keys()) if isinstance(tool_call, dict) else 'Not a dict'}")
-            return {"score": 0, "feedback": "Tool call missing parameters", "error": f"KeyError: {e}"}
+            evaluation_result = tool_calls[0]["parameters"]
+        except (KeyError, IndexError) as e:
+            logger.error(f"Failed to extract evaluation parameters: {e}")
+            return {"score": 0, "feedback": "Tool call format error", "error": f"Parameter extraction failed: {e}"}
         
         # Format the comprehensive result
         formatted_result = {
@@ -432,9 +449,7 @@ Be thorough, fair, and realistic in your evaluation. Prioritize interview comple
             "evaluation_timestamp": datetime.now(timezone.utc).isoformat()
         }
         
-        logger.info(f"Interview evaluation completed - Overall: {formatted_result['score']}/100")
-        logger.info(f"Detailed scores - Technical: {formatted_result['technical_knowledge']}/25, Problem Solving: {formatted_result['problem_solving']}/25, Communication: {formatted_result['communication']}/25, Experience: {formatted_result['experience_relevance']}/25")
-        logger.info(f"Hire Recommendation: {formatted_result['hire_recommendation']}")
+        logger.info(f"Interview evaluation completed - Score: {formatted_result['score']}/100, Recommendation: {formatted_result['hire_recommendation']}")
         return formatted_result
         
     except Exception as e:
@@ -569,7 +584,7 @@ async def conduct_interview(
         if isinstance(result, dict):
             # Ensure we have a success field for legacy compatibility
             if "success" not in result:
-                result["success"] = result.get("status") == "INPROGRESS" or result.get("status") == "COMPLETED"
+                result["success"] = result.get("status") in ["INPROGRESS", "COMPLETED"]
             
             # Legacy response format compatibility
             if "question" in result and isinstance(result["question"], dict):
@@ -683,8 +698,8 @@ async def end_interview_session(
                 "session_id": session_id
             }
         
-        # Check if already terminated
-        if interview.status in ["completed", "terminated", "abandoned"]:
+        # Check if already completed
+        if interview.status == "COMPLETED":
             return {
                 "success": False,
                 "error": f"Interview session already {interview.status}",
@@ -825,108 +840,198 @@ def get_interview_session(session_id: str) -> Dict[str, Any]:
 @app.tool()
 @mesh.tool(
     capability="finalize_interview", 
-    timeout=60,
+    timeout=300,  # Increased timeout for batch processing
     dependencies=[
         {
             "capability": "process_with_tools",
-            "tags": ["+openai"],  # tag time is optional (plus to have)
+            "tags": ["+openai"],
         }
     ]
 )
-async def finalize_interview(session_id: str, llm_service: McpAgent = None) -> Dict[str, Any]:
+async def finalize_interview(llm_service: McpAgent = None) -> Dict[str, Any]:
     """
-    Manually finalize an interview session with scoring.
+    Finalize all interviews that need scoring with Redis lock for concurrent protection.
+    
+    Processes all interviews that are either:
+    1. Status = COMPLETED and evaluation_completed = false
+    2. Started time + duration < current time (expired interviews)
+    
+    Uses Redis lock to prevent concurrent processing across multiple backend instances.
     
     Args:
-        session_id: Unique session identifier to finalize
+        llm_service: LLM service for evaluation
         
     Returns:
-        Dictionary containing finalization result and score
+        Dictionary containing finalization results for all processed interviews
     """
+    # Step 1: Try to acquire Redis lock for finalization
+    lock_acquired = await acquire_finalization_lock()
+    if not lock_acquired:
+        return {
+            "success": True,
+            "message": "Finalization skipped - another instance is processing",
+            "processed_count": 0,
+            "total_found": 0,
+            "results": [],
+            "lock_status": "held_by_another_instance"
+        }
+    
     try:
-        logger.info(f"Manual finalization requested for session: {session_id}")
+        logger.info("Starting batch finalization of unscored interviews")
         
         # Check if LLM service is available
         if not llm_service:
             return {
                 "success": False,
                 "error": "LLM service not available for evaluation",
-                "session_id": session_id
+                "processed_count": 0
             }
         
-# Get session data
-        session_data = get_session_data(session_id)
-        if not session_data:
-            return {
-                "success": False,
-                "error": "Session not found",
-                "session_id": session_id
-            }
+        from .services.storage_service import storage_service
+        current_time = datetime.now(timezone.utc)
         
-        # Check if already completed
-        current_status = session_data.get("status")
-        if current_status == "COMPLETED":
+        # Query interviews that need finalization
+        from sqlalchemy import or_, text
+        with get_db_session() as db:
+            interviews_to_finalize = db.query(Interview).filter(
+                Interview.evaluation_completed == False,
+                or_(
+                    Interview.status == "COMPLETED",
+                    # Expired interviews: started_at + duration < current_time
+                    text("started_at + (duration_minutes || ' minutes')::interval < :current_time")
+                )
+            ).params(current_time=current_time).all()
+        
+        if not interviews_to_finalize:
+            logger.info("No interviews found that need finalization")
             return {
                 "success": True,
-                "session_id": session_id,
-                "status": "completed",
-                "score": session_data.get("final_score", 0),
-                "evaluation": session_data.get("evaluation", {}),
-                "message": "Session already completed"
+                "message": "No interviews need finalization",
+                "processed_count": 0,
+                "results": []
             }
         
-        # Mark as processing to prevent double-processing
-        session_data["status"] = "processing"
-        session_data["processing_started_at"] = datetime.now(timezone.utc).isoformat()
-        store_session_data(session_id, session_data)
+        logger.info(f"Found {len(interviews_to_finalize)} interviews to finalize")
         
-        # Get data needed for evaluation
-        conversation = session_data.get("conversation", [])
-        role_description = session_data.get("role_description", "")
-        resume_content = session_data.get("resume_content", "")
+        results = []
+        successful_count = 0
         
-        # Determine completion reason
-        completion_reason = "manual"  # Backend will handle expired sessions
+        for interview in interviews_to_finalize:
+            try:
+                logger.info(f"Processing interview {interview.session_id}")
+                
+                # Update expired interviews to COMPLETED status
+                if interview.status != "COMPLETED":
+                    await storage_service.update_interview_status(
+                        interview.session_id,
+                        "COMPLETED",
+                        {"completion_reason": "time_expired", "finalized_at": current_time.isoformat()}
+                    )
+                    logger.info(f"Updated expired interview {interview.session_id} to COMPLETED")
+                
+                # Get conversation history from database (within a new session to avoid lazy loading issues)
+                with get_db_session() as db:
+                    interview_with_relations = db.query(Interview).filter(
+                        Interview.session_id == interview.session_id
+                    ).first()
+                    conversation_pairs = interview_with_relations.get_conversation_pairs() if interview_with_relations else []
+                
+                # Format conversation for evaluation (convert to old format expected by evaluate_interview_performance)
+                conversation = []
+                for pair in conversation_pairs:
+                    # Add question
+                    conversation.append({
+                        "type": "question",
+                        "content": pair["question"]["text"],
+                        "timestamp": pair["question"].get("asked_at", "")
+                    })
+                    # Add response if exists
+                    if pair.get("response"):
+                        conversation.append({
+                            "type": "answer", 
+                            "content": pair["response"]["text"],
+                            "timestamp": pair["response"].get("submitted_at", "")
+                        })
+                
+                # Evaluate performance using existing LLM service
+                evaluation = await evaluate_interview_performance(
+                    conversation=conversation,
+                    role_description=interview.role_description,
+                    resume_content=interview.resume_content,
+                    llm_service=llm_service
+                )
+                
+                # Save evaluation to interview_evaluations table
+                with get_db_session() as db:
+                    interview_evaluation = InterviewEvaluation(
+                        interview_id=interview.id,
+                        overall_score=evaluation.get("score", 0),
+                        technical_knowledge=evaluation.get("technical_knowledge", 0),
+                        problem_solving=evaluation.get("problem_solving", 0),
+                        communication=evaluation.get("communication", 0),
+                        experience_relevance=evaluation.get("experience_relevance", 0),
+                        hire_recommendation=evaluation.get("hire_recommendation", "no"),
+                        feedback=evaluation.get("feedback", ""),
+                        questions_answered=len([p for p in conversation_pairs if p.get("response")]),
+                        completion_rate=len([p for p in conversation_pairs if p.get("response")]) / len(conversation_pairs) * 100 if conversation_pairs else 0,
+                        ai_provider="openai",  # Based on dependency tag
+                        ai_model="gpt-4",     # Default model
+                        evaluation_context={"evaluation_timestamp": current_time.isoformat()}
+                    )
+                    
+                    db.add(interview_evaluation)
+                    
+                    # Update interview with final score and evaluation_completed flag
+                    interview_record = db.query(Interview).filter(Interview.id == interview.id).first()
+                    if interview_record:
+                        interview_record.final_score = evaluation.get("score", 0)
+                        interview_record.evaluation_completed = True
+                        interview_record.updated_at = current_time
+                    
+                    db.commit()
+                
+                successful_count += 1
+                results.append({
+                    "session_id": interview.session_id,
+                    "success": True,
+                    "score": evaluation.get("score", 0),
+                    "hire_recommendation": evaluation.get("hire_recommendation", "no"),
+                    "questions_answered": len([p for p in conversation_pairs if p.get("response")]),
+                    "total_questions": len(conversation_pairs)
+                })
+                
+                logger.info(f"Successfully finalized interview {interview.session_id} with score {evaluation.get('score', 0)}")
+                
+            except Exception as e:
+                logger.error(f"Failed to finalize interview {interview.session_id}: {str(e)}")
+                results.append({
+                    "session_id": interview.session_id,
+                    "success": False,
+                    "error": str(e)
+                })
         
-        # Evaluate performance using LLM service
-        evaluation = await evaluate_interview_performance(
-            conversation=conversation,
-            role_description=role_description, 
-            resume_content=resume_content,
-            llm_service=llm_service
-        )
-        
-        # Update session with final status and score
-        session_data.update({
-            "status": "completed",
-            "ended_at": datetime.now(timezone.utc).isoformat(),
-            "completion_reason": completion_reason,
-            "evaluation": evaluation,
-            "final_score": evaluation.get("score", 0)
-        })
-        
-        # Store final session data
-        store_session_data(session_id, session_data)
-        
-        logger.info(f"Interview {session_id} finalized with score: {evaluation.get('score', 0)} (reason: {completion_reason})")
+        logger.info(f"Batch finalization completed: {successful_count}/{len(interviews_to_finalize)} successful")
         
         return {
             "success": True,
-            "session_id": session_id,
-            "status": "completed",
-            "score": evaluation.get("score", 0),
-            "evaluation": evaluation,
-            "completion_reason": completion_reason,
-            "message": f"Interview finalized with LLM evaluation ({completion_reason})"
+            "message": f"Finalized {successful_count} interviews",
+            "processed_count": successful_count,
+            "total_found": len(interviews_to_finalize),
+            "results": results,
+            "lock_status": "acquired_and_processed"
         }
                 
     except Exception as e:
-        logger.error(f"Error in finalization for {session_id}: {e}")
+        logger.error(f"Error in batch finalization: {str(e)}")
         return {
             "success": False,
             "error": str(e),
-            "session_id": session_id
+            "processed_count": 0,
+            "lock_status": "acquired_but_failed"
         }
+    finally:
+        # Step 3: Always release the Redis lock
+        await release_finalization_lock()
 
 
 @app.tool()
@@ -984,15 +1089,15 @@ async def get_current_interview_state(
                 logger.info("Interview expired, terminating")
                 await storage_service.update_interview_status(
                     existing.session_id, 
-                    "terminated", 
+                    "COMPLETED", 
                     {"completion_reason": "time_expired"}
                 )
-                return _format_terminated_response(existing, "time_expired")
+                return _format_completed_response(existing)
             else:
                 logger.info("Resuming active interview")
                 return await _format_active_response(existing)
         
-        elif existing.status in ["completed", "terminated"]:
+        elif existing.status == "COMPLETED":
             logger.info(f"Interview already {existing.status}")
             return _format_completed_response(existing)
         
@@ -1136,7 +1241,7 @@ async def _create_new_interview(job_id: str, user_email: str, job_details_get: M
         
         return {
             "success": True,
-            "status": "active",
+            "status": "INPROGRESS",
             "session_id": session_id,
             "current_question": first_question.get("question", {}).get("text"),
             "question_metadata": {
@@ -1190,7 +1295,7 @@ async def _format_active_response(interview) -> Dict[str, Any]:
         
         return {
             "success": True,
-            "status": "active",
+            "status": "INPROGRESS",
             "session_id": interview.session_id,
             "current_question": current_question,
             "question_metadata": current_metadata,
@@ -1212,7 +1317,7 @@ async def _format_active_response(interview) -> Dict[str, Any]:
 
 
 def _format_completed_response(interview) -> Dict[str, Any]:
-    """Format response for completed/terminated interview."""
+    """Format response for completed interview."""
     return {
         "success": True,
         "status": interview.status,
@@ -1222,17 +1327,6 @@ def _format_completed_response(interview) -> Dict[str, Any]:
         "message": f"Interview {interview.status}. No further action possible."
     }
 
-
-def _format_terminated_response(interview, reason: str) -> Dict[str, Any]:
-    """Format response for terminated interview."""
-    return {
-        "success": True,
-        "status": "terminated", 
-        "session_id": interview.session_id,
-        "completion_reason": reason,
-        "terminated_at": datetime.now(timezone.utc).isoformat(),
-        "message": "Interview terminated due to time expiration."
-    }
 
 
 def _is_expired(interview) -> bool:
@@ -1248,6 +1342,137 @@ def _is_expired(interview) -> bool:
         expires_at = expires_at.replace(tzinfo=timezone.utc)
     
     return current_time > expires_at
+
+
+@app.tool()
+@mesh.tool(
+    capability="get_job_interviews",
+    tags=["interview-data", "admin", "analytics"],
+    description="Get all completed interviews for a specific job with evaluation data"
+)
+async def get_job_interviews(job_id: str) -> Dict[str, Any]:
+    """
+    Get all completed interviews for a specific job ID.
+    
+    Returns interview data with evaluation scores when available.
+    Some interviews may not have evaluation data if processing failed.
+    
+    Args:
+        job_id: Job identifier to get interviews for
+        
+    Returns:
+        Dictionary with interviews array and statistics
+    """
+    try:
+        logger.info(f"Getting all completed interviews for job_id={job_id}")
+        
+        from .services.storage_service import storage_service
+        
+        # Get all completed interviews for this job
+        interviews = await storage_service.get_interviews_by_job_id(job_id, status="COMPLETED")
+        
+        if not interviews:
+            logger.info(f"No completed interviews found for job_id={job_id}")
+            return {
+                "success": True,
+                "interviews": [],
+                "statistics": {
+                    "total_interviews": 0,
+                    "average_score": 0,
+                    "strong_yes_count": 0,
+                    "yes_count": 0,
+                    "hire_rate": 0
+                }
+            }
+        
+        logger.info(f"Found {len(interviews)} completed interviews for job_id={job_id}")
+        
+        # Format interviews with evaluation data
+        formatted_interviews = []
+        scores = []
+        hire_recommendations = []
+        
+        for interview in interviews:
+            # Base interview data - use user_email for both candidate fields since we don't store name separately
+            interview_data = {
+                "session_id": interview.session_id,
+                "candidate_name": interview.user_email.split('@')[0],  # Use email prefix as name fallback
+                "candidate_email": interview.user_email,
+                "interview_date": interview.started_at.isoformat() if interview.started_at else None,
+                "completion_reason": interview.session_metadata.get("completion_reason") if interview.session_metadata else None,
+                "ended_at": interview.ended_at.isoformat() if interview.ended_at else None,
+                "duration": interview.session_metadata.get("duration_seconds") if interview.session_metadata else None
+            }
+            
+            # Add evaluation data if available
+            if interview.evaluation_completed and interview.evaluation:
+                evaluation = interview.evaluation
+                interview_data.update({
+                    "overall_score": evaluation.overall_score,
+                    "technical_knowledge": evaluation.technical_knowledge,
+                    "problem_solving": evaluation.problem_solving,
+                    "communication": evaluation.communication,
+                    "experience_relevance": evaluation.experience_relevance,
+                    "hire_recommendation": evaluation.hire_recommendation,
+                    "feedback": evaluation.feedback
+                })
+                
+                # Collect data for statistics
+                if evaluation.overall_score:
+                    scores.append(evaluation.overall_score)
+                if evaluation.hire_recommendation:
+                    hire_recommendations.append(evaluation.hire_recommendation)
+            else:
+                # No evaluation data available
+                interview_data.update({
+                    "overall_score": None,
+                    "technical_knowledge": None,
+                    "problem_solving": None,
+                    "communication": None,
+                    "experience_relevance": None,
+                    "hire_recommendation": "not_evaluated",
+                    "feedback": "Evaluation not completed"
+                })
+            
+            formatted_interviews.append(interview_data)
+        
+        # Calculate statistics
+        total_interviews = len(interviews)
+        average_score = sum(scores) / len(scores) if scores else 0
+        strong_yes_count = hire_recommendations.count("strong_yes")
+        yes_count = hire_recommendations.count("yes")
+        hire_rate = ((strong_yes_count + yes_count) / len(hire_recommendations) * 100) if hire_recommendations else 0
+        
+        statistics = {
+            "total_interviews": total_interviews,
+            "average_score": round(average_score, 2),
+            "strong_yes_count": strong_yes_count,
+            "yes_count": yes_count,
+            "hire_rate": round(hire_rate, 2)
+        }
+        
+        logger.info(f"Returning {len(formatted_interviews)} interviews with statistics: {statistics}")
+        
+        return {
+            "success": True,
+            "interviews": formatted_interviews,
+            "statistics": statistics
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting job interviews: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "interviews": [],
+            "statistics": {
+                "total_interviews": 0,
+                "average_score": 0,
+                "strong_yes_count": 0,
+                "yes_count": 0,
+                "hire_rate": 0
+            }
+        }
 
 
 # Agent class definition - MCP Mesh pattern

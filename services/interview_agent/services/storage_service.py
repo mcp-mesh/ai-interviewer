@@ -191,6 +191,11 @@ class StorageService:
                 interview.status = status
                 interview.updated_at = datetime.now(timezone.utc)
                 
+                # Set ended_at when status changes to COMPLETED
+                if status == "COMPLETED" and interview.ended_at is None:
+                    interview.ended_at = datetime.now(timezone.utc)
+                    self.logger.info(f"Set ended_at for completed interview session {session_id}")
+                
                 if metadata_updates:
                     current_metadata = interview.session_metadata if interview.session_metadata else {}
                     interview.session_metadata = {**current_metadata, **metadata_updates}
@@ -250,7 +255,12 @@ class StorageService:
                 db.commit()
                 db.refresh(question)
                 
-                self.logger.info(f"Added question to session {session_id}")
+                # Update interview counters and current question reference
+                interview.questions_asked = db.query(InterviewQuestion).filter(InterviewQuestion.interview_id == interview.id).count()
+                interview.current_question_id = question.id
+                db.commit()
+                
+                self.logger.info(f"Added question {question.question_number} to session {session_id}, total questions: {interview.questions_asked}")
                 return question
                 
         except SQLAlchemyError as e:
@@ -525,6 +535,37 @@ class StorageService:
                 
         except SQLAlchemyError as e:
             self.logger.error(f"Failed to get session statistics for {session_id}: {e}")
+            raise
+
+    async def get_interviews_by_job_id(self, job_id: str, status: str = None) -> List[Interview]:
+        """
+        Get all interviews for a specific job ID, optionally filtered by status.
+        
+        Args:
+            job_id: Job identifier to filter by
+            status: Optional status filter (e.g., "COMPLETED")
+            
+        Returns:
+            List of Interview objects matching criteria
+        """
+        try:
+            from sqlalchemy.orm import joinedload
+            
+            with get_db_session() as db:
+                query = db.query(Interview).options(joinedload(Interview.evaluation)).filter(Interview.job_id == job_id)
+                
+                if status:
+                    query = query.filter(Interview.status == status)
+                
+                interviews = query.all()
+                
+                self.logger.info(f"Found {len(interviews)} interviews for job_id={job_id}" + 
+                               (f" with status={status}" if status else ""))
+                
+                return interviews
+                
+        except SQLAlchemyError as e:
+            self.logger.error(f"Failed to get interviews for job_id {job_id}: {e}")
             raise
 
 # Global storage service instance

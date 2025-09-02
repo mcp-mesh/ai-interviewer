@@ -96,6 +96,12 @@ class Job(Base):
     company_industry = Column(String(100), nullable=True)
     company_website = Column(String(255), nullable=True)
     
+    # Admin fields
+    created_by = Column(String(255), nullable=True)  # Admin user who created the job
+    updated_by = Column(String(255), nullable=True)  # Admin user who last updated the job
+    status = Column(String(50), default='open', nullable=False)  # open, closed, on_hold
+    interview_count = Column(Integer, default=0, nullable=False)  # Number of interviews conducted
+    
     # Audit fields
     created_at = Column(DateTime(timezone=True), default=func.now())
     updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
@@ -129,6 +135,10 @@ class Job(Base):
             "company_size": self.company_size,
             "company_industry": self.company_industry,
             "company_website": self.company_website,
+            "created_by": self.created_by,
+            "updated_by": self.updated_by,
+            "status": self.status,
+            "interview_count": self.interview_count,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -162,6 +172,16 @@ def create_tables():
                 DO $$ BEGIN
                     ALTER TABLE job_agent.jobs ADD CONSTRAINT jobs_category_check 
                     CHECK (category IN ('Engineering', 'Operations', 'Finance', 'Marketing', 'Sales', 'Other'));
+                EXCEPTION
+                    WHEN duplicate_object THEN null;
+                END $$;
+            """))
+            
+            # Status constraint
+            conn.execute(text("""
+                DO $$ BEGIN
+                    ALTER TABLE job_agent.jobs ADD CONSTRAINT jobs_status_check 
+                    CHECK (status IN ('open', 'closed', 'on_hold'));
                 EXCEPTION
                     WHEN duplicate_object THEN null;
                 END $$;

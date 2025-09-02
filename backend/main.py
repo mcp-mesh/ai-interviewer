@@ -22,7 +22,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Import route modules
-from app.routes import jobs, applications, users, files, interviews
+from app.routes import jobs, applications, users, files, interviews, admin
+
+# Import monitoring service
+from app.services.interview_monitoring import monitoring_service
 
 
 @asynccontextmanager
@@ -30,8 +33,24 @@ async def lifespan(app: FastAPI):
     """Lifespan event handler for startup and shutdown."""
     logger.info("🚀 Phase 2 Backend starting up...")
     logger.info("🔗 MCP Mesh enabled - agents will be auto-injected")
-    yield
+    
+    # Start background interview monitoring service
+    try:
+        await monitoring_service.start_monitor()
+        logger.info("✅ Interview finalization monitor started successfully")
+    except Exception as e:
+        logger.error(f"❌ Failed to start interview monitor: {e}")
+        # Don't fail startup if monitoring service fails
+    
+    yield  # Application runs here
+    
+    # Shutdown
     logger.info("⏹️  Phase 2 Backend shutting down...")
+    try:
+        await monitoring_service.stop_monitor()
+        logger.info("✅ Interview finalization monitor stopped successfully")
+    except Exception as e:
+        logger.error(f"❌ Failed to stop interview monitor: {e}")
 
 
 # Create FastAPI application
@@ -67,6 +86,7 @@ app.include_router(applications.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 app.include_router(files.router, prefix="/api")
 app.include_router(interviews.router, prefix="/api")
+app.include_router(admin.router, prefix="/api")
 
 # Root endpoint
 @app.get("/")
@@ -82,6 +102,7 @@ async def root():
             "users": "/api/users",
             "files": "/api/files",
             "interviews": "/api/interviews",
+            "admin": "/api/admin",
             "docs": "/docs"
         },
         "mcp_mesh": True

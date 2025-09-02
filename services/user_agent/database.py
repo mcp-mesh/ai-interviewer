@@ -64,6 +64,7 @@ class User(Base):
     # Basic profile flags (managed by user_agent)
     profile_completed = Column(Boolean, default=False)
     onboarding_completed = Column(Boolean, default=False)
+    is_admin = Column(Boolean, default=False, nullable=False)
     
     # Store basic preferences as JSONB
     basic_preferences = Column(JSONB, nullable=True)
@@ -86,6 +87,7 @@ class User(Base):
             "last_name": self.last_name,
             "profile_completed": self.profile_completed,
             "onboarding_completed": self.onboarding_completed,
+            "is_admin": self.is_admin,
             "basic_preferences": self.basic_preferences or {},
             # Resume fields
             "has_resume": self.has_resume,

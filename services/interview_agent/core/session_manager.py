@@ -17,10 +17,8 @@ logger = logging.getLogger(__name__)
 
 class SessionStatus(Enum):
     """Interview session status enumeration."""
-    ACTIVE = "active"
-    COMPLETED = "completed" 
-    ABANDONED = "abandoned"
-    ERROR = "error"
+    INPROGRESS = "INPROGRESS"
+    COMPLETED = "COMPLETED"
 
 class SessionPhase(Enum):
     """Interview session phases."""
@@ -96,7 +94,7 @@ class SessionManager:
                 "job_id": job_id,
                 "user_email": user_email,
                 "application_id": application_id,
-                "status": SessionStatus.ACTIVE.value,
+                "status": SessionStatus.INPROGRESS.value,
                 "phase": SessionPhase.INITIALIZATION.value,
                 "job_data": job_data,
                 "resume_data": resume_data,
@@ -186,7 +184,7 @@ class SessionManager:
             
             success = await storage_service.update_interview_status(
                 session_id=session_id,
-                status=SessionStatus.ACTIVE.value,  # Keep active during phase transitions
+                status=SessionStatus.INPROGRESS.value,  # Keep in progress during phase transitions
                 metadata_updates=metadata_updates
             )
             
@@ -264,7 +262,7 @@ class SessionManager:
             
             success = await storage_service.update_interview_status(
                 session_id=session_id,
-                status=SessionStatus.ABANDONED.value,
+                status=SessionStatus.COMPLETED.value,
                 metadata_updates=metadata_updates
             )
             
@@ -305,7 +303,7 @@ class SessionManager:
             
             success = await storage_service.update_interview_status(
                 session_id=session_id,
-                status=SessionStatus.ERROR.value,
+                status=SessionStatus.COMPLETED.value,
                 metadata_updates=metadata_updates
             )
             

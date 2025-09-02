@@ -130,7 +130,7 @@ export function InterviewChat({
       }).flat()
       
       // Add current question if not answered yet
-      if (data.current_question && data.status === 'active') {
+      if (data.current_question && (data.status === 'active' || data.status === 'INPROGRESS')) {
         const currentQuestionMessage: Message = {
           id: `current-question-${Date.now()}`,
           type: 'question',
@@ -153,9 +153,9 @@ export function InterviewChat({
       setTimeRemaining(data.session_info?.time_remaining_seconds || 0)
       
       // Check if interview is already completed
-      if (data.status !== 'active') {
+      if (data.status !== 'active' && data.status !== 'INPROGRESS') {
         setIsCompleted(true)
-        if (data.status === 'completed') {
+        if (data.status === 'completed' || data.status === 'COMPLETED') {
           onComplete?.('completed')
         } else if (data.status === 'terminated') {
           onComplete?.('terminated')

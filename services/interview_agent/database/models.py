@@ -21,8 +21,6 @@ class InterviewStatus(Enum):
     INPROGRESS = "INPROGRESS"  # Changed from ACTIVE to match application agent
     PAUSED = "PAUSED"
     COMPLETED = "COMPLETED"
-    EXPIRED = "EXPIRED"
-    TERMINATED = "TERMINATED"
 
 
 class QuestionType(Enum):
@@ -86,7 +84,7 @@ class Interview(Base):
     duration_minutes = Column(Integer, nullable=False, default=60)  # Planned duration
     
     # Status tracking
-    status = Column(String(20), nullable=False, default="STARTED")  # STARTED, INPROGRESS, COMPLETED, EXPIRED, TERMINATED
+    status = Column(String(20), nullable=False, default="STARTED")  # STARTED, INPROGRESS, PAUSED, COMPLETED
     completion_reason = Column(String(50), nullable=True)  # manual, timeout, completed, violation
     
     # Session metadata
@@ -143,7 +141,7 @@ class Interview(Base):
     @property
     def time_remaining_seconds(self) -> int:
         """Calculate remaining time in seconds"""
-        if self.status in ["COMPLETED", "EXPIRED", "TERMINATED"]:
+        if self.status == "COMPLETED":
             return 0
         remaining = self.expires_at - datetime.utcnow()
         return max(0, int(remaining.total_seconds()))

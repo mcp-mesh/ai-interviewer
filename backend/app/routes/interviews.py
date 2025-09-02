@@ -147,11 +147,11 @@ async def get_current_interview_state(
         status = interview_result.get("status")
         logger.info(f"Interview state retrieved: status={status}, session_id={interview_result.get('session_id')}")
         
-        if status == "active":
+        if status in ["INPROGRESS", "active"]:  # Support both new and legacy status
             # Return active interview data
             return {
                 "success": True,
-                "status": "active",
+                "status": status,  # Return the actual status from the interview agent
                 "session_id": interview_result.get("session_id"),
                 "current_question": interview_result.get("current_question"),
                 "question_metadata": interview_result.get("question_metadata", {}),
@@ -159,7 +159,7 @@ async def get_current_interview_state(
                 "session_info": interview_result.get("session_info", {})
             }
             
-        elif status in ["completed", "terminated"]:
+        elif status in ["COMPLETED", "completed", "terminated"]:
             # Return completion state
             return {
                 "success": True,
@@ -256,7 +256,7 @@ async def get_current_interview_question(
         session_info = session_result.get("session_info", {})
         
         # Check if session is still active
-        if status != "active":
+        if status not in ["INPROGRESS", "active"]:  # Support both new and legacy status
             raise HTTPException(status_code=410, detail=f"Interview session is {status or 'inactive'}")
         
         logger.info(f"Current question retrieved for session: {session_id}")
@@ -309,7 +309,7 @@ async def generate_interview_response(
         status = interview_result.get("status")
         phase = interview_result.get("phase")
         
-        if status == "terminated" or phase == "completion":
+        if status in ["COMPLETED", "terminated"] or phase == "completion":
             # Interview completed/terminated
             evaluation = interview_result.get("evaluation", {})
             session_summary = interview_result.get("session_summary", {})
@@ -469,8 +469,8 @@ async def finalize_interview_scoring(
         
         logger.info(f"Finalizing interview scoring for user: {user_email}, session: {session_id}")
         
-        # Finalize interview using interview agent via MCP Mesh
-        finalize_result = await interview_finalizer(session_id=session_id)
+        # Finalize interview using interview agent via MCP Mesh (now processes all unscored interviews)
+        finalize_result = await interview_finalizer()
         
         if not finalize_result or not finalize_result.get("success"):
             error_msg = finalize_result.get('error', 'Unknown error') if finalize_result else 'No response from interview agent'
@@ -492,3 +492,69 @@ async def finalize_interview_scoring(
     except Exception as e:
         logger.error(f"Failed to finalize interview: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to finalize interview: {str(e)}")
+
+
+@router.post("/finalize/batch")
+@mesh.route(dependencies=["finalize_interview"])
+async def finalize_pending_interviews_batch(
+    interview_finalizer: McpMeshAgent = None
+) -> Dict[str, Any]:
+    """
+    Internal endpoint to finalize all pending interviews via interview agent.
+    
+    Called by the monitoring service every 30 seconds to process completed interviews
+    that haven't been evaluated yet. Uses Redis lock in interview agent to prevent
+    concurrent processing across multiple backend instances.
+    
+    No authentication required as this is an internal monitoring endpoint.
+    """
+    try:
+        logger.info("Starting batch finalization of pending interviews via interview agent")
+        
+        # Call interview agent's finalize_interview function via MCP Mesh
+        # The interview agent handles Redis locking, database queries, and LLM evaluation
+        result = await interview_finalizer()
+        
+        if not result:
+            logger.error("No response from interview agent")
+            return {
+                "success": False,
+                "error": "No response from interview agent",
+                "finalized_count": 0,
+                "total_processed": 0
+            }
+        
+        success = result.get("success", False)
+        processed_count = result.get("processed_count", 0)
+        total_found = result.get("total_found", 0)
+        lock_status = result.get("lock_status", "unknown")
+        message = result.get("message", "No message")
+        
+        if success:
+            if processed_count > 0:
+                logger.info(f"Batch finalization successful: {processed_count}/{total_found} interviews processed")
+            elif lock_status == "held_by_another_instance":
+                logger.debug("Batch finalization skipped - another instance processing")
+            else:
+                logger.debug(f"No interviews needed finalization: {message}")
+        else:
+            error_msg = result.get("error", "Unknown error")
+            logger.error(f"Batch finalization failed: {error_msg}")
+        
+        return {
+            "success": success,
+            "message": message,
+            "finalized_count": processed_count,
+            "total_processed": total_found,
+            "lock_status": lock_status,
+            "results": result.get("results", [])
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in batch finalization endpoint: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e),
+            "finalized_count": 0,
+            "total_processed": 0
+        }

@@ -269,6 +269,7 @@ def build_frontend_user_profile(db_user: User) -> Dict[str, Any]:
         # User agent specific flags
         "profile_completed": db_user.profile_completed,
         "onboarding_completed": db_user.onboarding_completed,
+        "is_admin": db_user.is_admin,
     }
 
 
@@ -833,6 +834,150 @@ def get_detailed_resume_analysis(user_email: str) -> Dict[str, Any]:
         return {
             "success": False,
             "error": f"Failed to get detailed analysis: {str(e)}"
+        }
+
+
+@app.tool()
+@mesh.tool(
+    capability="user_admin_update",
+    dependencies=[
+        {"capability": "cache_invalidate"}
+    ],
+    tags=["user-management", "admin", "permissions"],
+    description="Update user admin status and administrative flags"
+)
+async def user_admin_update(
+    user_email: str,
+    is_admin: bool = None,
+    notes: str = None,
+    cache_invalidate: McpMeshAgent = None
+) -> Dict[str, Any]:
+    """
+    Update user administrative status and related fields.
+    
+    Args:
+        user_email: User's email address
+        is_admin: Whether user should have admin privileges
+        notes: Admin notes about the user
+        
+    Returns:
+        Dict with updated user profile or error
+    """
+    try:
+        logger.info(f"Updating admin status for user: {user_email}")
+        
+        with get_db_session() as db:
+            # Find user by email
+            db_user = db.query(User).filter(User.email == user_email).first()
+            
+            if not db_user:
+                return {
+                    "success": False,
+                    "error": f"User not found: {user_email}"
+                }
+            
+            # Update admin status if provided
+            if is_admin is not None:
+                db_user.is_admin = is_admin
+                logger.info(f"Updated admin status to {is_admin} for user: {user_email}")
+            
+            # Update notes in basic_preferences if provided
+            if notes is not None:
+                if not db_user.basic_preferences:
+                    db_user.basic_preferences = {}
+                db_user.basic_preferences["admin_notes"] = notes
+                logger.info(f"Updated admin notes for user: {user_email}")
+            
+            # Update timestamp
+            db_user.updated_at = datetime.utcnow()
+            
+            # Commit changes
+            db.commit()
+            db.refresh(db_user)
+            
+            # Invalidate local cache
+            UserCache.delete(user_email)
+            
+            # Build updated profile
+            updated_profile = build_frontend_user_profile(db_user)
+            
+            # Invalidate distributed cache via MCP mesh
+            try:
+                if cache_invalidate:
+                    cache_result = await cache_invalidate(user_email=user_email)
+                    if cache_result.get("success"):
+                        logger.info(f"Distributed user cache invalidated for {user_email}")
+                    else:
+                        logger.warning(f"Failed to invalidate distributed user cache: {cache_result}")
+                else:
+                    logger.warning("cache_invalidate agent not available")
+            except Exception as cache_error:
+                logger.warning(f"Cache invalidation error (non-fatal): {cache_error}")
+            
+            logger.info(f"Admin update successful for user: {db_user.full_name}")
+            return {
+                "success": True,
+                "user": updated_profile,
+                "message": f"Admin status updated successfully for {db_user.full_name}"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error in user_admin_update: {str(e)}")
+        return {
+            "success": False, 
+            "error": f"Failed to update admin status: {str(e)}"
+        }
+
+
+@app.tool()
+@mesh.tool(
+    capability="user_list_all",
+    tags=["user-management", "admin", "list"],
+    description="List all users with their basic info and admin status"
+)
+def user_list_all() -> Dict[str, Any]:
+    """
+    List all users for admin purposes.
+    
+    Returns:
+        Dict with list of all users
+    """
+    try:
+        logger.info("Getting list of all users")
+        
+        with get_db_session() as db:
+            # Get all users
+            all_users = db.query(User).order_by(User.created_at.desc()).all()
+            
+            users_list = []
+            for db_user in all_users:
+                user_info = {
+                    "id": str(db_user.id),
+                    "email": db_user.email,
+                    "name": db_user.full_name,
+                    "first_name": db_user.first_name,
+                    "last_name": db_user.last_name,
+                    "is_admin": db_user.is_admin,
+                    "profile_completed": db_user.profile_completed,
+                    "has_resume": db_user.has_resume,
+                    "created_at": db_user.created_at.isoformat() + "Z" if db_user.created_at else None,
+                    "last_active_at": db_user.last_active_at.isoformat() + "Z" if db_user.last_active_at else None,
+                    "admin_notes": db_user.basic_preferences.get("admin_notes", "") if db_user.basic_preferences else ""
+                }
+                users_list.append(user_info)
+            
+            logger.info(f"Retrieved {len(users_list)} users")
+            return {
+                "success": True,
+                "users": users_list,
+                "total_count": len(users_list)
+            }
+            
+    except Exception as e:
+        logger.error(f"Error in user_list_all: {str(e)}")
+        return {
+            "success": False,
+            "error": f"Failed to list users: {str(e)}"
         }
 
 

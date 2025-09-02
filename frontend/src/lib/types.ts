@@ -103,7 +103,7 @@ export interface Interview {
   jobId: string
   userId: string
   type: 'ai' | 'human' | 'technical' | 'behavioral'
-  status: 'scheduled' | 'in-progress' | 'completed' | 'cancelled'
+  status: 'scheduled' | 'in-progress' | 'INPROGRESS' | 'active' | 'completed' | 'COMPLETED' | 'cancelled'
   scheduledAt: string
   duration: number // in minutes
   questions?: InterviewQuestion[]
