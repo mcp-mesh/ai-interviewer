@@ -26,39 +26,17 @@ docker_images = {
   openai_llm_agent  = "ai-interviewer/openai-llm-agent:latest"
 }
 
-# OAuth Configuration (required for nginx to start)
-oauth_config = {
-  google_client_id     = "dummy-google-client-id"
-  google_client_secret = "dummy-google-client-secret"
-  github_client_id     = "dummy-github-client-id"
-  github_client_secret = "dummy-github-client-secret"
-  microsoft_client_id  = "dummy-microsoft-client-id"
-  microsoft_client_secret = "dummy-microsoft-client-secret"
-  apple_client_id      = "dummy-apple-client-id"
-  apple_client_secret  = "dummy-apple-client-secret"
-}
-
-# API Keys (can be set later via environment variables)
-anthropic_api_key = "dummy-anthropic-key"
-openai_api_key = "dummy-openai-key"
-
-# NOTE: You can override these with environment variables!
+# OAuth Configuration and API Keys are read from environment variables
 # Set these in your shell before running terraform:
-#
-# export GOOGLE_CLIENT_ID="943290783081-54r9ivge76l0sot8j2h2jpkiccrsf7oj.apps.googleusercontent.com"
-# export GOOGLE_CLIENT_SECRET="your-google-client-secret"
-# export GITHUB_CLIENT_ID="your-github-client-id"
-# export GITHUB_CLIENT_SECRET="your-github-client-secret"
-# export MICROSOFT_CLIENT_ID="your-microsoft-client-id"
-# export MICROSOFT_CLIENT_SECRET="your-microsoft-client-secret"
-# export APPLE_CLIENT_ID="your-apple-client-id"
-# export APPLE_CLIENT_SECRET="your-apple-client-secret"
-# export ANTHROPIC_API_KEY="your-anthropic-api-key"
-# export OPENAI_API_KEY="your-openai-api-key"
-#
-# Optional database overrides:
-# export POSTGRES_USER="custom_user"
-# export POSTGRES_PASSWORD="custom_password"
-# export POSTGRES_DB="custom_db"
-# export MINIO_ACCESS_KEY="custom_access_key"
-# export MINIO_SECRET_KEY="custom_secret_key"
+#   export TF_VAR_google_client_id="your-google-client-id"
+#   export TF_VAR_google_client_secret="your-google-client-secret"
+#   export TF_VAR_github_client_id="your-github-client-id"
+#   export TF_VAR_github_client_secret="your-github-client-secret"
+#   export TF_VAR_microsoft_client_id="your-microsoft-client-id"
+#   export TF_VAR_microsoft_client_secret="your-microsoft-client-secret"
+#   export TF_VAR_apple_client_id="your-apple-client-id"
+#   export TF_VAR_apple_client_secret="your-apple-client-secret"
+#   export TF_VAR_anthropic_api_key="your-anthropic-api-key"
+#   export TF_VAR_openai_api_key="your-openai-api-key"
+
+# If no environment variables are set, dummy values will be used as fallbacks.
