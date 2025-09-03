@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Resume - S Corp.</title>
+    <link rel="stylesheet" href="../../css/careers.css">
+    <link rel="stylesheet" href="../../css/listing-clean.css">
+</head>
+<body>
+    <!-- Navigation Header -->
+    <header class="header">
+        <div class="nav-container">
+            <a href="../../index.html" class="logo">
+                <div class="logo-icon">SCI</div>
+                <span>S Corp.</span>
+            </a>
+            
+            <div class="nav-actions">
+                <!-- Logged In State -->
+                <div class="user-info">
+                    <div class="user-avatar">DR</div>
+                    <div class="user-details">
+                        <h4>Dhyan Raj</h4>
+                        <p>dhyan.raj@gmail.com</p>
+                    </div>
+                    <a href="../auth/dashboard-with-applications.html" class="nav-link">My Applications</a>
+                    <a href="../../index.html" class="nav-link">Logout</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container">
+        <div style="max-width: 900px; margin: 0 auto; padding: 3rem 0;">
+            <!-- Header Section -->
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <div style="width: 80px; height: 80px; background: #3b82f6; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 2rem; font-size: 2rem; color: white;">
+                    📄
+                </div>
+                <h1 style="font-size: 2.5rem; font-weight: 700; color: #1f2937; margin-bottom: 1rem;">Upload Your Resume</h1>
+                <p style="font-size: 1.125rem; color: #6b7280; line-height: 1.6; max-width: 600px; margin: 0 auto;">
+                    Upload your resume for AI-powered analysis and personalized interview questions tailored to your experience.
+                </p>
+            </div>
+
+            <!-- Upload Section -->
+            <div style="background: white; border: 2px dashed #d1d5db; border-radius: 1rem; padding: 3rem; margin-bottom: 3rem; text-align: center; transition: all 0.3s ease;" onmouseover="this.style.borderColor='#3b82f6'" onmouseout="this.style.borderColor='#d1d5db'">
+                <div style="font-size: 3rem; color: #9ca3af; margin-bottom: 1.5rem;">☁️</div>
+                <h3 style="font-size: 1.5rem; font-weight: 600; color: #1f2937; margin-bottom: 1rem;">Upload your resume</h3>
+                <p style="color: #6b7280; margin-bottom: 2rem; font-size: 1rem;">Drag and drop your PDF file here, or click to browse</p>
+                
+                <input type="file" id="resume-upload" accept=".pdf" style="display: none;" onchange="handleFileSelect(event)">
+                <button onclick="document.getElementById('resume-upload').click()" style="background: #3b82f6; color: white; border: none; padding: 1rem 2rem; border-radius: 0.5rem; font-weight: 500; font-size: 1rem; cursor: pointer;">
+                    Choose File
+                </button>
+                
+                <div id="file-info" style="margin-top: 1rem; padding: 1rem; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 0.5rem; display: none;">
+                    <p style="color: #0c4a6e; margin: 0; font-weight: 500;">
+                        <span id="file-name"></span> - <span id="file-size"></span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- File Requirements -->
+            <div style="background: white; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 2rem; margin-bottom: 3rem;">
+                <h4 style="font-size: 1.125rem; font-weight: 600; color: #1f2937; margin-bottom: 1.5rem;">File Requirements:</h4>
+                <ul style="list-style: none; padding: 0; margin: 0; color: #4b5563;">
+                    <li style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                        <span style="color: #10b981;">✓</span> PDF format only
+                    </li>
+                    <li style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                        <span style="color: #10b981;">✓</span> Maximum file size: 5MB
+                    </li>
+                    <li style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                        <span style="color: #10b981;">✓</span> Text should be selectable (not scanned images)
+                    </li>
+                    <li style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="color: #10b981;">✓</span> Include your work experience, skills, and education
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Privacy & Security -->
+            <div style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 0.75rem; padding: 2rem; margin-bottom: 3rem;">
+                <h4 style="font-size: 1.125rem; font-weight: 600; color: #0c4a6e; margin-bottom: 1rem;">Privacy & Security</h4>
+                <p style="color: #0c4a6e; line-height: 1.6; margin: 0;">
+                    Your resume is processed securely using AI technology and used only to generate personalized interview questions. We do not share your information with third parties.
+                </p>
+            </div>
+
+            <!-- CAPTCHA Section -->
+            <div style="background: white; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 2rem; margin-bottom: 3rem;">
+                <h4 style="font-size: 1.125rem; font-weight: 600; color: #1f2937; margin-bottom: 1.5rem;">Security Verification</h4>
+                
+                <!-- Mock CAPTCHA Component -->
+                <div id="captcha-container" style="border: 2px solid #e5e7eb; border-radius: 0.5rem; padding: 2rem; background: #f9fafb; text-align: center;">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 1rem; margin-bottom: 1rem;">
+                        <div style="background: #ffffff; border: 1px solid #d1d5db; padding: 1rem; border-radius: 0.25rem; font-family: monospace; font-size: 1.5rem; letter-spacing: 0.1em; color: #1f2937; min-width: 150px;">
+                            <span id="captcha-text">7B4K9</span>
+                        </div>
+                        <button onclick="refreshCaptcha()" style="background: #6b7280; color: white; border: none; padding: 0.5rem; border-radius: 0.25rem; cursor: pointer;">
+                            🔄
+                        </button>
+                    </div>
+                    <div>
+                        <input type="text" id="captcha-input" placeholder="Enter the characters above" style="padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.25rem; font-size: 1rem; width: 200px; text-align: center;" oninput="validateCaptcha()">
+                    </div>
+                    <div id="captcha-status" style="margin-top: 0.5rem; font-size: 0.875rem; min-height: 20px;"></div>
+                </div>
+            </div>
+
+            <!-- Legal Agreement -->
+            <div style="background: white; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 2rem; margin-bottom: 3rem;">
+                <h4 style="font-size: 1.125rem; font-weight: 600; color: #1f2937; margin-bottom: 1.5rem;">Terms and Conditions</h4>
+                
+                <div style="max-height: 200px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1.5rem; background: #f9fafb; margin-bottom: 1.5rem; font-size: 0.875rem; line-height: 1.6; color: #4b5563;">
+                    <h5 style="font-weight: 600; color: #1f2937; margin-bottom: 1rem;">S Corp. Resume Processing Agreement</h5>
+                    
+                    <p style="margin-bottom: 1rem;"><strong>1. Data Processing Consent:</strong> By uploading your resume, you explicitly consent to S Corp. processing your personal and professional information contained within your resume for the purposes of job matching, interview preparation, and career services.</p>
+                    
+                    <p style="margin-bottom: 1rem;"><strong>2. AI Analysis:</strong> Your resume will be analyzed using artificial intelligence technology to extract relevant skills, experience, and qualifications. This analysis will be used to provide personalized job recommendations and interview questions.</p>
+                    
+                    <p style="margin-bottom: 1rem;"><strong>3. Data Retention:</strong> Your resume and extracted information will be stored securely for the duration of your active account plus 12 months thereafter, unless you request deletion. You may request deletion of your data at any time by contacting support@aicareers.com.</p>
+                    
+                    <p style="margin-bottom: 1rem;"><strong>4. Data Sharing:</strong> We do not sell or share your personal information with third parties for marketing purposes. Your information may be shared with potential employers only after you explicitly apply for positions and consent to sharing your information with specific companies.</p>
+                    
+                    <p style="margin-bottom: 1rem;"><strong>5. Data Security:</strong> We implement industry-standard security measures to protect your information, including encryption at rest and in transit, secure access controls, and regular security audits.</p>
+                    
+                    <p style="margin-bottom: 1rem;"><strong>6. Accuracy Disclaimer:</strong> While our AI technology is highly accurate, you acknowledge that automated analysis may not capture all nuances of your experience. You are responsible for reviewing and correcting any inaccuracies in your profile.</p>
+                    
+                    <p style="margin-bottom: 1rem;"><strong>7. Right to Withdrawal:</strong> You may withdraw your consent at any time by deleting your account, which will result in the removal of your resume and all associated data from our systems within 30 days.</p>
+                    
+                    <p style="margin-bottom: 1rem;"><strong>8. Updates to Terms:</strong> We may update these terms periodically. Continued use of our service after updates constitutes acceptance of new terms.</p>
+                    
+                    <p style="margin-bottom: 1rem;"><strong>9. Contact Information:</strong> For questions about data processing or to exercise your rights, contact us at privacy@aicareers.com or through our privacy portal.</p>
+                    
+                    <p><strong>10. Governing Law:</strong> This agreement is governed by the laws of California and any disputes will be resolved in California courts.</p>
+                </div>
+                
+                <label style="display: flex; align-items: flex-start; gap: 0.75rem; cursor: pointer;">
+                    <input type="checkbox" id="terms-checkbox" style="margin-top: 0.25rem;" onchange="validateForm()">
+                    <span style="font-size: 0.875rem; line-height: 1.5; color: #4b5563;">
+                        I have read and agree to the Terms and Conditions above. I consent to the processing of my resume data for AI-powered job matching and interview preparation services.
+                    </span>
+                </label>
+            </div>
+
+            <!-- Upload Button -->
+            <div style="text-align: center;">
+                <button id="upload-btn" disabled style="background: #9ca3af; color: white; border: none; padding: 1rem 3rem; border-radius: 0.5rem; font-weight: 600; font-size: 1.125rem; cursor: not-allowed; transition: all 0.3s ease;" onclick="uploadResume()">
+                    Upload Resume
+                </button>
+                <p style="color: #6b7280; font-size: 0.875rem; margin-top: 1rem;">
+                    Complete the captcha and accept terms to enable upload
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <script src="../../js/careers.js"></script>
+    <script>
+        let fileSelected = false;
+        let captchaValid = false;
+        let termsAccepted = false;
+        let currentCaptcha = '7B4K9';
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                if (file.type !== 'application/pdf') {
+                    alert('Please select a PDF file only.');
+                    return;
+                }
+                if (file.size > 5 * 1024 * 1024) { // 5MB
+                    alert('File size must be less than 5MB.');
+                    return;
+                }
+                
+                fileSelected = true;
+                document.getElementById('file-info').style.display = 'block';
+                document.getElementById('file-name').textContent = file.name;
+                document.getElementById('file-size').textContent = formatFileSize(file.size);
+                validateForm();
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function generateCaptcha() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let result = '';
+            for (let i = 0; i < 5; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+        function refreshCaptcha() {
+            currentCaptcha = generateCaptcha();
+            document.getElementById('captcha-text').textContent = currentCaptcha;
+            document.getElementById('captcha-input').value = '';
+            captchaValid = false;
+            updateCaptchaStatus('');
+            validateForm();
+        }
+
+        function validateCaptcha() {
+            const input = document.getElementById('captcha-input').value.toUpperCase();
+            if (input === currentCaptcha) {
+                captchaValid = true;
+                updateCaptchaStatus('✓ Verified', '#10b981');
+            } else if (input.length === currentCaptcha.length) {
+                captchaValid = false;
+                updateCaptchaStatus('✗ Incorrect', '#ef4444');
+            } else {
+                captchaValid = false;
+                updateCaptchaStatus('');
+            }
+            validateForm();
+        }
+
+        function updateCaptchaStatus(message, color = '#6b7280') {
+            const status = document.getElementById('captcha-status');
+            status.textContent = message;
+            status.style.color = color;
+        }
+
+        function validateForm() {
+            const termsCheckbox = document.getElementById('terms-checkbox');
+            termsAccepted = termsCheckbox.checked;
+            
+            const uploadBtn = document.getElementById('upload-btn');
+            if (fileSelected && captchaValid && termsAccepted) {
+                uploadBtn.disabled = false;
+                uploadBtn.style.background = '#3b82f6';
+                uploadBtn.style.cursor = 'pointer';
+                uploadBtn.nextElementSibling.textContent = 'Ready to upload your resume';
+            } else {
+                uploadBtn.disabled = true;
+                uploadBtn.style.background = '#9ca3af';
+                uploadBtn.style.cursor = 'not-allowed';
+                
+                let missing = [];
+                if (!fileSelected) missing.push('select a PDF file');
+                if (!captchaValid) missing.push('complete the captcha');
+                if (!termsAccepted) missing.push('accept terms');
+                
+                uploadBtn.nextElementSibling.textContent = `Please ${missing.join(', ')} to enable upload`;
+            }
+        }
+
+        function uploadResume() {
+            if (!fileSelected || !captchaValid || !termsAccepted) {
+                return;
+            }
+            
+            // Show loading state
+            const uploadBtn = document.getElementById('upload-btn');
+            uploadBtn.textContent = 'Uploading...';
+            uploadBtn.disabled = true;
+            uploadBtn.style.background = '#9ca3af';
+            
+            // Simulate upload process
+            setTimeout(() => {
+                showNotification('Resume uploaded successfully!', 'success');
+                setTimeout(() => {
+                    // Redirect to dashboard with resume
+                    window.location.href = '../auth/dashboard-no-applications.html';
+                }, 1500);
+            }, 2000);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            validateForm();
+        });
+    </script>
+</body>
+</html>

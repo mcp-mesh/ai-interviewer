@@ -284,4 +284,4 @@ ngx.log(ngx.INFO, "OAuth login successful for email: ", session.user_email or "u
 local cookie_attrs = "HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=86400"
 ngx.header["Set-Cookie"] = "session_id=" .. session_id .. "; " .. cookie_attrs
 ngx.log(ngx.ERR, "Setting cookie with session_id: ", session_id)
-return ngx.redirect("/")
+return ngx.redirect("/dashboard")

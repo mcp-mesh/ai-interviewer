@@ -18,14 +18,18 @@ variable "namespace" {
 
 variable "docker_images" {
   description = "Docker images to load into minikube"
-  type = map(string)
+  type        = map(string)
   default = {
     backend           = "ai-interviewer/backend:latest"
     frontend          = "ai-interviewer/nginx-gateway:latest"
     pdf_extractor     = "ai-interviewer/pdf-extractor:latest"
     interview_agent   = "ai-interviewer/interview-agent:latest"
-    llm_agent         = "ai-interviewer/llm-agent:latest"
+    claude_llm_agent  = "ai-interviewer/claude-llm-agent:latest"
     openai_llm_agent  = "ai-interviewer/openai-llm-agent:latest"
+    application_agent = "ai-interviewer/application-agent:latest"
+    file_agent        = "ai-interviewer/file-agent:latest"
+    job_agent         = "ai-interviewer/job-agent:latest"
+    user_agent        = "ai-interviewer/user-agent:latest"
   }
 }
 

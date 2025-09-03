@@ -39,7 +39,7 @@ resource "null_resource" "build_images" {
   provisioner "local-exec" {
     # Run from terraform directory, navigate to ai-interviewer parent
     working_dir = ".."
-    command = <<-EOF
+    command     = <<-EOF
       # Set minikube docker context
       eval $(minikube docker-env)
       
@@ -54,7 +54,7 @@ resource "null_resource" "build_images" {
       docker build -f services/interview_agent/Dockerfile -t ai-interviewer/interview-agent:latest .
       
       echo "🏗️ Building LLM agent..."
-      docker build -f services/llm_agent/Dockerfile -t ai-interviewer/llm-agent:latest .
+      docker build -f services/claude_llm_agent/Dockerfile -t ai-interviewer/claude-llm-agent:latest .
       
       echo "🏗️ Building OpenAI LLM agent..."
       docker build -f services/openai_llm_agent/Dockerfile -t ai-interviewer/openai-llm-agent:latest .
@@ -73,7 +73,7 @@ resource "null_resource" "build_images" {
 # Load Docker images into minikube (now depends on build)
 resource "null_resource" "load_images" {
   for_each = var.docker_images
-  
+
   depends_on = [null_resource.build_images]
 
   triggers = {
@@ -81,7 +81,7 @@ resource "null_resource" "load_images" {
   }
 
   provisioner "local-exec" {
-    command = "minikube image load ${each.value}"
+    command    = "minikube image load ${each.value}"
     on_failure = continue
   }
 }

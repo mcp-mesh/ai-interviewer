@@ -50,9 +50,9 @@ output "database_connections" {
 output "services_status" {
   description = "Quick status check commands"
   value = {
-    check_pods    = "kubectl get pods -n ${var.namespace}"
-    check_services = "kubectl get services -n ${var.namespace}"
-    check_ingress = "kubectl get service ai-interviewer-nginx-gateway -n ${var.namespace}"
+    check_pods           = "kubectl get pods -n ${var.namespace}"
+    check_services       = "kubectl get services -n ${var.namespace}"
+    check_ingress        = "kubectl get service ai-interviewer-nginx-gateway -n ${var.namespace}"
     port_forward_backend = "kubectl port-forward -n ${var.namespace} service/ai-interviewer-backend 8080:8080"
   }
 }
@@ -60,9 +60,9 @@ output "services_status" {
 output "useful_commands" {
   description = "Useful kubectl commands for management"
   value = {
-    restart_nginx = "kubectl rollout restart deployment ai-interviewer-nginx-gateway -n ${var.namespace}"
-    restart_backend = "kubectl rollout restart deployment ai-interviewer-backend -n ${var.namespace}"
-    view_logs_nginx = "kubectl logs -n ${var.namespace} -l app.kubernetes.io/name=ai-interviewer-nginx-gateway -f"
+    restart_nginx     = "kubectl rollout restart deployment ai-interviewer-nginx-gateway -n ${var.namespace}"
+    restart_backend   = "kubectl rollout restart deployment ai-interviewer-backend -n ${var.namespace}"
+    view_logs_nginx   = "kubectl logs -n ${var.namespace} -l app.kubernetes.io/name=ai-interviewer-nginx-gateway -f"
     view_logs_backend = "kubectl logs -n ${var.namespace} -l app.kubernetes.io/name=ai-interviewer-backend -f"
     exec_into_backend = "kubectl exec -n ${var.namespace} -it deployment/ai-interviewer-backend -- /bin/bash"
   }

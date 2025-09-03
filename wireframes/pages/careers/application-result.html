@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application Status - S Corp.</title>
+    <link rel="stylesheet" href="../../css/careers.css">
+    <link rel="stylesheet" href="../../css/listing-clean.css">
+</head>
+<body>
+    <!-- Navigation Header -->
+    <header class="header">
+        <div class="nav-container">
+            <a href="../../index.html" class="logo">
+                <div class="logo-icon">SCI</div>
+                <span>S Corp.</span>
+            </a>
+            
+            <div class="nav-actions">
+                <div class="user-info">
+                    <div class="user-avatar">DR</div>
+                    <div class="user-details">
+                        <h4>Dhyan Raj</h4>
+                        <p>dhyan.raj@gmail.com</p>
+                    </div>
+                    <a href="../auth/dashboard-with-applications.html" class="btn btn-secondary">My Applications</a>
+                    <a href="#" class="btn btn-secondary" onclick="logout()">Logout</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container">
+        
+        <!-- Interview Eligible Result -->
+        <div id="eligible-result" class="text-center" style="max-width: 600px; margin: 4rem auto;">
+            <div style="margin-bottom: 2rem;">
+                <div style="width: 5rem; height: 5rem; background: linear-gradient(135deg, #3b82f6, #1d4ed8); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 2rem;">
+                    🎉
+                </div>
+                <h1 style="font-size: 2.5rem; font-weight: 700; color: #1f2937; margin-bottom: 1rem;">
+                    Congratulations!
+                </h1>
+                <p style="font-size: 1.25rem; color: #3b82f6; font-weight: 600; margin-bottom: 2rem;">
+                    You're invited to participate in our AI-powered interview process
+                </p>
+            </div>
+
+            <div style="background: white; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 2rem; text-align: left; margin-bottom: 2rem;">
+                <div>
+                    <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem;">Application Summary</h2>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                        <div>
+                            <h3 style="font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">Position</h3>
+                            <p style="font-weight: 600;">Senior Software Engineer</p>
+                        </div>
+                        <div>
+                            <h3 style="font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">Location</h3>
+                            <p style="font-weight: 600;">San Francisco, CA</p>
+                        </div>
+                        <div>
+                            <h3 style="font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">Application Date</h3>
+                            <p style="font-weight: 600;">Today, 2:30 PM</p>
+                        </div>
+                        <div>
+                            <h3 style="font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">Status</h3>
+                            <span style="background: #dbeafe; color: #1e40af; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 500;">
+                                Interview Eligible
+                            </span>
+                        </div>
+                    </div>
+
+                    <div style="background: #dbeafe; border-radius: 0.5rem; padding: 1rem; margin-bottom: 1.5rem;">
+                        <h3 style="font-size: 1rem; font-weight: 600; color: #1e40af; margin-bottom: 0.5rem;">What's Next?</h3>
+                        <p style="color: #1e40af; font-size: 0.875rem; margin: 0;">
+                            Our AI-powered interview process helps us better understand your capabilities and ensures 
+                            a fair, consistent evaluation. The interview is personalized based on your background and the role requirements.
+                        </p>
+                    </div>
+
+                    <div style="background: #f9fafb; border-radius: 0.5rem; padding: 1rem;">
+                        <h3 style="font-size: 1rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;">Interview Details</h3>
+                        <ul style="list-style: none; padding: 0; margin: 0; color: #6b7280; font-size: 0.875rem;">
+                            <li style="margin-bottom: 0.5rem;">⏱️ <strong>Duration:</strong> 20-25 minutes</li>
+                            <li style="margin-bottom: 0.5rem;">🤖 <strong>Format:</strong> AI-powered conversation</li>
+                            <li style="margin-bottom: 0.5rem;">💻 <strong>Requirements:</strong> Computer with microphone</li>
+                            <li>🔒 <strong>Privacy:</strong> Secure and confidential</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; justify-content: center; margin-bottom: 2rem;">
+                <a href="../interviews/prepare.html?position=senior-engineer" class="btn btn-success" style="font-size: 1rem; padding: 0.75rem 2rem;">
+                    Start Interview Now
+                </a>
+                <button class="btn btn-secondary" onclick="scheduleForLater()" style="font-size: 1rem; padding: 0.75rem 2rem;">
+                    I need more time
+                </button>
+            </div>
+
+            <div style="text-align: center;">
+                <a href="../positions/listing.html" style="color: #6b7280; text-decoration: none; font-size: 0.875rem;">
+                    ← Back to Browse Positions
+                </a>
+            </div>
+        </div>
+
+        <!-- Not Eligible Result (hidden by default) -->
+        <div id="not-eligible-result" class="text-center hidden" style="max-width: 600px; margin: 4rem auto;">
+            <div style="margin-bottom: 2rem;">
+                <div style="width: 5rem; height: 5rem; background: linear-gradient(135deg, #3b82f6, #1d4ed8); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 2rem;">
+                    📧
+                </div>
+                <h1 style="font-size: 2.5rem; font-weight: 700; color: #1f2937; margin-bottom: 1rem;">
+                    Thank You for Your Application
+                </h1>
+                <p style="font-size: 1.25rem; color: #6b7280; margin-bottom: 2rem;">
+                    We have received your application and will review it carefully
+                </p>
+            </div>
+
+            <div style="background: white; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 2rem; text-align: left; margin-bottom: 2rem;">
+                <div>
+                    <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem;">Application Summary</h2>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                        <div>
+                            <h3 style="font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">Position</h3>
+                            <p style="font-weight: 600;">Operations Analyst</p>
+                        </div>
+                        <div>
+                            <h3 style="font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">Location</h3>
+                            <p style="font-weight: 600;">San Francisco, CA</p>
+                        </div>
+                        <div>
+                            <h3 style="font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">Application Date</h3>
+                            <p style="font-weight: 600;">Today, 2:30 PM</p>
+                        </div>
+                        <div>
+                            <h3 style="font-size: 0.875rem; font-weight: 500; color: #6b7280; margin-bottom: 0.25rem;">Status</h3>
+                            <span style="background: #fef3c7; color: #92400e; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 500;">
+                                Under Review
+                            </span>
+                        </div>
+                    </div>
+
+                    <div style="background: #dbeafe; border-radius: 0.5rem; padding: 1rem;">
+                        <h3 style="font-size: 1rem; font-weight: 600; color: #1e40af; margin-bottom: 0.5rem;">What's Next?</h3>
+                        <p style="color: #1e40af; font-size: 0.875rem; margin: 0;">
+                            Our team will review your application within 5-7 business days. If your background matches 
+                            our requirements, we'll contact you with next steps. Thank you for your interest in joining our team!
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; justify-content: center; margin-bottom: 2rem;">
+                <a href="../positions/listing.html" class="btn btn-primary" style="font-size: 1rem; padding: 0.75rem 2rem;">
+                    View Other Positions
+                </a>
+                <a href="../auth/dashboard-with-applications.html" class="btn btn-secondary" style="font-size: 1rem; padding: 0.75rem 2rem;">
+                    View My Applications
+                </a>
+            </div>
+        </div>
+
+        <!-- Apply to Similar Positions -->
+        <div id="similar-positions" class="hidden" style="max-width: 800px; margin: 2rem auto;">
+            <h2 style="text-align: center; font-size: 1.5rem; font-weight: 600; margin-bottom: 2rem; color: #1f2937;">
+                Apply to Similar Positions
+            </h2>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem;">
+                <div class="job-card">
+                    <div class="job-header">
+                        <div style="flex: 1;">
+                            <h3 class="job-title">Full Stack Developer</h3>
+                            <div class="job-meta">
+                                <span>📍 Austin, TX</span>
+                                <span>⏰ Full Time</span>
+                                <span>📅 Posted 1 week ago</span>
+                            </div>
+                        </div>
+                        <div class="match-score">
+                            <span>🎯 88% Match</span>
+                        </div>
+                    </div>
+                    <p class="job-description">
+                        Build modern web applications with our product team. Experience with JavaScript, Python, and cloud platforms required.
+                    </p>
+                    <div class="job-actions">
+                        <button class="btn btn-primary">Quick Apply</button>
+                        <button class="btn btn-secondary">View Details</button>
+                    </div>
+                </div>
+
+                <div class="job-card">
+                    <div class="job-header">
+                        <div style="flex: 1;">
+                            <h3 class="job-title">Frontend Engineer</h3>
+                            <div class="job-meta">
+                                <span>📍 Remote</span>
+                                <span>⏰ Full Time</span>
+                                <span>📅 Posted 4 days ago</span>
+                            </div>
+                        </div>
+                        <div class="match-score">
+                            <span>🎯 85% Match</span>
+                        </div>
+                    </div>
+                    <p class="job-description">
+                        Join our frontend team to build beautiful user interfaces using React and modern web technologies.
+                    </p>
+                    <div class="job-actions">
+                        <button class="btn btn-primary">Quick Apply</button>
+                        <button class="btn btn-secondary">View Details</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="../../js/careers.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check URL parameters for result type
+            const urlParams = new URLSearchParams(window.location.search);
+            const result = urlParams.get('result');
+            
+            if (result === 'not-eligible') {
+                document.getElementById('eligible-result').classList.add('hidden');
+                document.getElementById('not-eligible-result').classList.remove('hidden');
+                document.getElementById('similar-positions').classList.remove('hidden');
+            } else {
+                // Show eligible result by default
+                document.getElementById('eligible-result').classList.remove('hidden');
+                document.getElementById('not-eligible-result').classList.add('hidden');
+            }
+        });
+        
+        function scheduleForLater() {
+            showNotification('No problem! You can start your interview anytime from your dashboard.', 'success');
+            
+            setTimeout(() => {
+                window.location.href = '../auth/dashboard-with-applications.html';
+            }, 2000);
+        }
+        
+        // Demo function to switch between results
+        function showResult(type) {
+            if (type === 'eligible') {
+                document.getElementById('eligible-result').classList.remove('hidden');
+                document.getElementById('not-eligible-result').classList.add('hidden');
+                document.getElementById('similar-positions').classList.add('hidden');
+            } else {
+                document.getElementById('eligible-result').classList.add('hidden');
+                document.getElementById('not-eligible-result').classList.remove('hidden');
+                document.getElementById('similar-positions').classList.remove('hidden');
+            }
+        }
+    </script>
+    
+    <!-- Demo Controls for Wireframe Testing -->
+    <div style="position: fixed; bottom: 1rem; right: 1rem; background: white; padding: 1rem; border-radius: 0.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); z-index: 1000; font-size: 0.875rem;">
+        <h4 style="margin-bottom: 0.5rem; font-weight: 600;">Demo Controls</h4>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <button onclick="showResult('eligible')" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">Show Eligible</button>
+            <button onclick="showResult('not-eligible')" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">Show Not Eligible</button>
+        </div>
+    </div>
+</body>
+</html>

@@ -7,6 +7,7 @@ A simple PDF processing MCP Mesh agent for the AI Interviewer system.
 
 import logging
 import os
+import asyncio
 from typing import Any, Dict
 from datetime import datetime
 
@@ -15,6 +16,9 @@ from fastmcp import FastMCP
 
 # Import specific agent types for type hints
 from mesh.types import McpAgent, McpMeshAgent
+
+# Import comprehensive tool spec
+from .tool_specs.comprehensive_resume_tools import get_comprehensive_resume_tool_spec
 
 # Create FastMCP app instance
 app = FastMCP("PDF Extractor Service")
@@ -85,6 +89,117 @@ def extract_basic_sections(text: str) -> Dict[str, str]:
     
     return sections
 
+
+async def detailed_resume_analysis(
+    full_text: str,
+    user_agent: McpMeshAgent,
+    llm_service: McpMeshAgent,
+    user_email: str
+):
+    """
+    Background task for comprehensive resume analysis.
+    
+    Extracts complete personal info and experience data for application prefill
+    using the full resume text (no truncation).
+    
+    Args:
+        full_text: Complete resume text content
+        user_agent: User agent for storing results  
+        llm_service: LLM agent for processing
+        user_email: User's email address
+    """
+    try:
+        logger.info(f"Starting detailed resume analysis for {user_email}")
+        logger.info(f"Full text length: {len(full_text)} characters")
+        
+        # 1. Get comprehensive tool spec for Steps 1 & 2
+        comprehensive_tool_spec = get_comprehensive_resume_tool_spec()
+        
+        # 2. LLM service will handle tool format conversion internally
+        tools_to_use = [comprehensive_tool_spec]
+        
+        # 3. Create comprehensive system prompt
+        comprehensive_prompt = f"""You are an expert resume analyzer for job application systems. Extract comprehensive data for Steps 1 & 2 of the application process.
+
+FULL RESUME TEXT:
+{full_text}
+
+EXTRACT THE FOLLOWING DATA USING THE PROVIDED TOOL:
+
+STEP 1 - PERSONAL INFORMATION:
+- Full name, email address, phone number
+- Complete address (street, city, state, country, postal code)
+- LinkedIn profile, portfolio website, GitHub profile URLs
+- Current professional title or desired position
+- Brief professional summary (2-3 sentences, max 300 chars)
+
+STEP 2 - EXPERIENCE INFORMATION:
+- Complete work history (reverse chronological order)
+- For each job: title, company, location, dates, key responsibilities, technologies used
+- Total years of professional experience
+- Top 20 technical skills across all experience
+- Top 10 soft skills (leadership, communication, etc.)
+- Education and certifications with degrees, institutions, years
+- Industries worked in
+- Management/leadership experience (yes/no)
+- Current salary and salary expectations if mentioned
+
+REQUIREMENTS:
+- Extract ALL available information from the full resume text
+- Be comprehensive - don't truncate or summarize work experience
+- Include confidence scores for both personal_info and experience_info sections
+- Format dates as MM/YYYY where possible
+- Use the provided tool to return structured data
+
+Focus on extracting data that will perfectly prefill job application forms with accurate, complete information."""
+        
+        # 4. Call LLM with comprehensive analysis
+        result = await asyncio.wait_for(
+            llm_service(
+                text="Extract comprehensive resume data for application prefill",
+                system_prompt=comprehensive_prompt,
+                messages=[],
+                tools=tools_to_use,
+                force_tool_use=True,
+                temperature=0.1
+            ),
+            timeout=300  # 5 minutes
+        )
+        
+        # 5. Extract tool call results
+        if result and result.get("success") and result.get("tool_calls"):
+            tool_calls = result.get("tool_calls", [])
+            if len(tool_calls) > 0:
+                extracted_data = tool_calls[0].get("parameters", {})
+                personal_info = extracted_data.get("personal_info", {})
+                experience_info = extracted_data.get("experience_info", {})
+                
+                logger.info(f"LLM extraction completed for {user_email}")
+                logger.info(f"Personal info confidence: {personal_info.get('confidence_score', 'N/A')}")
+                logger.info(f"Experience info confidence: {experience_info.get('confidence_score', 'N/A')}")
+                
+                # 6. Store results via user agent
+                update_result = await user_agent(
+                    user_email=user_email,
+                    personal_info=personal_info,
+                    experience_info=experience_info
+                )
+                
+                if update_result.get("success"):
+                    logger.info(f"Successfully completed detailed analysis for {user_email}")
+                else:
+                    logger.error(f"Failed to store detailed analysis for {user_email}: {update_result.get('error')}")
+            else:
+                logger.warning(f"No tool calls in LLM result for {user_email}")
+        else:
+            logger.warning(f"LLM failed to extract comprehensive data for {user_email}")
+            
+    except asyncio.TimeoutError:
+        logger.warning(f"Detailed analysis timeout (5 minutes) for {user_email}")
+    except Exception as e:
+        logger.error(f"Detailed analysis failed for {user_email}: {str(e)}")
+
+
 # Simple PDF extraction function with enhanced LLM analysis
 @app.tool()
 @mesh.tool(
@@ -94,17 +209,23 @@ def extract_basic_sections(text: str) -> Dict[str, str]:
     dependencies=[
         {
             "capability": "process_with_tools",
-            "tags": ["+openai"],  # tag time is optional (plus to have)
+            "tags": ["+openai"],  # tag openai is optional (plus to have)
         },
         {
-            "capability": "convert_tool_format",
-            "tags": ["+openai"],  # tag time is optional (plus to have)
+            "capability": "update_detailed_resume_analysis",
+            "tags": ["user-management"],  # New user agent capability
         }
     ],
     tags=["pdf", "text-extraction", "document-processing"]
 )
 
-async def extract_text_from_pdf(file_path: str, extraction_method: str = "auto", llm_service: McpAgent = None, convert_tool_format: McpAgent = None) -> Dict[str, Any]:
+async def extract_text_from_pdf(
+    file_path: str, 
+    extraction_method: str = "auto",
+    user_email: str = None,
+    llm_service: McpAgent = None, 
+    update_detailed_resume_analysis: McpAgent = None,
+) -> Dict[str, Any]:
     """Extract text content from a PDF file."""
     try:
         import fitz
@@ -188,142 +309,128 @@ async def extract_text_from_pdf(file_path: str, extraction_method: str = "auto",
             try:
                 logger.info("Enhancing PDF extraction with LLM analysis")
                 
-                # Define resume analysis tool schema to match UI expectations
-                resume_analysis_tool = {
-                    "name": "analyze_resume_content",
-                    "description": "Analyze resume/CV content and extract structured professional information",
+                # Define quick analysis tool schema - basic info only for speed
+                profile_analysis_tool = {
+                    "name": "analyze_resume_for_matching",
+                    "description": "Quick resume validation and basic profile extraction",
                     "input_schema": {
                         "type": "object",
                         "properties": {
-                            "professional_summary": {
+                            "is_resume": {
+                                "type": "boolean",
+                                "description": "Whether the document appears to be a resume/CV"
+                            },
+                            "full_name": {
                                 "type": "string",
-                                "description": "Professional summary of the candidate (2-3 sentences)"
+                                "description": "Candidate's full name"
                             },
-                            "technical_skills": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": "List of technical skills, programming languages, and technologies"
-                            },
-                            "years_experience": {
-                                "type": "integer",
-                                "description": "Total years of professional experience as a number"
+                            "experience_level": {
+                                "type": "string",
+                                "enum": ["intern", "junior", "mid", "senior", "lead", "principal"],
+                                "description": "Overall experience level based on career progression"
                             },
                             "education_level": {
                                 "type": "string",
-                                "description": "Highest education level (e.g., Bachelor's, Master's, PhD)"
+                                "description": "Highest education level achieved (e.g., Bachelor's, Master's, PhD)"
                             },
-                            "key_achievements": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": "List of notable professional achievements"
+                            "years_experience": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 50,
+                                "description": "Total years of professional work experience"
                             },
-                            "work_experience": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "title": {"type": "string", "description": "Job title"},
-                                        "company": {"type": "string", "description": "Company name"},
-                                        "duration": {"type": "string", "description": "Employment duration (e.g., '2020-2023')"},
-                                        "key_responsibilities": {
-                                            "type": "array",
-                                            "items": {"type": "string"},
-                                            "description": "Key responsibilities and achievements"
-                                        }
-                                    },
-                                    "required": ["title", "company", "duration"]
-                                },
-                                "description": "Work experience history"
-                            },
-                            "document_quality": {
-                                "type": "string",
-                                "description": "Overall document quality assessment",
-                                "enum": ["excellent", "good", "average", "poor"]
+                            "confidence_score": {
+                                "type": "number",
+                                "minimum": 0.0,
+                                "maximum": 1.0,
+                                "description": "LLM confidence in this analysis"
                             }
                         },
-                        "required": ["professional_summary", "technical_skills", "years_experience", "education_level", "document_quality"]
+                        "required": ["is_resume", "full_name", "experience_level", "education_level", "years_experience", "confidence_score"]
                     }
                 }
                 
-                # Convert tools to appropriate format for the LLM provider
-                logger.info("Converting resume analysis tool format for LLM provider")
-                converted_tools = [resume_analysis_tool]  # Default to Claude format
-                
-                if convert_tool_format:
-                    try:
-                        converted_tools = await convert_tool_format(tools=[resume_analysis_tool])
-                        logger.info(f"Successfully converted {len(converted_tools)} resume analysis tools for LLM provider")
-                    except Exception as tool_convert_error:
-                        logger.warning(f"Resume tool conversion failed, using original format: {tool_convert_error}")
-                        converted_tools = [resume_analysis_tool]
-                else:
-                    logger.info("Tool conversion service not available, using Claude format for resume analysis")
+                # LLM service will handle tool format conversion internally
+                tools_to_use = [profile_analysis_tool]
+                logger.info("Using profile analysis tool - LLM service will handle format conversion internally")
 
-                # Create resume analysis system prompt
-                analysis_system_prompt = f"""You are a professional resume analysis expert. Analyze the provided resume/CV text and extract structured professional information.
+                # Create quick analysis system prompt with resume validation
+                analysis_system_prompt = f"""You are a resume validation and analysis expert. Your task is to:
+1. First validate if this document is actually a resume/CV
+2. If it is a resume, extract basic profile information for quick processing
 
-RESUME/CV CONTENT TO ANALYZE:
+DOCUMENT CONTENT TO ANALYZE:
 {text[:3000]}{'...' if len(text) > 3000 else ''}
 
-Instructions:
-- Create a professional summary (2-3 sentences) highlighting the candidate's key qualifications
-- Extract technical skills, programming languages, and technologies as a flat list
-- Determine total years of experience as a number (not "over X years" - extract the actual number)
-- Identify the highest education level (Bachelor's, Master's, PhD, etc.)  
-- List key achievements and accomplishments
-- Extract work experience with titles, companies, durations, and key responsibilities
-- Rate document quality as: excellent, good, average, or poor
+IMPORTANT CONTEXT:
+- You are receiving the first few pages of a document that may be a resume
+- A resume may appear incomplete because you're only seeing the beginning
+- Focus on typical resume indicators: name, contact info, work experience, education
 
-Focus on extracting concrete, specific information. For years of experience, convert phrases like "over 20 years" to the number 20.
+VALIDATION CRITERIA:
+- Does this look like a professional resume/CV?
+- Look for: personal name, contact info, work history, education, skills
+- Even if incomplete (first pages only), does it have resume structure?
 
-Use the provided tool to return your analysis in the exact structured format expected by the UI."""
+EXTRACTION INSTRUCTIONS (only if is_resume=true):
+- Extract candidate's full name
+- Determine experience level: intern, junior, mid, senior, lead, principal
+- Calculate total years of professional work experience (0-50)
+- Identify highest education level (Bachelor's, Master's, PhD, High School, etc.)
+- Rate your confidence in this analysis (0.0-1.0)
 
-                # Call LLM service with converted tools
-                logger.info("Calling LLM service for resume analysis")
+If this is NOT a resume (is_resume=false), still fill required fields with placeholder values but be honest about the validation.
+
+Use the provided tool to return your analysis."""
+
+                # Call LLM service with tools
+                logger.info("Calling LLM service for profile analysis")
                 logger.info(f"Text length: {len(text)} characters")
-                logger.info(f"Tool name: {resume_analysis_tool['name']}")
-                logger.info(f"Converted tools count: {len(converted_tools)}")
+                logger.info(f"Tool name: {profile_analysis_tool['name']}")
+                logger.info(f"Tools count: {len(tools_to_use)}")
                 
                 analysis_result = await llm_service(
-                    text="Analyze this resume/CV document content using the provided tool.",
+                    text="Analyze this resume/CV document content for role matching using the provided tool.",
                     system_prompt=analysis_system_prompt,
                     messages=[],  # Empty messages array
-                    tools=converted_tools,
+                    tools=tools_to_use,
                     force_tool_use=True,
                     temperature=0.1
                 )
                 
-                logger.info("LLM service call completed for resume analysis")
+                logger.info("LLM service call completed for profile analysis")
                 
                 if analysis_result and analysis_result.get("success") and analysis_result.get("tool_calls"):
-                    # Extract analysis from tool calls 
+                    # Extract profile analysis from tool calls 
                     tool_calls = analysis_result.get("tool_calls", [])
                     if len(tool_calls) > 0:
-                        analysis_data = tool_calls[0].get("parameters", {})
+                        profile_data = tool_calls[0].get("parameters", {})
                         
                         # Inject AI provider and model from LLM service response
-                        analysis_data["ai_provider"] = analysis_result.get("provider", "unknown")
-                        analysis_data["ai_model"] = analysis_result.get("model", "unknown")
+                        profile_data["ai_provider"] = analysis_result.get("provider", "unknown")
+                        profile_data["ai_model"] = analysis_result.get("model", "unknown")
                         
-                        result["structured_analysis"] = analysis_data
+                        result["profile_analysis"] = profile_data
                         result["analysis_enhanced"] = True
-                        result["summary"] = analysis_data.get("professional_summary", "Resume analysis completed")
-                        logger.info(f"Resume analysis completed - AI provider: {analysis_data['ai_provider']}, model: {analysis_data['ai_model']}")
-                        logger.info(f"Document quality: {analysis_data.get('document_quality', 'N/A')}")
+                        result["summary"] = profile_data.get("professional_summary", "Profile analysis completed")
+                        logger.info(f"Profile analysis completed - AI provider: {profile_data['ai_provider']}, model: {profile_data['ai_model']}")
+                        logger.info(f"Categories: {profile_data.get('categories', [])}")
+                        logger.info(f"Experience level: {profile_data.get('experience_level', 'N/A')}")
+                        logger.info(f"Profile strength: {profile_data.get('profile_strength', 'N/A')}")
                     else:
-                        logger.warning("No tool calls found in LLM response for resume analysis")
+                        logger.warning("No tool calls found in LLM response for profile analysis")
                         result["analysis_enhanced"] = False
-                        result["summary"] = "Resume analysis failed - no tool calls"
+                        result["summary"] = "Profile analysis failed - no tool calls"
                 else:
-                    logger.warning("LLM resume analysis failed or returned no results")
+                    logger.warning("LLM profile analysis failed or returned no results")
                     result["analysis_enhanced"] = False
-                    result["summary"] = "Resume analysis failed"
+                    result["summary"] = "Profile analysis failed"
                     
             except Exception as e:
-                logger.error(f"LLM resume analysis failed: {e}")
+                logger.error(f"LLM profile analysis failed: {e}")
                 result["analysis_enhanced"] = False
                 result["analysis_error"] = str(e)
-                result["summary"] = "Resume analysis failed due to error"
+                result["summary"] = "Profile analysis failed due to error"
 
         # Add fallback summary if LLM is not available or failed
         if "summary" not in result:
@@ -332,6 +439,22 @@ Use the provided tool to return your analysis in the exact structured format exp
             page_count = result["page_count"]
             sections_count = len(result["sections"])
             result["summary"] = f"Document with {word_count} words across {page_count} page(s), containing {sections_count} identified sections."
+
+        # 🚀 Launch background detailed analysis task (don't wait)
+        if (update_detailed_resume_analysis and user_email and llm_service and 
+            text and len(text.strip()) > 0):
+            
+            logger.info(f"Starting background detailed analysis for {user_email}")
+            asyncio.create_task(
+                detailed_resume_analysis(
+                    full_text=text,
+                    user_agent=update_detailed_resume_analysis,
+                    llm_service=llm_service,
+                    user_email=user_email
+                )
+            )
+        else:
+            logger.info("Skipping detailed analysis - missing required parameters")
 
         return result
 

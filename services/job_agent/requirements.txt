@@ -1,0 +1,6 @@
+# Job Agent - MCP Mesh Agent Dependencies
+fastmcp
+pydantic
+typing-extensions
+psycopg2-binary
+sqlalchemy

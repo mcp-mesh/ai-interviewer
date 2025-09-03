@@ -1,6 +1,10 @@
 # Interview Agent specific dependencies
 # MCP Mesh and FastMCP are already included in the base runtime image
 
+# Database ORM
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+
 # Redis for session management
 redis>=5.0.0
 aioredis>=2.0.0

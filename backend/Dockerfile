@@ -1,5 +1,5 @@
-# Optimized Dockerfile using official MCP Mesh Python runtime
-# Production-ready containerization for FastAPI Backend
+# Phase 2 Backend Dockerfile - Clean FastAPI + MCP Mesh
+# Production-ready containerization for Phase 2 Backend
 
 # Use official MCP Mesh Python runtime as base
 ARG MCP_MESH_VERSION=0.5.3

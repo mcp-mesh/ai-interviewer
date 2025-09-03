@@ -90,7 +90,7 @@ cd /path/to/mcp-mesh/ai-interviewer
 docker build -t ai-interviewer/backend:latest -f backend/Dockerfile .
 
 # Build agents
-docker build -t ai-interviewer/llm-agent:latest -f agents/llm-agent/Dockerfile .
+docker build -t ai-interviewer/claude-llm-agent:latest -f agents/claude-llm-agent/Dockerfile .
 docker build -t ai-interviewer/openai-llm-agent:latest -f agents/openai-llm-agent/Dockerfile .
 docker build -t ai-interviewer/pdf-extractor:latest -f agents/pdf-extractor/Dockerfile .
 docker build -t ai-interviewer/interview-agent:latest -f agents/interview-agent/Dockerfile .

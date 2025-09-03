@@ -21,8 +21,8 @@ resources:
   - agents/pdf-extractor-service.yaml
   - agents/interview-agent-deployment.yaml
   - agents/interview-agent-service.yaml
-  - agents/llm-agent-deployment.yaml
-  - agents/llm-agent-service.yaml
+  - agents/claude-llm-agent-deployment.yaml
+  - agents/claude-llm-agent-service.yaml
   - agents/openai-llm-agent-deployment.yaml
   - agents/openai-llm-agent-service.yaml
   

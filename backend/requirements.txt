@@ -1,30 +1,8 @@
-# FastAPI and dependencies
-fastapi>=0.100.0
-uvicorn[standard]>=0.24.0
-python-multipart>=0.0.6
-
-# Redis client
-redis>=5.0.0
-
-# HTTP client for external requests
-httpx>=0.25.0
-
-# MinIO S3 client
-minio>=7.2.0
-
-# JSON handling
-pydantic>=2.0.0,<3.0.0
-
-# JWT token parsing
-PyJWT>=2.8.0
-
-# MCP Mesh integration (installed from local source in Docker)
-# mcp-mesh>=0.5.0  # Commented out - using local source
-
-# FastMCP Client dependencies (required for MCP Mesh DI)
-fastmcp
-# Let pip resolve compatible versions automatically
-
-# Development and testing
-pytest==7.4.3
-pytest-asyncio==0.21.1
+# Phase 2 Backend - Minimal FastAPI + MCP Mesh
+mcp-mesh>=0.5.3
+fastapi
+uvicorn[standard]
+python-multipart
+PyJWT
+requests
+minio

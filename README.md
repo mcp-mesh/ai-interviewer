@@ -126,7 +126,7 @@ terraform apply \
   -target=kubernetes_deployment.registry \
   -target=kubernetes_deployment.pdf_extractor \
   -target=kubernetes_deployment.interview_agent \
-  -target=kubernetes_deployment.llm_agent \
+  -target=kubernetes_deployment.claude_llm_agent \
   -target=kubernetes_deployment.openai_llm_agent
 
 # 5. Deploy Gateway and Observability

@@ -1,297 +1,374 @@
-'use client'
+"use client"
 
-import { useState, useRef } from 'react'
-import { 
-  DocumentArrowUpIcon,
-  CheckCircleIcon,
-  ExclamationCircleIcon,
-  ArrowLeftIcon,
-  CloudArrowUpIcon
-} from '@heroicons/react/24/outline'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import { useGoogleReCaptcha } from 'react-google-recaptcha-v3'
+import { Navigation } from '@/components/navigation'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { ToastContainer, useToast } from '@/components/common'
+import { User } from '@/lib/types'
+import { FileText, Upload, CheckCircle, Shield, RefreshCw } from 'lucide-react'
 
 export default function UploadPage() {
   const router = useRouter()
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  
-  const [file, setFile] = useState<File | null>(null)
+  const { executeRecaptcha } = useGoogleReCaptcha()
+  const [user, setUser] = useState<User | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null)
+  const [recaptchaLoading, setRecaptchaLoading] = useState(false)
+  const [termsAccepted, setTermsAccepted] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
-  const [uploadSuccess, setUploadSuccess] = useState(false)
-  const [error, setError] = useState('')
-  const [dragOver, setDragOver] = useState(false)
+  const { toasts, showToast, removeToast, clearAllToasts } = useToast()
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes'
-    
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    
-    if (i >= sizes.length) return `${bytes} Bytes`
-    
-    const size = bytes / Math.pow(k, i)
-    return `${size.toFixed(i === 0 ? 0 : 2)} ${sizes[i]}`
-  }
+  useEffect(() => {
+    // Get user from localStorage
+    const userData = localStorage.getItem('user')
+    if (userData) {
+      setUser(JSON.parse(userData))
+    } else {
+      // Redirect to login if no user found
+      router.push('/login?redirect=/upload')
+    }
+  }, [router])
 
-  const handleLogout = async () => {
+  const executeReCaptcha = async () => {
+    if (!executeRecaptcha) {
+      showToast.error('reCAPTCHA not available')
+      return false
+    }
+
+    setRecaptchaLoading(true)
     try {
-      await fetch('/logout', {
-        method: 'POST',
-        credentials: 'include'
-      })
+      const token = await executeRecaptcha('upload_resume')
+      setRecaptchaToken(token)
+      showToast.success('Security verification completed')
+      return true
     } catch (error) {
-      console.error('Logout error:', error)
+      showToast.error('Security verification failed')
+      console.error('reCAPTCHA error:', error)
+      return false
+    } finally {
+      setRecaptchaLoading(false)
     }
-    window.location.href = '/'
   }
 
-  const handleFileSelect = (selectedFile: File) => {
-    console.log('🔍 DEBUG: File selected:', {
-      name: selectedFile.name,
-      size: selectedFile.size,
-      type: selectedFile.type,
-      formattedSize: formatFileSize(selectedFile.size)
-    });
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      if (file.type !== 'application/pdf') {
+        showToast.error('Please select a PDF file only.')
+        return
+      }
+      if (file.size > 5 * 1024 * 1024) { // 5MB
+        showToast.error('File size must be less than 5MB.')
+        return
+      }
+      setSelectedFile(file)
+      showToast.success('File selected successfully!')
+    }
+  }
 
-    // Validate file type
-    if (selectedFile.type !== 'application/pdf') {
-      setError('Please upload a PDF file')
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
+
+  const isFormValid = selectedFile && recaptchaToken && termsAccepted
+
+  const handleUpload = async () => {
+    if (!selectedFile || !termsAccepted) {
+      showToast.error('Please complete all required fields')
       return
     }
 
-    // Validate file size (5MB limit)
-    if (selectedFile.size > 5 * 1024 * 1024) {
-      setError('File size must be less than 5MB')
-      return
+    // Execute reCAPTCHA if not already done
+    if (!recaptchaToken) {
+      const success = await executeReCaptcha()
+      if (!success) return
     }
-
-    setFile(selectedFile)
-    setError('')
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setDragOver(false)
-    
-    const droppedFile = e.dataTransfer.files[0]
-    if (droppedFile) {
-      handleFileSelect(droppedFile)
-    }
-  }
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    setDragOver(true)
-  }
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault()
-    setDragOver(false)
-  }
-
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0]
-    if (selectedFile) {
-      handleFileSelect(selectedFile)
-    }
-  }
-
-  const uploadFile = async () => {
-    if (!file) return
 
     setIsUploading(true)
-    setError('')
+    showToast.info('Uploading resume...')
 
     try {
+      // Create form data for file upload with reCAPTCHA token
       const formData = new FormData()
-      formData.append('file', file)
+      formData.append('file', selectedFile)
+      if (recaptchaToken) {
+        formData.append('recaptcha_token', recaptchaToken)
+      }
+      formData.append('process_with_ai', 'true')
 
-      const response = await fetch('/api/user/upload-resume', {
+      // Make API call to backend
+      const response = await fetch('/api/files/resume', {
         method: 'POST',
-        credentials: 'include', // Use session cookie instead of localStorage token
-        body: formData
+        body: formData,
       })
 
-      if (response.ok) {
-        setUploadSuccess(true)
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.detail || 'Upload failed')
+      }
+
+      if (!result.success) {
+        throw new Error(result.error || result.message || 'Upload failed')
+      }
+
+      // Fetch updated user profile with resume analysis data
+      try {
+        const { userApi } = await import('@/lib/api')
+        const profileResult = await userApi.getProfile()
+        
+        if (profileResult.data) {
+          // Update user state with fresh profile data including resume analysis
+          setUser(profileResult.data)
+          localStorage.setItem('user', JSON.stringify(profileResult.data))
+        }
+      } catch (profileError) {
+        console.error('Failed to fetch updated profile:', profileError)
+        // Fallback to manual update if profile fetch fails
+        if (user) {
+          const updatedUser = { 
+            ...user, 
+            hasResume: true,
+            profile: {
+              ...user.profile,
+              resume_url: result.upload?.file_path || '/uploaded-resume.pdf'
+            }
+          }
+          setUser(updatedUser as User)
+          localStorage.setItem('user', JSON.stringify(updatedUser))
+        }
+      }
+
+      // Clear the "Uploading..." toast before showing success
+      clearAllToasts()
+      setTimeout(() => {
+        showToast.success('Resume uploaded successfully!')
         setTimeout(() => {
           router.push('/dashboard')
-        }, 2000)
-      } else {
-        const errorData = await response.json()
-        throw new Error(errorData.detail || 'Upload failed')
-      }
+        }, 1500)
+      }, 100)
+
     } catch (error) {
-      console.error('Upload error:', error)
-      setError(error instanceof Error ? error.message : 'Upload failed')
-    } finally {
       setIsUploading(false)
+      clearAllToasts()
+      const errorMessage = error instanceof Error ? error.message : 'Upload failed'
+      showToast.error(errorMessage)
+      console.error('Resume upload failed:', error)
     }
   }
 
-  const resetUpload = () => {
-    setFile(null)
-    setUploadSuccess(false)
-    setError('')
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
+  const getMissingRequirements = () => {
+    const missing = []
+    if (!selectedFile) missing.push('select a PDF file')
+    if (!recaptchaToken) missing.push('complete security verification')
+    if (!termsAccepted) missing.push('accept terms')
+    return missing
   }
 
-  if (uploadSuccess) {
+  if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
-          <CheckCircleIcon className="h-16 w-16 text-green-600 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Upload Successful!</h2>
-          <p className="text-gray-600 mb-6">Your resume has been processed with AI analysis and is ready for personalized interviews.</p>
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="text-sm text-gray-500 mt-2">Redirecting to dashboard...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <Card>
+          <CardContent className="text-center py-8">
+            <p className="mb-4">Please log in to upload your resume</p>
+            <Button onClick={() => router.push('/login')} variant="primary">Go to Login</Button>
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation */}
-      <nav className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link 
-              href="/dashboard"
-              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 font-medium"
-            >
-              <ArrowLeftIcon className="h-4 w-4" />
-              <span>Back to Dashboard</span>
-            </Link>
-            <button 
-              onClick={handleLogout}
-              className="text-gray-600 hover:text-gray-900 font-medium"
-            >
-              Logout
-            </button>
+    <div className="page-light min-h-screen">
+      <Navigation userState="no-resume" user={user} theme="light" />
+      
+      <main className="container max-w-[900px] mx-auto px-6 pt-20">
+        <div className="py-12">
+          {/* Header Section */}
+          <div className="text-center mb-12">
+            <div className="w-20 h-20 bg-primary-500 rounded-[20px] flex items-center justify-center mx-auto mb-8">
+              <FileText className="w-10 h-10 text-white" />
+            </div>
+            <h1 className="text-[2.5rem] font-bold text-light-text-primary mb-4">Upload Your Resume</h1>
+            <p className="text-[1.125rem] text-light-text-secondary leading-relaxed max-w-[600px] mx-auto">
+              Upload your resume for AI-powered analysis and personalized interview questions tailored to your experience.
+            </p>
           </div>
-        </div>
-      </nav>
 
-      {/* Main Content */}
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center mb-8">
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-3 rounded-2xl w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-            <DocumentArrowUpIcon className="h-8 w-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Upload Your Resume</h1>
-          <p className="text-lg text-gray-600">
-            Upload your resume for AI-powered analysis and personalized interview questions tailored to your experience.
-          </p>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-          {/* Upload Area */}
-          <div
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
-              dragOver 
-                ? 'border-blue-500 bg-blue-50' 
-                : file 
-                ? 'border-green-500 bg-green-50' 
-                : 'border-gray-300 bg-gray-50 hover:border-gray-400'
-            }`}
+          {/* Upload Section */}
+          <div 
+            className="bg-white border-2 border-dashed border-light-border hover:border-primary-500 transition-all duration-300 rounded-2xl p-12 mb-12 text-center"
           >
+            <Upload className="w-12 h-12 text-light-text-muted mb-6 mx-auto" />
+            <h3 className="text-[1.5rem] font-semibold text-light-text-primary mb-4">Upload your resume</h3>
+            <p className="text-light-text-secondary mb-8 text-base">Drag and drop your PDF file here, or click to browse</p>
+            
             <input
-              ref={fileInputRef}
               type="file"
               accept=".pdf"
-              onChange={handleFileInputChange}
+              onChange={handleFileSelect}
               className="hidden"
+              id="resume-upload"
             />
-
-            {file ? (
-              <div className="space-y-4">
-                <CheckCircleIcon className="h-12 w-12 text-green-600 mx-auto" />
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{file.name}</h3>
-                  <p className="text-sm text-gray-600">
-                    {file.size > 0 ? formatFileSize(file.size) : 'Size unknown'} • PDF
-                  </p>
-                </div>
-                <div className="flex space-x-3 justify-center">
-                  <button
-                    onClick={uploadFile}
-                    disabled={isUploading}
-                    className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                  >
-                    {isUploading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        <span>Uploading...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CloudArrowUpIcon className="h-4 w-4" />
-                        <span>Upload Resume</span>
-                      </>
-                    )}
-                  </button>
-                  <button
-                    onClick={resetUpload}
-                    disabled={isUploading}
-                    className="bg-gray-100 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Choose Different File
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <CloudArrowUpIcon className="h-12 w-12 text-gray-400 mx-auto" />
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Upload your resume</h3>
-                  <p className="text-gray-600">Drag and drop your PDF file here, or click to browse</p>
-                </div>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Choose File
-                </button>
+            <Button 
+              onClick={() => document.getElementById('resume-upload')?.click()}
+              variant="primary"
+              size="default"
+            >
+              Choose File
+            </Button>
+            
+            {selectedFile && (
+              <div className="mt-4 p-4 bg-primary-50 border border-primary-400 rounded-lg">
+                <p className="text-primary-900 font-medium m-0">
+                  {selectedFile.name} - {formatFileSize(selectedFile.size)}
+                </p>
               </div>
             )}
           </div>
 
-          {/* Error Display */}
-          {error && (
-            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
-              <ExclamationCircleIcon className="h-5 w-5 text-red-600" />
-              <p className="text-red-700">{error}</p>
-            </div>
-          )}
-
           {/* File Requirements */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <h4 className="font-semibold text-gray-900 mb-2">File Requirements:</h4>
-            <ul className="text-sm text-gray-600 space-y-1">
-              <li>• PDF format only</li>
-              <li>• Maximum file size: 5MB</li>
-              <li>• Text should be selectable (not scanned images)</li>
-              <li>• Include your work experience, skills, and education</li>
+          <div className="bg-white border border-light-border rounded-xl p-8 mb-12">
+            <h4 className="text-[1.125rem] font-semibold text-light-text-primary mb-6">File Requirements:</h4>
+            <ul className="list-none p-0 m-0 text-gray-600">
+              <li className="flex items-center gap-2 mb-3">
+                <CheckCircle className="w-5 h-5 text-success-500" /> PDF format only
+              </li>
+              <li className="flex items-center gap-2 mb-3">
+                <CheckCircle className="w-5 h-5 text-success-500" /> Maximum file size: 5MB
+              </li>
+              <li className="flex items-center gap-2 mb-3">
+                <CheckCircle className="w-5 h-5 text-success-500" /> Text should be selectable (not scanned images)
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-success-500" /> Include your work experience, skills, and education
+              </li>
             </ul>
           </div>
 
-          {/* Privacy Notice */}
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <h4 className="font-semibold text-blue-900 mb-2">Privacy & Security</h4>
-            <p className="text-sm text-blue-700">
-              Your resume is processed securely using AI technology and used only to generate personalized interview questions. 
-              We do not share your information with third parties.
+          {/* Privacy & Security */}
+          <div className="bg-primary-50 border border-primary-400 rounded-xl p-8 mb-12">
+            <h4 className="text-[1.125rem] font-semibold text-primary-900 mb-4">Privacy & Security</h4>
+            <p className="text-primary-900 leading-relaxed m-0">
+              Your resume is processed securely using AI technology and used only to generate personalized interview questions. We do not share your information with third parties.
+            </p>
+          </div>
+
+          {/* Security Verification Section */}
+          <div className="bg-white border border-light-border rounded-xl p-8 mb-12">
+            <h4 className="text-[1.125rem] font-semibold text-light-text-primary mb-6">Security Verification</h4>
+            
+            <div className="border-2 border-light-border rounded-lg p-8 bg-light-surface text-center">
+              <Shield className="w-12 h-12 text-light-text-muted mb-4 mx-auto" />
+              <p className="text-light-text-secondary mb-6">
+                Click the button below to verify you&apos;re human using Google&apos;s security system.
+              </p>
+              
+              <Button 
+                onClick={executeReCaptcha}
+                disabled={recaptchaLoading || !!recaptchaToken}
+                variant={recaptchaToken ? "outline" : "primary"}
+                size="default"
+                className="mb-4"
+              >
+                {recaptchaLoading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Verifying...
+                  </>
+                ) : recaptchaToken ? (
+                  <>
+                    <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                    Verified
+                  </>
+                ) : (
+                  <>
+                    <Shield className="w-4 h-4 mr-2" />
+                    Verify Security
+                  </>
+                )}
+              </Button>
+              
+              {recaptchaToken && (
+                <div className="text-sm text-green-600">
+                  <CheckCircle className="w-4 h-4 inline mr-1" /> 
+                  Security verification completed successfully
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Legal Agreement */}
+          <div className="bg-white border border-light-border rounded-xl p-8 mb-12">
+            <h4 className="text-[1.125rem] font-semibold text-light-text-primary mb-6">Terms and Conditions</h4>
+            
+            <div className="max-h-48 overflow-y-auto border border-light-border rounded-lg p-6 bg-light-surface mb-6 text-sm leading-relaxed text-gray-600">
+                <h5 className="font-semibold text-light-text-primary mb-4">S Corp. Resume Processing Agreement</h5>
+                
+                <p className="mb-4"><strong>1. Data Processing Consent:</strong> By uploading your resume, you explicitly consent to S Corp. processing your personal and professional information contained within your resume for the purposes of job matching, interview preparation, and career services.</p>
+                
+                <p className="mb-4"><strong>2. AI Analysis:</strong> Your resume will be analyzed using artificial intelligence technology to extract relevant skills, experience, and qualifications. This analysis will be used to provide personalized job recommendations and interview questions.</p>
+                
+                <p className="mb-4"><strong>3. Data Retention:</strong> Your resume and extracted information will be stored securely for the duration of your active account plus 12 months thereafter, unless you request deletion. You may request deletion of your data at any time by contacting support@aicareers.com.</p>
+                
+                <p className="mb-4"><strong>4. Data Sharing:</strong> We do not sell or share your personal information with third parties for marketing purposes. Your information may be shared with potential employers only after you explicitly apply for positions and consent to sharing your information with specific companies.</p>
+                
+                <p className="mb-4"><strong>5. Data Security:</strong> We implement industry-standard security measures to protect your information, including encryption at rest and in transit, secure access controls, and regular security audits.</p>
+                
+                <p className="mb-4"><strong>6. Accuracy Disclaimer:</strong> While our AI technology is highly accurate, you acknowledge that automated analysis may not capture all nuances of your experience. You are responsible for reviewing and correcting any inaccuracies in your profile.</p>
+                
+                <p className="mb-4"><strong>7. Right to Withdrawal:</strong> You may withdraw your consent at any time by deleting your account, which will result in the removal of your resume and all associated data from our systems within 30 days.</p>
+                
+                <p className="mb-4"><strong>8. Updates to Terms:</strong> We may update these terms periodically. Continued use of our service after updates constitutes acceptance of new terms.</p>
+                
+                <p className="mb-4"><strong>9. Contact Information:</strong> For questions about data processing or to exercise your rights, contact us at privacy@aicareers.com or through our privacy portal.</p>
+                
+                <p><strong>10. Governing Law:</strong> This agreement is governed by the laws of California and any disputes will be resolved in California courts.</p>
+              </div>
+              
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  className="mt-1"
+                />
+                <span className="text-sm leading-relaxed text-gray-600">
+                  I have read and agree to the Terms and Conditions above. I consent to the processing of my resume data for AI-powered job matching and interview preparation services.
+                </span>
+              </label>
+          </div>
+
+          {/* Upload Button */}
+          <div className="text-center">
+            <Button
+              onClick={handleUpload}
+              disabled={!isFormValid || isUploading}
+              variant="primary"
+              size="lg"
+              className="px-12 text-[1.125rem]"
+            >
+              {isUploading ? 'Uploading...' : 'Upload Resume'}
+            </Button>
+            <p className="text-light-text-secondary text-sm mt-4">
+              {isFormValid 
+                ? 'Ready to upload your resume'
+                : `Please ${getMissingRequirements().join(', ')} to enable upload`
+              }
             </p>
           </div>
         </div>
-      </div>
+      </main>
+      
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   )
 }

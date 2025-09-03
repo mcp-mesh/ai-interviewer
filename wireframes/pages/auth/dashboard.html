@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - S Corp.</title>
+    <link rel="stylesheet" href="../../css/careers.css">
+    <link rel="stylesheet" href="../../css/listing-clean.css">
+</head>
+<body>
+    <!-- Navigation Header -->
+    <header class="header">
+        <div class="nav-container">
+            <a href="../../index.html" class="logo">
+                <div class="logo-icon">SCI</div>
+                <span>S Corp.</span>
+            </a>
+            
+            <div class="nav-actions">
+                <!-- Logged In State -->
+                <div class="user-info">
+                    <div class="user-avatar">DR</div>
+                    <div class="user-details">
+                        <h4>Dhyan Raj</h4>
+                        <p>dhyan.raj@gmail.com</p>
+                    </div>
+                    <a href="dashboard-with-applications.html" class="nav-link">My Applications</a>
+                    <a href="../../index.html" class="nav-link">Logout</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container">
+        <!-- Welcome Section -->
+        <div style="margin-bottom: 3rem;">
+            <h1 style="font-size: 2rem; font-weight: 700; color: #1f2937; margin-bottom: 0.5rem;">
+                Welcome to S Corp., Dhyan! 👋
+            </h1>
+            <p style="color: #6b7280; font-size: 1.125rem;">
+                Let's get you set up to find your perfect job match
+            </p>
+        </div>
+
+        <!-- Upload Resume CTA - Main Focus -->
+        <div class="alert alert-info animate-fade-in" style="border-radius: 1rem; padding: 3rem; margin-bottom: 3rem; text-align: center;">
+            <div style="max-width: 600px; margin: 0 auto;">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">📄</div>
+                <h2 style="font-size: 1.875rem; font-weight: 700; margin-bottom: 1rem;">
+                    Upload Your Resume to Unlock AI-Powered Matching
+                </h2>
+                <p style="font-size: 1.125rem; margin-bottom: 2rem; line-height: 1.6; color: #374151;">
+                    Get personalized job recommendations, instant match scores, and AI-powered application assistance by uploading your resume.
+                </p>
+                <button onclick="uploadResume()" class="btn btn-primary" style="padding: 1rem 2rem; font-size: 1rem;">
+                    Upload Resume Now
+                </button>
+            </div>
+        </div>
+
+        <!-- Benefits Grid -->
+        <div style="margin-bottom: 3rem;">
+            <h3 style="font-size: 1.5rem; font-weight: 600; color: #1f2937; margin-bottom: 2rem; text-align: center;">
+                What happens after you upload your resume?
+            </h3>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+                <div style="background: white; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 2rem; text-align: center;">
+                    <div style="width: 4rem; height: 4rem; background: #dbeafe; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 1.5rem;">🎯</div>
+                    <h4 style="font-size: 1.25rem; font-weight: 600; color: #1f2937; margin-bottom: 1rem;">Smart Job Matching</h4>
+                    <p style="color: #6b7280; line-height: 1.6;">Our AI analyzes your skills and experience to find the most relevant job opportunities with match scores.</p>
+                </div>
+
+                <div style="background: white; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 2rem; text-align: center;">
+                    <div style="width: 4rem; height: 4rem; background: #dcfce7; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 1.5rem;">⚡</div>
+                    <h4 style="font-size: 1.25rem; font-weight: 600; color: #1f2937; margin-bottom: 1rem;">Auto-Fill Applications</h4>
+                    <p style="color: #6b7280; line-height: 1.6;">Save time with AI-powered application forms that automatically fill in your information from your resume.</p>
+                </div>
+
+                <div style="background: white; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 2rem; text-align: center;">
+                    <div style="width: 4rem; height: 4rem; background: #fef3c7; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 1.5rem;">🤖</div>
+                    <h4 style="font-size: 1.25rem; font-weight: 600; color: #1f2937; margin-bottom: 1rem;">AI-Powered Interviews</h4>
+                    <p style="color: #6b7280; line-height: 1.6;">Experience streamlined interviews with our AI interviewer that provides instant feedback and faster hiring decisions.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current Status Card -->
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 2rem; margin-bottom: 3rem;">
+            <h3 style="font-size: 1.25rem; font-weight: 600; color: #1f2937; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                📊 Your Profile Status
+            </h3>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem;">
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <span style="color: #374151; font-weight: 500;">Profile Completion</span>
+                        <span style="color: #6b7280; font-size: 0.875rem;">25%</span>
+                    </div>
+                    <div style="background: #f3f4f6; border-radius: 0.5rem; height: 0.5rem; overflow: hidden;">
+                        <div style="background: #3b82f6; height: 100%; width: 25%; border-radius: 0.5rem;"></div>
+                    </div>
+                    <p style="color: #6b7280; font-size: 0.875rem; margin-top: 0.5rem;">Upload your resume to boost your profile to 85%</p>
+                </div>
+                
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <span style="color: #374151; font-weight: 500;">Job Matches Found</span>
+                        <span style="color: #f59e0b; font-weight: 600;">0</span>
+                    </div>
+                    <p style="color: #6b7280; font-size: 0.875rem;">Complete your profile to see personalized matches</p>
+                </div>
+                
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <span style="color: #374151; font-weight: 500;">Applications Submitted</span>
+                        <span style="color: #6b7280; font-weight: 600;">0</span>
+                    </div>
+                    <p style="color: #6b7280; font-size: 0.875rem;">Start applying once you upload your resume</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Browse Jobs Section -->
+        <div style="background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 2rem; margin-bottom: 3rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h3 style="font-size: 1.25rem; font-weight: 600; color: #1f2937;">Browse Available Positions</h3>
+                <a href="../positions/listing-logged-in.html" style="color: #3b82f6; text-decoration: none; font-weight: 500;">View All →</a>
+            </div>
+            
+            <p style="color: #6b7280; margin-bottom: 2rem;">
+                While you're getting your resume ready, explore our current job openings. You'll see match scores once your resume is uploaded.
+            </p>
+            
+            <div style="display: grid; gap: 1rem;">
+                <div style="background: white; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1.5rem;">
+                    <h4 class="job-title" style="font-weight: 600; color: #1f2937; margin-bottom: 0.5rem; cursor: pointer;" onclick="window.location.href='../positions/detail.html?id=1'">Senior Software Engineer</h4>
+                    <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 0.5rem;">📍 San Francisco, CA • 🕐 Full Time</p>
+                    <p style="color: #6b7280; font-size: 0.875rem;">Join our engineering team to build scalable applications...</p>
+                </div>
+                
+                <div style="background: white; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1.5rem;">
+                    <h4 class="job-title" style="font-weight: 600; color: #1f2937; margin-bottom: 0.5rem; cursor: pointer;" onclick="window.location.href='../positions/detail.html?id=2'">Operations Analyst</h4>
+                    <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 0.5rem;">📍 New York, NY • 🕐 Full Time</p>
+                    <p style="color: #6b7280; font-size: 0.875rem;">Support our investment operations team with analysis...</p>
+                </div>
+                
+                <div style="background: white; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1.5rem;">
+                    <h4 class="job-title" style="font-weight: 600; color: #1f2937; margin-bottom: 0.5rem; cursor: pointer;" onclick="window.location.href='../positions/detail.html?id=3'">Product Manager</h4>
+                    <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 0.5rem;">📍 Austin, TX • 🕐 Full Time</p>
+                    <p style="color: #6b7280; font-size: 0.875rem;">Lead product strategy for our AI-powered platform...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Next Steps -->
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 2rem;">
+            <h3 style="font-size: 1.25rem; font-weight: 600; color: #1f2937; margin-bottom: 1.5rem;">
+                Recommended Next Steps
+            </h3>
+            
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: #fef3c7; border-radius: 0.5rem;">
+                    <div style="width: 2rem; height: 2rem; background: #f59e0b; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.875rem;">1</div>
+                    <div>
+                        <h4 style="font-weight: 600; color: #92400e; margin-bottom: 0.25rem;">Upload Your Resume</h4>
+                        <p style="color: #78350f; font-size: 0.875rem;">This unlocks personalized job matching and AI features</p>
+                    </div>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: #f3f4f6; border-radius: 0.5rem;">
+                    <div style="width: 2rem; height: 2rem; background: #9ca3af; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.875rem;">2</div>
+                    <div>
+                        <h4 style="font-weight: 600; color: #4b5563; margin-bottom: 0.25rem;">Browse Matched Positions</h4>
+                        <p style="color: #6b7280; font-size: 0.875rem;">See jobs ranked by AI compatibility scores</p>
+                    </div>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: #f3f4f6; border-radius: 0.5rem;">
+                    <div style="width: 2rem; height: 2rem; background: #9ca3af; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.875rem;">3</div>
+                    <div>
+                        <h4 style="font-weight: 600; color: #4b5563; margin-bottom: 0.25rem;">Apply with AI Assistance</h4>
+                        <p style="color: #6b7280; font-size: 0.875rem;">Use auto-fill and get AI interview preparation</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Demo Controls -->
+    <div style="position: fixed; bottom: 1rem; left: 1rem; background: #ffffff; border: 1px solid #e5e7eb; padding: 1rem; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); z-index: 1000; font-size: 0.875rem;">
+        <h4 style="margin-bottom: 0.5rem; font-weight: 600; color: #1f2937;">Dashboard States</h4>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <button onclick="switchToDashboardState('no-resume')" class="btn btn-primary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">No Resume (Current)</button>
+            <button onclick="switchToDashboardState('no-applications')" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">No Applications</button>
+            <button onclick="switchToDashboardState('with-applications')" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">With Applications</button>
+        </div>
+    </div>
+
+    <script src="../../js/careers.js"></script>
+    <script>
+        function uploadResume() {
+            // Redirect to resume upload page
+            window.location.href = '../careers/upload.html';
+        }
+
+        // Demo controls for testing different states
+        function switchToDashboardState(state) {
+            if (state === 'no-resume') {
+                window.location.href = 'dashboard.html';
+            } else if (state === 'no-applications') {
+                window.location.href = 'dashboard-no-applications.html';
+            } else if (state === 'with-applications') {
+                window.location.href = 'dashboard-with-applications.html';
+            }
+        }
+
+        // Add some interactivity
+        document.addEventListener('DOMContentLoaded', function() {
+            // Animate profile completion bar
+            setTimeout(() => {
+                const progressBar = document.querySelector('[style*="width: 25%"]');
+                if (progressBar) {
+                    progressBar.style.transition = 'width 1s ease-in-out';
+                }
+            }, 500);
+        });
+    </script>
+</body>
+</html>

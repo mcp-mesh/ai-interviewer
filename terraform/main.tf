@@ -1,6 +1,6 @@
 terraform {
   required_version = ">= 1.0"
-  
+
   required_providers {
     kubernetes = {
       source  = "hashicorp/kubernetes"
@@ -23,21 +23,21 @@ terraform {
 
 # Provider configurations will use minikube's kubeconfig
 provider "kubernetes" {
-  config_path = "~/.kube/config"
+  config_path    = "~/.kube/config"
   config_context = "minikube"
-  
+
   # Allow plan even if context doesn't exist yet
   ignore_labels = ["minikube.k8s.io/version"]
 }
 
 provider "helm" {
   kubernetes {
-    config_path = "~/.kube/config" 
+    config_path    = "~/.kube/config"
     config_context = "minikube"
   }
 }
 
 provider "kubectl" {
-  config_path = "~/.kube/config"
+  config_path    = "~/.kube/config"
   config_context = "minikube"
 }

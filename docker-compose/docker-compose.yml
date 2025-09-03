@@ -29,6 +29,8 @@ services:
         condition: service_healthy
       fastapi:
         condition: service_started
+      frontend:
+        condition: service_started
     networks:
       - ai-interviewer-network
     restart: unless-stopped
@@ -39,6 +41,36 @@ services:
       retries: 3
       start_period: 10s
 
+  # Frontend Next.js Application (Phase 2)
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: ai-interviewer-frontend
+    ports:
+      - "3000:3000"  # Development port (accessible externally)
+    volumes:
+      # Development mode - mount source for hot reload  
+      - ../frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_BASE_URL=http://fastapi:8080
+      - PORT=3000
+      # Security configuration - controlled by DEV_MODE
+      # When DEV_MODE=true (development), security features are DISABLED
+      # When DEV_MODE=false (production), security features are ENABLED
+      # Note: This maps DEV_MODE to SECURITY_ENABLED with inverse logic
+      - NEXT_PUBLIC_DEV_MODE=${DEV_MODE:-false}
+    networks:
+      - ai-interviewer-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   # FastAPI Backend Server with MCP Mesh Integration
   fastapi:
@@ -60,6 +92,18 @@ services:
       - CLAUDE_API_KEY=${CLAUDE_API_KEY:-}
       - DEV_MODE=${DEV_MODE:-false}
       
+      # reCAPTCHA configuration
+      - RECAPTCHA_SITE_KEY=${RECAPTCHA_SITE_KEY:-6LdqG7MrAAAAAKPhdPx1E9QoeS7KajZsbJhazPxm}
+      - RECAPTCHA_SECRET_KEY=${RECAPTCHA_SECRET_KEY:-6LdqG7MrAAAAAJq9InU1QUWlpryk-T80MY9ZOyAZ}
+      
+      # PostgreSQL configuration for application data
+      - POSTGRES_URL=postgresql://${POSTGRES_USER:-mcpmesh}:${POSTGRES_PASSWORD:-mcpmesh123}@postgres:5432/ai_interviewer
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=ai_interviewer
+      - POSTGRES_USER=${POSTGRES_USER:-mcpmesh}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-mcpmesh123}
+      
       # MCP Mesh integration
       - MCP_MESH_ENABLED=true
       - MCP_MESH_REGISTRY_URL=http://registry:8000
@@ -80,6 +124,8 @@ services:
       - BUCKET_NAME=ai-interviewer-uploads
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
       registry:
         condition: service_healthy
@@ -110,7 +156,7 @@ services:
       retries: 3
       start_period: 10s
 
-  # PostgreSQL for MCP Mesh Registry
+  # PostgreSQL for MCP Mesh Registry and Application Data
   postgres:
     image: postgres:15-alpine
     container_name: ai-interviewer-postgres
@@ -119,8 +165,12 @@ services:
       - POSTGRES_USER=${POSTGRES_USER:-mcpmesh}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-mcpmesh123}
       - PGDATA=/var/lib/postgresql/data/pgdata
+      # Initialize both MCP Mesh and AI Interviewer databases
+      - POSTGRES_MULTIPLE_DATABASES=mcpmesh,ai_interviewer
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Add initialization script for multiple databases
+      - ../database/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
     ports:
       - "5432:5432"
     networks:
@@ -301,17 +351,17 @@ services:
       start_period: 20s
     restart: unless-stopped
 
-  # LLM Agent MCP Service - Generic AI processing using Claude API
-  llm-agent:
+  # Claude LLM Agent MCP Service - Generic AI processing using Claude API
+  claude-llm-agent:
     build:
       context: ../  # Use parent directory to access src/runtime/python
-      dockerfile: ai-interviewer/services/llm_agent/Dockerfile
-    container_name: ai-interviewer-llm-agent
+      dockerfile: ai-interviewer/services/claude_llm_agent/Dockerfile
+    container_name: ai-interviewer-claude-llm-agent
     ports:
       - "8092:8090"
     environment:
       # Agent configuration
-      - AGENT_NAME=llm-claude-agent
+      - AGENT_NAME=claude-llm-agent
       - MCP_MESH_HTTP_PORT=8090
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       
@@ -337,6 +387,8 @@ services:
       - RETRY_ATTEMPTS=3
       - TIMEOUT_SECONDS=120
     volumes:
+      # Mount local agent source for instant reload (dev mode)
+      - ../services/claude_llm_agent:/app/claude_llm_agent:ro
       # Mount logs for debugging
       - ../logs:/app/logs
     networks:
@@ -388,6 +440,8 @@ services:
       - RETRY_ATTEMPTS=3
       - TIMEOUT_SECONDS=120
     volumes:
+      # Mount local agent source for instant reload (dev mode)
+      - ../services/openai_llm_agent:/app/openai_llm_agent:ro
       # Mount logs for debugging
       - ../logs:/app/logs
     networks:
@@ -429,12 +483,23 @@ services:
       - MCP_MESH_REDIS_TRACE_PUBLISHING=true
       - REDIS_URL=redis://redis:6379
       
+      # PostgreSQL configuration for interview data
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-mcpmesh}:${POSTGRES_PASSWORD:-mcpmesh123}@postgres:5432/ai_interviewer
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=ai_interviewer
+      - POSTGRES_USER=${POSTGRES_USER:-mcpmesh}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-mcpmesh123}
+      - POSTGRES_SCHEMA=interview_agent
+      
       # Redis configuration for session management
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_DB=0
       - REDIS_PASSWORD=
     volumes:
+      # Mount local agent source for instant reload (dev mode)
+      - ../services/interview_agent:/app/interview_agent:ro
       # Mount logs for debugging
       - ../logs:/app/logs
     networks:
@@ -442,8 +507,200 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  # Job Agent MCP Service - Job management for Phase 2
+  job-agent:
+    build:
+      context: ../  # Use parent directory to access src/runtime/python
+      dockerfile: ai-interviewer/services/job_agent/Dockerfile
+    container_name: ai-interviewer-job-agent
+    ports:
+      - "8095:8095"
+    environment:
+      # Agent configuration
+      - AGENT_NAME=job-agent
+      - MCP_MESH_HTTP_PORT=8095
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      
+      # MCP Mesh integration
+      - MCP_MESH_ENABLED=true
+      - MCP_MESH_REGISTRY_URL=http://registry:8000
+      - MCP_MESH_LOG_LEVEL=DEBUG
+      - MCP_MESH_DEBUG_MODE=true
+      
+      # Enable distributed tracing for MCP agent
+      - MCP_MESH_DISTRIBUTED_TRACING_ENABLED=true
+      - MCP_MESH_TELEMETRY_ENABLED=true
+      - MCP_MESH_REDIS_TRACE_PUBLISHING=true
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      # Mount local agent source for instant reload (dev mode)
+      - ../services/job_agent:/app/job_agent:ro
+      # Mount logs for debugging
+      - ../logs:/app/logs
+    networks:
+      - ai-interviewer-network
+    depends_on:
+      redis:
+        condition: service_healthy
+      registry:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8095/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  # Application Agent MCP Service - Application management for Phase 2
+  application-agent:
+    build:
+      context: ../  # Use parent directory to access src/runtime/python
+      dockerfile: ai-interviewer/services/application_agent/Dockerfile
+    container_name: ai-interviewer-application-agent
+    ports:
+      - "8096:8096"
+    environment:
+      # Agent configuration
+      - AGENT_NAME=application-agent
+      - MCP_MESH_HTTP_PORT=8096
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      
+      # MCP Mesh integration
+      - MCP_MESH_ENABLED=true
+      - MCP_MESH_REGISTRY_URL=http://registry:8000
+      - MCP_MESH_LOG_LEVEL=DEBUG
+      - MCP_MESH_DEBUG_MODE=true
+      
+      # Enable distributed tracing for MCP agent
+      - MCP_MESH_DISTRIBUTED_TRACING_ENABLED=true
+      - MCP_MESH_TELEMETRY_ENABLED=true
+      - MCP_MESH_REDIS_TRACE_PUBLISHING=true
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      # Mount local agent source for instant reload (dev mode)
+      - ../services/application_agent:/app/application_agent:ro
+      # Mount logs for debugging
+      - ../logs:/app/logs
+    networks:
+      - ai-interviewer-network
+    depends_on:
+      redis:
+        condition: service_healthy
+      registry:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8096/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  # User Agent MCP Service - User management for Phase 2
+  user-agent:
+    build:
+      context: ../  # Use parent directory to access src/runtime/python
+      dockerfile: ai-interviewer/services/user_agent/Dockerfile
+    container_name: ai-interviewer-user-agent
+    ports:
+      - "8097:8097"
+    environment:
+      # Agent configuration
+      - AGENT_NAME=user-agent
+      - MCP_MESH_HTTP_PORT=8097
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      
+      # MCP Mesh integration
+      - MCP_MESH_ENABLED=true
+      - MCP_MESH_REGISTRY_URL=http://registry:8000
+      - MCP_MESH_LOG_LEVEL=DEBUG
+      - MCP_MESH_DEBUG_MODE=true
+      
+      # Enable distributed tracing for MCP agent
+      - MCP_MESH_DISTRIBUTED_TRACING_ENABLED=true
+      - MCP_MESH_TELEMETRY_ENABLED=true
+      - MCP_MESH_REDIS_TRACE_PUBLISHING=true
+      - REDIS_URL=redis://redis:6379
+      
+      # PostgreSQL configuration for user data
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-mcpmesh}:${POSTGRES_PASSWORD:-mcpmesh123}@postgres:5432/ai_interviewer
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=ai_interviewer
+      - POSTGRES_USER=${POSTGRES_USER:-mcpmesh}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-mcpmesh123}
+    volumes:
+      # Mount local agent source for instant reload (dev mode)
+      - ../services/user_agent:/app/user_agent:ro
+      # Mount logs for debugging
+      - ../logs:/app/logs
+    networks:
+      - ai-interviewer-network
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      registry:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8097/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  # File Agent MCP Service - File management for Phase 2
+  file-agent:
+    build:
+      context: ../  # Use parent directory to access src/runtime/python
+      dockerfile: ai-interviewer/services/file_agent/Dockerfile
+    container_name: ai-interviewer-file-agent
+    ports:
+      - "8098:8098"
+    environment:
+      # Agent configuration
+      - AGENT_NAME=file-agent
+      - MCP_MESH_HTTP_PORT=8098
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      
+      # MCP Mesh integration
+      - MCP_MESH_ENABLED=true
+      - MCP_MESH_REGISTRY_URL=http://registry:8000
+      - MCP_MESH_LOG_LEVEL=DEBUG
+      - MCP_MESH_DEBUG_MODE=true
+      
+      # Enable distributed tracing for MCP agent
+      - MCP_MESH_DISTRIBUTED_TRACING_ENABLED=true
+      - MCP_MESH_TELEMETRY_ENABLED=true
+      - MCP_MESH_REDIS_TRACE_PUBLISHING=true
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      # Mount local agent source for instant reload (dev mode)
+      - ../services/file_agent:/app/file_agent:ro
+      # Mount logs for debugging
+      - ../logs:/app/logs
+    networks:
+      - ai-interviewer-network
+    depends_on:
+      redis:
+        condition: service_healthy
+      registry:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8098/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -508,7 +765,7 @@ services:
       # Persistent data
       - grafana_data:/var/lib/grafana
     ports:
-      - "3000:3000"
+      - "3001:3000"
     networks:
       - ai-interviewer-network
     depends_on:

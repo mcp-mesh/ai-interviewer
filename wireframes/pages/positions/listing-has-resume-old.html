@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browse Positions - S Corp. (With Resume)</title>
+    <link rel="stylesheet" href="../../css/careers.css">
+    <link rel="stylesheet" href="../../css/listing-clean.css">
+</head>
+<body>
+    <!-- Navigation Header -->
+    <header class="header">
+        <div class="nav-container">
+            <a href="../../index.html" class="logo">
+                <div class="logo-icon">SCI</div>
+                <span>S Corp.</span>
+            </a>
+            
+            <div class="nav-actions">
+                <!-- Not Logged In State (hidden) -->
+                <div id="auth-actions" class="flex items-center gap-4 hidden">
+                    <a href="../../index.html" class="btn btn-secondary">Home</a>
+                    <a href="#" class="btn btn-secondary" onclick="showLogin()">Login</a>
+                    <a href="#" class="btn btn-primary" onclick="showLogin()">Get Started</a>
+                </div>
+                
+                <!-- Logged In State -->
+                <div id="user-actions" class="user-info">
+                    <div class="user-avatar">DR</div>
+                    <div class="user-details">
+                        <h4>Dhyan Raj</h4>
+                        <p>dhyan.raj@gmail.com</p>
+                    </div>
+                    <a href="../careers/my-applications.html" class="nav-link">My Applications</a>
+                    <a href="../../index.html" class="nav-link">Logout</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container">
+        <!-- AI Insights Banner for users with resume -->
+        <div class="alert alert-info animate-fade-in" style="margin-bottom: 2rem;">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <strong>🎯 AI Recommendations:</strong> We found <strong>12 positions</strong> that match your profile
+                </div>
+                <button onclick="showRecommendedTab()" class="btn btn-primary">View Matches</button>
+            </div>
+        </div>
+
+        <!-- Results Tabs -->
+        <div class="tabs-container" style="margin-bottom: 2rem;">
+            <div class="tabs">
+                <div class="tab active" id="recommended-tab" onclick="showTab('recommended')">
+                    Recommended for You (12)
+                </div>
+                <div class="tab" id="all-tab" onclick="showTab('all')">
+                    All Positions (127)
+                </div>
+            </div>
+        </div>
+
+        <!-- Single Column Layout (No Sidebar) -->
+        <div class="content-area">
+            <!-- Content Header -->
+            <div class="content-header">
+                <div class="search-bar">
+                    <input type="text" placeholder="Search from below list" id="main-search">
+                </div>
+                <div class="results-info">
+                    <span id="results-count">12 Jobs</span>
+                    <span>|</span>
+                    <span>Sort by</span>
+                    <select class="form-select sort-select" id="sort-filter">
+                        <option value="relevance">Most relevant</option>
+                        <option value="date">Newest First</option>
+                        <option value="title">Job Title</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Job Listings -->
+            <div id="job-listings">
+                <!-- Recommended Jobs -->
+                <div class="job-card" data-category="recommended">
+                    <h3 class="job-title" onclick="window.location.href='detail.html?id=1'">Operations Analyst, Institutional Private Client</h3>
+                    <div class="job-location">📍 San Francisco, California, United States of America</div>
+                    <div class="job-type">🕐 Full time</div>
+                    <div class="match-score" style="margin: 0.5rem 0;">
+                        <span>🎯 92% Match</span>
+                    </div>
+                    <p class="job-description">
+                        The Investment Manager Services Division (IMS) at S Corp. is growing rapidly and is seeking new members on our Institutional Private Client (IPC) team. Our primary goal is to provide exceptional administrative services...
+                    </p>
+                </div>
+
+                <div class="job-card" data-category="recommended">
+                    <h3 class="job-title" onclick="window.location.href='detail.html?id=2'">Fund Accountant, Investment Fund Services</h3>
+                    <div class="job-location">📍 Austin, Texas, United States of America</div>
+                    <div class="job-type">🕐 Full time</div>
+                    <div class="match-score" style="margin: 0.5rem 0;">
+                        <span>🎯 88% Match</span>
+                    </div>
+                    <p class="job-description">
+                        The Investment Manager Services Division (IMS) at S Corp. is growing rapidly and is seeking new members on our Investment Fund Services accounting team. Our primary goal is to provide exceptional accounting...
+                    </p>
+                </div>
+
+                <!-- Regular Jobs -->
+                <div class="job-card" data-category="all">
+                    <h3 class="job-title" onclick="window.location.href='detail.html?id=3'">Operations Analyst, Separately Managed Accounts</h3>
+                    <div class="job-location">📍 New York, New York, United States of America</div>
+                    <div class="job-type">🕐 Full time</div>
+                    <div class="match-score" style="margin: 0.5rem 0;">
+                        <span>🎯 65% Match</span>
+                    </div>
+                    <p class="job-description">
+                        The Investment Manager Services Division (IMS) at S Corp. is growing rapidly and is seeking new members on our Separately Managed Accounts team. Our primary goal is to provide exceptional accounting and administrative...
+                    </p>
+                </div>
+
+                <div class="job-card" data-category="all">
+                    <h3 class="job-title" onclick="window.location.href='detail.html?id=4'">Operations Analyst, AML</h3>
+                    <div class="job-location">📍 Seattle, Washington, United States of America</div>
+                    <div class="job-type">🕐 Full time</div>
+                    <div class="match-score" style="margin: 0.5rem 0;">
+                        <span>🎯 58% Match</span>
+                    </div>
+                    <p class="job-description">
+                        The Investment Manager Services Division (IMS) at S Corp. is growing rapidly and is seeking new members on our Alternative Investment Funds Investor Services Anti-Money Laundering Team. Our primary goal is...
+                    </p>
+                </div>
+
+                <div class="job-card" data-category="all">
+                    <h3 class="job-title" onclick="window.location.href='detail.html?id=5'">Senior Software Engineer</h3>
+                    <div class="job-location">📍 Boston, Massachusetts, United States of America</div>
+                    <div class="job-type">🕐 Full time</div>
+                    <div class="match-score" style="margin: 0.5rem 0;">
+                        <span>🎯 72% Match</span>
+                    </div>
+                    <p class="job-description">
+                        Join our engineering team to build scalable web applications using React, Node.js, and cloud technologies. We're looking for someone with 5+ years of experience in full-stack development and cloud architecture...
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Load More -->
+        <div style="text-align: center; margin-top: 3rem;">
+            <button class="btn btn-secondary" onclick="loadMoreJobs()">Load More Positions</button>
+        </div>
+    </main>
+        <div class="filters">
+            <div class="filter-row">
+                <div class="form-group">
+                    <input type="text" class="form-input" placeholder="Search positions..." id="search-input">
+                </div>
+                <div class="form-group">
+                    <select class="form-select" id="category-filter">
+                        <option value="">All Categories</option>
+                        <option value="engineering">Engineering</option>
+                        <option value="operations">Operations</option>
+                        <option value="finance">Finance</option>
+                        <option value="marketing">Marketing</option>
+                        <option value="sales">Sales</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <select class="form-select" id="location-filter">
+                        <option value="">All Locations</option>
+                        <option value="us">United States</option>
+                        <option value="remote">Remote</option>
+                        <option value="hybrid">Hybrid</option>
+                        <option value="onsite">On-site</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <select class="form-select" id="type-filter">
+                        <option value="">All Types</option>
+                        <option value="full-time">Full Time</option>
+                        <option value="contract">Contract</option>
+                        <option value="part-time">Part Time</option>
+                        <option value="internship">Internship</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <button class="btn btn-primary" onclick="applyFilters()">Search</button>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Results Summary -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <div>
+                <span id="results-count">Showing 127 positions</span>
+            </div>
+            <div>
+                <select class="form-select" style="width: auto;" id="sort-filter">
+                    <option value="relevance">Sort by Relevance</option>
+                    <option value="date">Newest First</option>
+                    <option value="match">Best Match</option>
+                    <option value="title">Job Title</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Job Listings -->
+        <div id="job-listings">
+            <!-- Recommended Jobs (high match) -->
+            <div class="job-card" data-category="recommended">
+                <div class="job-header">
+                    <div style="flex: 1;">
+                        <h3 class="job-title">Senior Software Engineer</h3>
+                        <div class="job-meta">
+                            <span>📍 San Francisco, CA</span>
+                            <span>⏰ Full Time</span>
+                            <span>📅 Posted 2 days ago</span>
+                            <span>💰 $120k - $180k</span>
+                        </div>
+                    </div>
+                    <div class="job-actions">
+                        <div class="match-score">
+                            <span>🎯 92% Match</span>
+                        </div>
+                        <button class="btn btn-secondary">💾 Save</button>
+                    </div>
+                </div>
+                <p class="job-description">
+                    Join our engineering team to build scalable web applications using React, Node.js, and cloud technologies. 
+                    We're looking for someone with 5+ years of experience in full-stack development.
+                </p>
+                <div class="job-actions">
+                    <a href="detail.html?id=1" class="btn btn-primary">View Details</a>
+                    <button class="btn btn-success" onclick="quickApply(1)">Quick Apply</button>
+                </div>
+            </div>
+
+            <div class="job-card" data-category="recommended">
+                <div class="job-header">
+                    <div style="flex: 1;">
+                        <h3 class="job-title">Full Stack Developer</h3>
+                        <div class="job-meta">
+                            <span>📍 Austin, TX</span>
+                            <span>⏰ Full Time</span>
+                            <span>📅 Posted 1 week ago</span>
+                            <span>💰 $100k - $150k</span>
+                        </div>
+                    </div>
+                    <div class="job-actions">
+                        <div class="match-score">
+                            <span>🎯 88% Match</span>
+                        </div>
+                        <button class="btn btn-secondary">💾 Save</button>
+                    </div>
+                </div>
+                <p class="job-description">
+                    Build modern web applications with our product team. Experience with JavaScript, Python, and cloud platforms required. 
+                    Remote-friendly with quarterly team meetups.
+                </p>
+                <div class="job-actions">
+                    <a href="detail.html?id=2" class="btn btn-primary">View Details</a>
+                    <button class="btn btn-success" onclick="quickApply(2)">Quick Apply</button>
+                </div>
+            </div>
+
+            <!-- Regular Jobs -->
+            <div class="job-card" data-category="all">
+                <div class="job-header">
+                    <div style="flex: 1;">
+                        <h3 class="job-title">Operations Analyst</h3>
+                        <div class="job-meta">
+                            <span>📍 New York, NY</span>
+                            <span>⏰ Full Time</span>
+                            <span>📅 Posted 3 days ago</span>
+                            <span>💰 $80k - $120k</span>
+                        </div>
+                    </div>
+                    <div class="job-actions">
+                        <div class="match-score">
+                            <span>🎯 65% Match</span>
+                        </div>
+                        <button class="btn btn-secondary">💾 Save</button>
+                    </div>
+                </div>
+                <p class="job-description">
+                    Support our operations team with data analysis, process improvement, and client management. 
+                    Strong analytical skills and Excel proficiency required.
+                </p>
+                <div class="job-actions">
+                    <a href="detail.html?id=3" class="btn btn-primary">View Details</a>
+                    <button class="btn btn-secondary" onclick="normalApply(1)">Apply</button>
+                </div>
+            </div>
+
+            <div class="job-card" data-category="all">
+                <div class="job-header">
+                    <div style="flex: 1;">
+                        <h3 class="job-title">Product Manager</h3>
+                        <div class="job-meta">
+                            <span>📍 Seattle, WA</span>
+                            <span>⏰ Full Time</span>
+                            <span>📅 Posted 1 week ago</span>
+                            <span>💰 $130k - $170k</span>
+                        </div>
+                    </div>
+                    <div class="job-actions">
+                        <div class="match-score">
+                            <span>🎯 58% Match</span>
+                        </div>
+                        <button class="btn btn-secondary">💾 Save</button>
+                    </div>
+                </div>
+                <p class="job-description">
+                    Lead product development for our B2B platform. 3+ years PM experience with technical products. 
+                    Work closely with engineering and design teams.
+                </p>
+                <div class="job-actions">
+                    <a href="detail.html?id=4" class="btn btn-primary">View Details</a>
+                    <button class="btn btn-secondary" onclick="normalApply(1)">Apply</button>
+                </div>
+            </div>
+
+            <div class="job-card" data-category="all">
+                <div class="job-header">
+                    <div style="flex: 1;">
+                        <h3 class="job-title">Data Scientist</h3>
+                        <div class="job-meta">
+                            <span>📍 Boston, MA</span>
+                            <span>⏰ Full Time</span>
+                            <span>📅 Posted 2 weeks ago</span>
+                            <span>💰 $110k - $160k</span>
+                        </div>
+                    </div>
+                    <div class="job-actions">
+                        <div class="match-score">
+                            <span>🎯 72% Match</span>
+                        </div>
+                        <button class="btn btn-secondary">💾 Save</button>
+                    </div>
+                </div>
+                <p class="job-description">
+                    Build machine learning models and analyze large datasets to drive business insights. 
+                    Python, SQL, and ML framework experience required.
+                </p>
+                <div class="job-actions">
+                    <a href="detail.html?id=5" class="btn btn-primary">View Details</a>
+                    <button class="btn btn-secondary" onclick="normalApply(1)">Apply</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Load More -->
+        <div style="text-align: center; margin-top: 3rem;">
+            <button class="btn btn-secondary" onclick="loadMoreJobs()">Load More Positions</button>
+        </div>
+    </main>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100;">
+        <div style="background: white; padding: 2rem; border-radius: 0.75rem; max-width: 400px; width: 90%;">
+            <h3 style="margin-bottom: 1rem; text-align: center;">Sign In to Continue</h3>
+            <p style="color: #6b7280; text-align: center; margin-bottom: 2rem;">Get AI-powered job matching and faster applications</p>
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <button onclick="loginWith('google')" class="btn btn-secondary" style="justify-content: center;">
+                    <span>🔍</span> Continue with Google
+                </button>
+                <button onclick="loginWith('github')" class="btn btn-secondary" style="justify-content: center;">
+                    <span>🐙</span> Continue with GitHub
+                </button>
+            </div>
+            <button onclick="hideLogin()" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.5rem; cursor: pointer;">×</button>
+        </div>
+    </div>
+
+    <script src="../../js/careers.js"></script>
+    <script>
+        // Page-specific JavaScript
+        let currentTab = 'recommended';
+        
+        // Update UI based on user state
+        document.addEventListener('DOMContentLoaded', function() {
+            updateJobListingUI();
+        });
+        
+        function updateJobListingUI() {
+            // Always show recommended tab for has-resume state
+            showTab('recommended');
+        }
+        
+        function showTab(tab) {
+            currentTab = tab;
+            
+            // Update tab styles
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(tab + '-tab').classList.add('active');
+            
+            // Filter job cards
+            const jobCards = document.querySelectorAll('.job-card');
+            const resultsCount = document.getElementById('results-count');
+            
+            if (tab === 'recommended') {
+                jobCards.forEach(card => {
+                    if (card.dataset.category === 'recommended') {
+                        card.style.display = 'block';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+                resultsCount.textContent = 'Showing 12 recommended positions';
+            } else {
+                jobCards.forEach(card => {
+                    card.style.display = 'block';
+                });
+                resultsCount.textContent = 'Showing 127 positions';
+            }
+        }
+        
+        function showRecommendedTab() {
+            showTab('recommended');
+        }
+        
+        function quickApply(jobId) {
+            showNotification('Starting quick application...', 'info');
+            setTimeout(() => {
+                window.location.href = `../careers/apply.html?id=${jobId}&quick=true`;
+            }, 500);
+        }
+        
+        function normalApply(jobId) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const isLoggedIn = urlParams.get('state');
+            
+            if (!isLoggedIn) {
+                showLogin();
+                return;
+            }
+            
+            window.location.href = `../careers/apply.html?id=${jobId}`;
+        }
+        
+        function applyFilters() {
+            showNotification('Applying filters...', 'info');
+            // Simulate filtering
+        }
+        
+        function loadMoreJobs() {
+            showNotification('Loading more positions...', 'info');
+            // Simulate loading more
+        }
+        
+        // Demo controls for testing different states
+        function switchToListingState(state) {
+            if (state === 'not-logged-in') {
+                window.location.href = 'listing-no-login.html';
+            } else if (state === 'logged-in') {
+                window.location.href = 'listing-logged-in.html';
+            } else if (state === 'has-resume') {
+                window.location.href = 'listing-has-resume.html';
+            }
+        }
+    </script>
+    
+    <!-- Demo Controls -->
+    <div style="position: fixed; bottom: 1rem; left: 1rem; background: #ffffff; border: 1px solid #e5e7eb; padding: 1rem; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); z-index: 1000; font-size: 0.875rem;">
+        <h4 style="margin-bottom: 0.5rem; font-weight: 600; color: #1f2937;">Listing States</h4>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <button onclick="switchToListingState('not-logged-in')" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">Not Logged In</button>
+            <button onclick="switchToListingState('logged-in')" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">Logged In (No Resume)</button>
+            <button onclick="switchToListingState('has-resume')" class="btn btn-primary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">Has Resume</button>
+        </div>
+    </div>
+</body>
+</html>

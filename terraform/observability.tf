@@ -167,9 +167,9 @@ resource "kubernetes_config_map" "tempo_config" {
       }
       compactor = {
         compaction = {
-          compaction_window      = "1h"
-          max_compaction_objects = 1000000
-          block_retention        = "1h"
+          compaction_window         = "1h"
+          max_compaction_objects    = 1000000
+          block_retention           = "1h"
           compacted_block_retention = "10m"
         }
       }
@@ -413,13 +413,13 @@ resource "kubernetes_config_map" "grafana_datasources" {
       apiVersion = 1
       datasources = [
         {
-          name   = "Tempo"
-          type   = "tempo"
-          access = "proxy"
-          url    = "http://ai-interviewer-tempo:3200"
-          uid    = "tempo"
+          name      = "Tempo"
+          type      = "tempo"
+          access    = "proxy"
+          url       = "http://ai-interviewer-tempo:3200"
+          uid       = "tempo"
           isDefault = false
-          editable = true
+          editable  = true
         }
       ]
     })
@@ -444,13 +444,13 @@ resource "kubernetes_config_map" "grafana_dashboards_config" {
       apiVersion = 1
       providers = [
         {
-          name = "default"
-          orgId = 1
-          folder = ""
-          type = "file"
-          disableDeletion = false
+          name                  = "default"
+          orgId                 = 1
+          folder                = ""
+          type                  = "file"
+          disableDeletion       = false
           updateIntervalSeconds = 10
-          allowUiUpdates = true
+          allowUiUpdates        = true
           options = {
             path = "/var/lib/grafana/dashboards"
           }
@@ -481,26 +481,26 @@ resource "kubernetes_config_map" "grafana_dashboard" {
             builtIn = 1
             datasource = {
               type = "grafana"
-              uid = "-- Grafana --"
+              uid  = "-- Grafana --"
             }
-            enable = true
-            hide = true
+            enable    = true
+            hide      = true
             iconColor = "rgba(0, 211, 255, 1)"
-            name = "Annotations & Alerts"
-            type = "dashboard"
+            name      = "Annotations & Alerts"
+            type      = "dashboard"
           }
         ]
       }
-      editable = true
+      editable             = true
       fiscalYearStartMonth = 0
-      graphTooltip = 0
-      id = null
-      links = []
-      liveNow = false
+      graphTooltip         = 0
+      id                   = null
+      links                = []
+      liveNow              = false
       panels = [
         {
-          id = 1
-          type = "piechart"
+          id    = 1
+          type  = "piechart"
           title = "MCP Mesh Distributed Tracing Overview"
           gridPos = {
             x = 0
@@ -513,16 +513,16 @@ resource "kubernetes_config_map" "grafana_dashboard" {
               custom = {
                 hideFrom = {
                   tooltip = false
-                  viz = false
-                  legend = false
-                  vis = false
+                  viz     = false
+                  legend  = false
+                  vis     = false
                 }
               }
               color = {
                 mode = "palette-classic"
               }
               mappings = []
-              unit = "µs"
+              unit     = "µs"
             }
             overrides = []
           }
@@ -539,7 +539,7 @@ resource "kubernetes_config_map" "grafana_dashboard" {
                   }
                   Service = {
                     aggregations = []
-                    operation = "groupby"
+                    operation    = "groupby"
                   }
                   nested = {
                     aggregations = []
@@ -552,7 +552,7 @@ resource "kubernetes_config_map" "grafana_dashboard" {
                   }
                   traceID = {
                     aggregations = []
-                    operation = null
+                    operation    = null
                   }
                   traceName = {
                     aggregations = []
@@ -572,18 +572,18 @@ resource "kubernetes_config_map" "grafana_dashboard" {
             {
               datasource = {
                 type = "tempo"
-                uid = "tempo"
+                uid  = "tempo"
               }
-              limit = 20
-              query = "{}"
+              limit     = 20
+              query     = "{}"
               queryType = "traceql"
-              refId = "A"
+              refId     = "A"
               tableType = "traces"
             }
           ]
           datasource = {
             type = "tempo"
-            uid = "tempo"
+            uid  = "tempo"
           }
           options = {
             reduceOptions = {
@@ -599,9 +599,9 @@ resource "kubernetes_config_map" "grafana_dashboard" {
               sort = "none"
             }
             legend = {
-              showLegend = true
+              showLegend  = true
               displayMode = "list"
-              placement = "bottom"
+              placement   = "bottom"
             }
             displayLabels = [
               "name"
@@ -609,8 +609,8 @@ resource "kubernetes_config_map" "grafana_dashboard" {
           }
         },
         {
-          id = 2
-          type = "barchart"
+          id    = 2
+          type  = "barchart"
           title = "Service Activity Summary"
           gridPos = {
             x = 0
@@ -621,12 +621,12 @@ resource "kubernetes_config_map" "grafana_dashboard" {
           fieldConfig = {
             defaults = {
               custom = {
-                lineWidth = 1
-                fillOpacity = 80
-                gradientMode = "none"
-                axisPlacement = "auto"
-                axisLabel = ""
-                axisColorMode = "text"
+                lineWidth      = 1
+                fillOpacity    = 80
+                gradientMode   = "none"
+                axisPlacement  = "auto"
+                axisLabel      = ""
+                axisColorMode  = "text"
                 axisBorderShow = false
                 scaleDistribution = {
                   type = "linear"
@@ -634,9 +634,9 @@ resource "kubernetes_config_map" "grafana_dashboard" {
                 axisCenteredZero = false
                 hideFrom = {
                   tooltip = false
-                  viz = false
-                  legend = false
-                  vis = false
+                  viz     = false
+                  legend  = false
+                  vis     = false
                 }
                 thresholdsStyle = {
                   mode = "off"
@@ -670,11 +670,11 @@ resource "kubernetes_config_map" "grafana_dashboard" {
                 fields = {
                   Service = {
                     aggregations = []
-                    operation = "groupby"
+                    operation    = "groupby"
                   }
                   traceName = {
                     aggregations = []
-                    operation = "groupby"
+                    operation    = "groupby"
                   }
                   traceDuration = {
                     aggregations = [
@@ -684,11 +684,11 @@ resource "kubernetes_config_map" "grafana_dashboard" {
                   }
                   traceService = {
                     aggregations = []
-                    operation = null
+                    operation    = null
                   }
                   nested = {
                     aggregations = []
-                    operation = null
+                    operation    = null
                   }
                 }
               }
@@ -699,45 +699,45 @@ resource "kubernetes_config_map" "grafana_dashboard" {
             {
               datasource = {
                 type = "tempo"
-                uid = "tempo"
+                uid  = "tempo"
               }
-              query = "{}"
-              refId = "A"
+              query     = "{}"
+              refId     = "A"
               queryType = "traceql"
-              limit = 20
+              limit     = 20
               tableType = "traces"
             }
           ]
           datasource = {
             type = "tempo"
-            uid = "tempo"
+            uid  = "tempo"
           }
           options = {
-            orientation = "vertical"
+            orientation        = "vertical"
             xTickLabelRotation = 0
-            xTickLabelSpacing = 0
-            showValue = "always"
-            stacking = "normal"
-            groupWidth = 0.7
-            barWidth = 0.97
-            barRadius = 0
-            fullHighlight = false
+            xTickLabelSpacing  = 0
+            showValue          = "always"
+            stacking           = "normal"
+            groupWidth         = 0.7
+            barWidth           = 0.97
+            barRadius          = 0
+            fullHighlight      = false
             tooltip = {
               mode = "single"
               sort = "none"
             }
             legend = {
-              showLegend = true
+              showLegend  = true
               displayMode = "list"
-              placement = "bottom"
-              calcs = []
+              placement   = "bottom"
+              calcs       = []
             }
           }
         },
         {
           datasource = {
             type = "tempo"
-            uid = "tempo"
+            uid  = "tempo"
           }
           fieldConfig = {
             defaults = {
@@ -778,10 +778,10 @@ resource "kubernetes_config_map" "grafana_dashboard" {
             showHeader = true
             cellHeight = "sm"
             footer = {
-              show = false
-              reducer = ["sum"]
+              show      = false
+              reducer   = ["sum"]
               countRows = false
-              fields = ""
+              fields    = ""
             }
           }
           pluginVersion = "11.4.0"
@@ -789,32 +789,32 @@ resource "kubernetes_config_map" "grafana_dashboard" {
             {
               datasource = {
                 type = "tempo"
-                uid = "tempo"
+                uid  = "tempo"
               }
               query = "{}"
               refId = "A"
             }
           ]
           title = "Recent Trace Activity"
-          type = "table"
+          type  = "table"
         }
       ]
-      refresh = "5s"
+      refresh       = "5s"
       schemaVersion = 39
-      tags = ["mcp-mesh", "distributed-tracing", "observability"]
+      tags          = ["mcp-mesh", "distributed-tracing", "observability"]
       templating = {
         list = []
       }
       time = {
         from = "now-5m"
-        to = "now"
+        to   = "now"
       }
       timepicker = {}
-      timezone = ""
-      title = "MCP Mesh Distributed Tracing"
-      uid = "mcp-mesh-overview"
-      version = 1
-      weekStart = ""
+      timezone   = ""
+      title      = "MCP Mesh Distributed Tracing"
+      uid        = "mcp-mesh-overview"
+      version    = 1
+      weekStart  = ""
     })
   }
 }

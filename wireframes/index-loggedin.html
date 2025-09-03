@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - S Corp.</title>
+    <link rel="stylesheet" href="css/careers.css">
+</head>
+<body>
+    <!-- Navigation Header -->
+    <header class="header">
+        <div class="nav-container">
+            <a href="/" class="logo">
+                <div class="logo-icon">SCI</div>
+                <span>S Corp.</span>
+            </a>
+            
+            <div class="nav-actions">
+                <!-- Logged In State -->
+                <div class="user-info">
+                    <div class="user-avatar">DR</div>
+                    <div class="user-details">
+                        <h4>Dhyan Raj</h4>
+                        <p>dhyan.raj@gmail.com</p>
+                    </div>
+                    <a href="pages/auth/dashboard-with-applications.html" class="nav-link">My Applications</a>
+                    <a href="index.html" class="nav-link">Logout</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <!-- Welcome Hero Section -->
+        <section class="hero" style="padding: 6rem 0 2rem;">
+            <div class="container">
+                <h1 style="margin-bottom: 1rem; font-size: clamp(2rem, 4vw, 3.5rem);">Welcome back, Dhyan!</h1>
+                <p style="margin-bottom: 2rem;">Ready to join our team of exceptional talent? Let's showcase your skills and find your perfect role.</p>
+                
+                <!-- Resume Status & Quick Actions -->
+                <div id="dashboard-content">
+                    <!-- No Resume State -->
+                    <div id="no-resume-state" class="card animate-fade-in" style="max-width: 600px; margin: 0 auto 3rem; background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.3);">
+                        <div class="card-body" style="text-align: center;">
+                            <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; color: var(--text-white);">Upload Your Resume</h3>
+                            <p style="color: var(--text-gray-light); margin-bottom: 2rem;">
+                                Upload your resume with us and get positions suggested tailored to your profile.
+                            </p>
+                            <a href="pages/careers/upload.html" class="btn btn-primary" style="margin-right: 1rem;">Upload Resume</a>
+                            <a href="pages/positions/listing.html" class="btn btn-secondary">Browse Positions</a>
+                        </div>
+                    </div>
+
+                    <!-- Has Resume State -->
+                    <div id="has-resume-state" class="hidden">
+                        <!-- Resume Status Card -->
+                        <div class="card animate-fade-in" style="max-width: 600px; margin: 0 auto 2rem;">
+                            <div class="card-body">
+                                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+                                    <div style="width: 3rem; height: 3rem; background: linear-gradient(135deg, var(--success-green), #059669); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                        <span style="color: white; font-size: 1.125rem;">✓</span>
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <h3 style="font-size: 1.125rem; font-weight: 700; margin-bottom: 0.25rem; color: var(--text-white);">View Your Profile</h3>
+                                        <p style="color: var(--text-gray-medium); font-size: 0.875rem;">Upload your resume with us and get positions suggested tailored to your profile.</p>
+                                    </div>
+                                </div>
+                                
+                                <div style="background: var(--glass-bg); border-radius: 0.75rem; padding: 1rem; margin-bottom: 1.5rem; border: 1px solid var(--glass-border);">
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; font-size: 0.875rem;">
+                                        <div>
+                                            <span style="color: var(--text-gray-medium);">Resume:</span>
+                                            <span style="color: var(--text-white); font-weight: 600;">resume.pdf</span>
+                                        </div>
+                                        <div>
+                                            <span style="color: var(--text-gray-medium);">Uploaded:</span>
+                                            <span style="color: var(--text-white); font-weight: 600;">8/19/2025</span>
+                                        </div>
+                                        <div>
+                                            <span style="color: var(--text-gray-medium);">Analyzed by:</span>
+                                            <span style="color: var(--text-white); font-weight: 600;">OpenAI</span>
+                                        </div>
+                                        <div>
+                                            <span style="color: var(--text-gray-medium);">ID:</span>
+                                            <span style="color: var(--text-white); font-weight: 600;">gpt-4o-2024-08-06</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <a href="pages/careers/profile.html" class="btn btn-success">View Your Profile</a>
+                            </div>
+                        </div>
+
+                        <!-- Role Selection Card -->
+                        <div class="card animate-fade-in" style="max-width: 600px; margin: 0 auto 2rem; animation-delay: 0.2s;">
+                            <div class="card-body">
+                                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+                                    <div style="width: 3rem; height: 3rem; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: var(--glass-backdrop);">
+                                        <span style="color: var(--text-gray-medium); font-size: 1.125rem;">🎯</span>
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <h3 style="font-size: 1.125rem; font-weight: 700; margin-bottom: 0.25rem; color: var(--text-white);">Select Interview Role</h3>
+                                        <p style="color: var(--text-gray-medium); font-size: 0.875rem;">Choose the position you want to practice interviewing for.</p>
+                                    </div>
+                                </div>
+
+                                <div class="form-group" style="margin-bottom: 1.5rem;">
+                                    <select class="form-select" id="role-dropdown">
+                                        <option value="">Select a role...</option>
+                                        <option value="senior-software-engineer">Senior Software Engineer</option>
+                                        <option value="full-stack-developer">Full Stack Developer</option>
+                                        <option value="frontend-engineer">Frontend Engineer</option>
+                                        <option value="backend-developer">Backend Developer</option>
+                                        <option value="product-manager">Product Manager</option>
+                                    </select>
+                                </div>
+
+                                <div class="alert alert-warning" style="margin-bottom: 1.5rem; font-size: 0.875rem;">
+                                    <span style="color: #fcd34d;">⚠️</span> Complete the steps above to start your interview
+                                </div>
+
+                                <button class="btn btn-primary" onclick="startInterview()" disabled id="start-interview-btn">
+                                    <span>▶</span> Start Interview
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Browse Positions Card -->
+                        <div class="card animate-fade-in" style="max-width: 600px; margin: 0 auto; animation-delay: 0.4s;">
+                            <div class="card-body" style="text-align: center;">
+                                <h3 style="font-size: 1.125rem; font-weight: 700; margin-bottom: 1rem; color: var(--text-white);">Explore Open Positions</h3>
+                                <p style="color: var(--text-gray-light); margin-bottom: 1.5rem;">
+                                    Browse AI-matched positions based on your profile and get personalized recommendations.
+                                </p>
+                                <a href="pages/positions/listing.html?state=has-resume" class="btn btn-primary">Browse Matched Positions</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Interview Available State -->
+                    <div id="interview-available-state" class="hidden">
+                        <div class="card animate-fade-in" style="max-width: 600px; margin: 0 auto; background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3);">
+                            <div class="card-body" style="text-align: center;">
+                                <div style="width: 4rem; height: 4rem; background: linear-gradient(135deg, var(--success-green), #059669); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);">
+                                    <span style="color: white; font-size: 1.5rem;">🎉</span>
+                                </div>
+                                <h3 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; color: var(--text-white);">Your AI Interview is Ready!</h3>
+                                <p style="color: var(--text-gray-light); margin-bottom: 2rem;">
+                                    Complete your interview to proceed with your application for Senior Software Engineer.
+                                </p>
+                                <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                                    <a href="pages/interviews/prepare.html?position=senior-engineer" class="btn btn-success">Attend Interview</a>
+                                    <a href="pages/positions/listing.html?state=has-resume" class="btn btn-secondary">Browse More Positions</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quick Stats Section -->
+        <section class="container" style="margin-bottom: 4rem;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem;">
+                <div class="card animate-fade-in">
+                    <div class="card-body" style="text-align: center;">
+                        <div style="width: 3rem; height: 3rem; background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(29, 78, 216, 0.3)); border-radius: 0.75rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; border: 1px solid rgba(59, 130, 246, 0.3);">
+                            <span style="color: #60a5fa; font-size: 1.25rem;">🚀</span>
+                        </div>
+                        <h3 style="font-size: 1.125rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-white);">Fast Track</h3>
+                        <p style="color: var(--text-gray-light); font-size: 0.875rem;">Skip traditional screening with AI-powered applications</p>
+                    </div>
+                </div>
+
+                <div class="card animate-fade-in" style="animation-delay: 0.2s;">
+                    <div class="card-body" style="text-align: center;">
+                        <div style="width: 3rem; height: 3rem; background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.3)); border-radius: 0.75rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; border: 1px solid rgba(16, 185, 129, 0.3);">
+                            <span style="color: #34d399; font-size: 1.25rem;">⚡</span>
+                        </div>
+                        <h3 style="font-size: 1.125rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-white);">Instant Matching</h3>
+                        <p style="color: var(--text-gray-light); font-size: 0.875rem;">AI analyzes your profile for perfect role matches</p>
+                    </div>
+                </div>
+
+                <div class="card animate-fade-in" style="animation-delay: 0.4s;">
+                    <div class="card-body" style="text-align: center;">
+                        <div style="width: 3rem; height: 3rem; background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(109, 40, 217, 0.3)); border-radius: 0.75rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; border: 1px solid rgba(139, 92, 246, 0.3);">
+                            <span style="color: #a78bfa; font-size: 1.25rem;">🎯</span>
+                        </div>
+                        <h3 style="font-size: 1.125rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-white);">Smart Interviews</h3>
+                        <p style="color: var(--text-gray-light); font-size: 0.875rem;">Personalized questions based on your experience</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer style="background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(12px); border-top: 1px solid rgba(255, 255, 255, 0.15); color: var(--text-white); padding: 1.5rem 0; margin-top: 4rem;">
+        <div class="container text-center">
+            <p style="color: var(--text-gray-medium);">&copy; 2025 S Corp. Powered by MCP Mesh.</p>
+        </div>
+    </footer>
+
+    <script src="js/careers.js"></script>
+    <script>
+        // Page-specific JavaScript for logged-in dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check demo state for which content to show
+            const urlParams = new URLSearchParams(window.location.search);
+            const state = urlParams.get('state');
+            
+            // Default to no-resume state, can be changed via URL params
+            if (state === 'has-resume') {
+                showHasResumeState();
+            } else if (state === 'interview-ready') {
+                showInterviewReadyState();
+            } else {
+                showNoResumeState();
+            }
+            
+            // Enable start interview button when role is selected
+            document.getElementById('role-dropdown')?.addEventListener('change', function() {
+                const startBtn = document.getElementById('start-interview-btn');
+                if (this.value && startBtn) {
+                    startBtn.disabled = false;
+                    startBtn.classList.remove('btn-secondary');
+                    startBtn.classList.add('btn-primary');
+                }
+            });
+        });
+        
+        function showNoResumeState() {
+            document.getElementById('no-resume-state').classList.remove('hidden');
+            document.getElementById('has-resume-state').classList.add('hidden');
+            document.getElementById('interview-available-state').classList.add('hidden');
+        }
+        
+        function showHasResumeState() {
+            document.getElementById('no-resume-state').classList.add('hidden');
+            document.getElementById('has-resume-state').classList.remove('hidden');
+            document.getElementById('interview-available-state').classList.add('hidden');
+        }
+        
+        function showInterviewReadyState() {
+            document.getElementById('no-resume-state').classList.add('hidden');
+            document.getElementById('has-resume-state').classList.add('hidden');
+            document.getElementById('interview-available-state').classList.remove('hidden');
+        }
+        
+        function startInterview() {
+            const selectedRole = document.getElementById('role-dropdown').value;
+            if (selectedRole) {
+                showNotification('Starting interview...', 'info');
+                setTimeout(() => {
+                    window.location.href = 'pages/careers/interview.html';
+                }, 1000);
+            }
+        }
+        
+        // Demo controls for testing different states
+        function switchToState(state) {
+            const url = new URL(window.location);
+            url.searchParams.set('state', state);
+            window.location.href = url.toString();
+        }
+    </script>
+    
+    <!-- Demo Controls -->
+    <div style="position: fixed; bottom: 1rem; left: 1rem; background: var(--glass-bg); backdrop-filter: var(--glass-backdrop); border: 1px solid var(--glass-border); padding: 1rem; border-radius: 0.75rem; box-shadow: var(--glass-shadow); z-index: 1000; font-size: 0.875rem;">
+        <h4 style="margin-bottom: 0.5rem; font-weight: 600; color: var(--text-white);">Dashboard States</h4>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <button onclick="switchToState('')" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">No Resume</button>
+            <button onclick="switchToState('has-resume')" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">Has Resume</button>
+            <button onclick="switchToState('interview-ready')" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">Interview Ready</button>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "total_jobs": 12,
+  "categories": {
+    "Operations": 6,
+    "Finance": 2,
+    "Engineering": 2,
+    "Sales": 1,
+    "Other": 1
+  },
+  "locations": {
+    "Oaks, Pennsylvania, United States of America": 4,
+    "Kolkata, India": 1,
+    "London, United Kingdom": 5,
+    "Luxembourg City, Luxembourg": 1,
+    "Remote, Pennsylvania, United States of America": 1
+  },
+  "featured_count": 6,
+  "with_salary": 1
+}

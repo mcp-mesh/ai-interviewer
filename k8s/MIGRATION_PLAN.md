@@ -13,7 +13,7 @@ This document outlines the migration strategy to move the AI Interviewer applica
 | **Backend (FastAPI)** | API Server | REST API & Auth | `ai-interviewer-fastapi` | Redis, Postgres, Registry |
 | **PDF Extractor** | MCP Agent | Document processing | `ai-interviewer-pdf-extractor` | Registry, MinIO |
 | **Interview Agent** | MCP Agent | Interview orchestration | `ai-interviewer-interview-agent` | Registry, LLM Agent |
-| **LLM Agent** | MCP Agent | AI language processing | `ai-interviewer-llm-agent` | Registry, OpenAI LLM |
+| **Claude LLM Agent** | MCP Agent | Claude AI language processing | `ai-interviewer-claude-llm-agent` | Registry, OpenAI LLM |
 | **OpenAI LLM Agent** | MCP Agent | OpenAI integration | `ai-interviewer-openai-llm-agent` | Registry |
 | **Registry** | MCP Service | Service discovery | `mcpmesh/registry:0.5` | Postgres, Redis |
 | **Postgres** | Database | Persistent storage | `postgres:15-alpine` | - |
@@ -74,7 +74,7 @@ ai-interviewer/k8s/
 │   │   ├── secret.yaml
 │   │   ├── pdf-extractor-deployment.yaml
 │   │   ├── interview-agent-deployment.yaml
-│   │   ├── llm-agent-deployment.yaml
+│   │   ├── claude-llm-agent-deployment.yaml
 │   │   └── openai-llm-agent-deployment.yaml
 │   ├── gateway/
 │   │   ├── configmap.yaml

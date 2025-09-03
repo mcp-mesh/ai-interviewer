@@ -33,6 +33,7 @@ help:
 	@echo "  make logs-tempo         - Show logs from Tempo"
 	@echo "  make clean              - Remove all containers and volumes"
 	@echo "  make test               - Run basic functionality tests"
+	@echo "  make set-admin          - Set admin flag via MCP tool for dhyan.raj@gmail.com"
 	@echo ""
 	@echo "📊 OBSERVABILITY:"
 	@echo "  Grafana Dashboard: http://localhost:3000 (admin/admin)"
@@ -131,6 +132,26 @@ status:
 redis-traces:
 	@echo "📈 Latest Redis trace entries:"
 	docker exec ai-interviewer-redis redis-cli xread count 10 streams "mesh:trace" 0-0
+
+.PHONY: set-admin
+set-admin:
+	@echo "🔑 Setting admin flag for dhyan.raj@gmail.com via MCP tool..."
+	@RESPONSE=$$(curl -s -X POST http://localhost:8097/mcp \
+		-H "Content-Type: application/json" \
+		-H "Accept: application/json, text/event-stream" \
+		-d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"user_admin_update","arguments":{"user_email":"dhyan.raj@gmail.com","is_admin":true,"notes":"Set as admin via Makefile MCP tool"}}}'); \
+	if echo "$$RESPONSE" | grep -q '"success":true'; then \
+		echo "✅ Admin flag set successfully via MCP tool!"; \
+	else \
+		echo "❌ Failed to set admin flag"; \
+		echo "Response: $$RESPONSE"; \
+	fi
+	@echo "📋 Verifying admin status:"
+	@PROFILE=$$(curl -s -X POST http://localhost:8097/mcp \
+		-H "Content-Type: application/json" \
+		-H "Accept: application/json, text/event-stream" \
+		-d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"user_profile_get","arguments":{"user_email":"dhyan.raj@gmail.com"}}}'); \
+	echo "$$PROFILE" | grep -o '"is_admin":[^,}]*' | head -1 || echo "Could not parse admin status"
 
 # Internal helper to ensure symlink exists for Docker builds
 .PHONY: ensure-symlink

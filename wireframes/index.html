@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Powered Careers - Find Your Perfect Role</title>
+    <link rel="stylesheet" href="css/careers.css">
+</head>
+<body>
+    <!-- Navigation Header -->
+    <header class="header">
+        <div class="nav-container">
+            <a href="/" class="logo">
+                <div class="logo-icon">SCI</div>
+                <span>S Corp.</span>
+            </a>
+            
+            <div class="nav-actions">
+                <!-- Not Logged In State -->
+                <div class="flex items-center gap-4">
+                    <a href="#features" class="nav-link">Features</a>
+                    <a href="#how-it-works" class="nav-link">How It Works</a>
+                    <a href="pages/auth/login.html?redirect=dashboard.html" class="nav-link">Login</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="container">
+                <h1>Find Your Perfect Career with AI</h1>
+                <p>Experience intelligent job matching powered by AI. Get personalized recommendations, auto-filled applications, and AI-powered interview preparation.</p>
+                
+                <div class="hero-stats">
+                    <span class="stat"><strong>500+</strong> Open Positions</span>
+                    <span class="stat"><strong>85%</strong> Faster Application Process</span>
+                    <span class="stat"><strong>AI-Powered</strong> Matching & Screening</span>
+                </div>
+
+                <!-- Call to Action Buttons -->
+                <div class="flex justify-center gap-4 flex-wrap">
+                    <a href="pages/positions/listing-no-login.html" class="btn btn-primary" style="font-size: 1rem; padding: 1rem 2rem;">Browse Positions</a>
+                    <a href="pages/auth/login.html?redirect=dashboard.html" class="btn btn-secondary" style="font-size: 1rem; padding: 1rem 2rem;">Login to Get Matched</a>
+                </div>
+                
+                <!-- Value Proposition -->
+                <div style="margin-top: 0.5rem;">
+                    <p style="color: var(--text-gray-medium); font-size: 1rem;">Join thousands of professionals finding their dream careers with AI</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section class="container">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 2rem; margin-bottom: 4rem;">
+                <div class="card animate-fade-in">
+                    <div class="card-body">
+                        <div class="card-icon icon-blue">📋</div>
+                        <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; color: var(--text-white);">AI-Powered Questions</h3>
+                        <p style="color: var(--text-gray-light);">Dynamic question generation based on your resume and the role requirements. Each interview is personalized and challenging.</p>
+                    </div>
+                </div>
+                
+                <div class="card animate-fade-in" style="animation-delay: 0.2s;">
+                    <div class="card-body">
+                        <div class="card-icon icon-purple">🕐</div>
+                        <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; color: var(--text-white);">Real-time Analysis</h3>
+                        <p style="color: var(--text-gray-light);">Get instant feedback and follow-up questions based on your responses. The AI adapts to your expertise level.</p>
+                    </div>
+                </div>
+                
+                <div class="card animate-fade-in" style="animation-delay: 0.4s;">
+                    <div class="card-body">
+                        <div class="card-icon icon-green">⭐</div>
+                        <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; color: var(--text-white);">Comprehensive Feedback</h3>
+                        <p style="color: var(--text-gray-light);">Detailed analysis of your performance with suggestions for improvement and strengths highlighted.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- How It Works -->
+        <section class="container">
+            <h2 style="text-align: center; font-size: 2rem; font-weight: 700; margin-bottom: 3rem; color: var(--text-white);">How It Works</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem;">
+                <div class="text-center">
+                    <div style="width: 4rem; height: 4rem; background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-dark)); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin: 0 auto 1rem; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4); font-size: 1.125rem;">1</div>
+                    <h3 style="font-weight: 700; margin-bottom: 0.5rem; color: var(--text-white);">Upload Resume</h3>
+                    <p style="color: var(--text-gray-light);">Share your resume for AI analysis and personalized matching</p>
+                </div>
+                
+                <div class="text-center">
+                    <div style="width: 4rem; height: 4rem; background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-dark)); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin: 0 auto 1rem; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4); font-size: 1.125rem;">2</div>
+                    <h3 style="font-weight: 700; margin-bottom: 0.5rem; color: var(--text-white);">Find Matches</h3>
+                    <p style="color: var(--text-gray-light);">Browse AI-recommended positions tailored to your profile</p>
+                </div>
+                
+                <div class="text-center">
+                    <div style="width: 4rem; height: 4rem; background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-dark)); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin: 0 auto 1rem; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4); font-size: 1.125rem;">3</div>
+                    <h3 style="font-weight: 700; margin-bottom: 0.5rem; color: var(--text-white);">Apply Fast</h3>
+                    <p style="color: var(--text-gray-light);">Complete applications in minutes with AI auto-fill</p>
+                </div>
+                
+                <div class="text-center">
+                    <div style="width: 4rem; height: 4rem; background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-dark)); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin: 0 auto 1rem; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4); font-size: 1.125rem;">4</div>
+                    <h3 style="font-weight: 700; margin-bottom: 0.5rem; color: var(--text-white);">AI Interview</h3>
+                    <p style="color: var(--text-gray-light);">Complete AI-powered interviews and get instant feedback</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer style="background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(12px); border-top: 1px solid rgba(255, 255, 255, 0.15); color: var(--text-white); padding: 1.5rem 0; margin-top: 4rem;">
+        <div class="container text-center">
+            <p style="color: var(--text-gray-medium);">&copy; 2025 S Corp. Powered by MCP Mesh.</p>
+        </div>
+    </footer>
+
+
+    <script src="js/careers.js"></script>
+</body>
+</html>
