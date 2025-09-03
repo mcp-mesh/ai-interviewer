@@ -671,7 +671,8 @@ def get_session_status(session_id: str) -> Dict[str, Any]:
     ]
 )
 async def end_interview_session(
-    session_id: str, 
+    job_id: str,
+    user_email: str, 
     reason: str = "ended_manually",
     application_status_update: McpMeshAgent = None
 ) -> Dict[str, Any]:
@@ -679,7 +680,8 @@ async def end_interview_session(
     End an interview session with proper database updates and application status changes.
     
     Args:
-        session_id: Session identifier to end
+        job_id: Job identifier
+        user_email: User's email address
         reason: Reason for ending (ended_manually, user_requested, etc.)
         application_status_update: Application agent for status updates (auto-injected)
     
@@ -687,16 +689,24 @@ async def end_interview_session(
         Dictionary with success status and session details
     """
     try:
-        from .services.storage_service import storage_service
+        # Find interview by job_id and user_email
+        with get_db_session() as db:
+            interview = db.query(Interview).filter(
+                Interview.job_id == job_id,
+                Interview.user_email == user_email
+            ).order_by(Interview.created_at.desc()).first()
+            
+            if not interview:
+                return {
+                    "success": False,
+                    "error": f"No interview found for job {job_id} and user {user_email}",
+                    "job_id": job_id,
+                    "user_email": user_email
+                }
         
-        # Get interview session from PostgreSQL
-        interview = await storage_service.get_interview_by_session_id(session_id)
-        if not interview:
-            return {
-                "success": False,
-                "error": "Interview session not found",
-                "session_id": session_id
-            }
+        session_id = interview.session_id
+        
+        from .services.storage_service import storage_service
         
         # Check if already completed
         if interview.status == "COMPLETED":
@@ -722,7 +732,7 @@ async def end_interview_session(
             status=new_status,
             metadata_updates={
                 "ended_at": datetime.now(timezone.utc).isoformat(),
-                "end_reason": reason
+                "completion_reason": reason
             }
         )
         
@@ -735,9 +745,7 @@ async def end_interview_session(
         
         # Update application status in application agent
         application_status = "COMPLETED"  # Default status for all manual ends
-        if reason == "abandoned":
-            application_status = "DECISION_PENDING"  # For abandoned interviews
-        
+
         try:
             # Use job_id and user_email to update application status
             if application_status_update:
@@ -781,6 +789,7 @@ async def end_interview_session(
             "error": str(e),
             "session_id": session_id
         }
+
 
 
 @app.tool()
@@ -926,7 +935,7 @@ async def finalize_interview(llm_service: McpAgent = None) -> Dict[str, Any]:
                     await storage_service.update_interview_status(
                         interview.session_id,
                         "COMPLETED",
-                        {"completion_reason": "time_expired", "finalized_at": current_time.isoformat()}
+                        {"completion_reason": "expired", "finalized_at": current_time.isoformat()}
                     )
                     logger.info(f"Updated expired interview {interview.session_id} to COMPLETED")
                 
@@ -1091,7 +1100,7 @@ async def get_current_interview_state(
                 await storage_service.update_interview_status(
                     existing.session_id, 
                     "COMPLETED", 
-                    {"completion_reason": "time_expired"}
+                    {"completion_reason": "expired"}
                 )
                 return _format_completed_response(existing)
             else:
@@ -1394,15 +1403,28 @@ async def get_job_interviews(job_id: str) -> Dict[str, Any]:
         hire_recommendations = []
         
         for interview in interviews:
+            # Calculate questions asked and answered from interview relationships
+            questions_asked = len(interview.questions)
+            questions_answered = len([q for q in interview.questions if q.has_response])
+            
+            # Calculate actual duration in minutes from start/end times
+            duration_minutes = None
+            if interview.started_at and interview.ended_at:
+                duration_seconds = (interview.ended_at - interview.started_at).total_seconds()
+                duration_minutes = round(duration_seconds / 60, 1)
+            
             # Base interview data - use user_email for both candidate fields since we don't store name separately
             interview_data = {
                 "session_id": interview.session_id,
                 "candidate_name": interview.user_email.split('@')[0],  # Use email prefix as name fallback
                 "candidate_email": interview.user_email,
                 "interview_date": interview.started_at.isoformat() if interview.started_at else None,
-                "completion_reason": interview.session_metadata.get("completion_reason") if interview.session_metadata else None,
+                "completion_reason": interview.completion_reason,
                 "ended_at": interview.ended_at.isoformat() if interview.ended_at else None,
-                "duration": interview.session_metadata.get("duration_seconds") if interview.session_metadata else None
+                "duration": interview.session_metadata.get("duration_seconds") if interview.session_metadata else None,
+                "duration_minutes": duration_minutes,
+                "questions_asked": questions_asked,
+                "questions_answered": questions_answered
             }
             
             # Add evaluation data if available

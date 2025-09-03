@@ -65,40 +65,6 @@ interface JobDetailsResponse {
   statistics: JobStatistics
 }
 
-interface InterviewDetailsResponse {
-  session_id: string
-  candidate: {
-    name: string
-    email: string
-    resume_info: Record<string, unknown>
-  }
-  interview: {
-    started_at: string
-    ended_at: string
-    duration: number
-    status: string
-    completion_reason: string
-  }
-  job_info: {
-    description: string
-    requirements: string
-  }
-  conversation: Array<{
-    type: string
-    content: string
-    timestamp: string
-  }>
-  evaluation: {
-    overall_score: number
-    technical_knowledge: number
-    problem_solving: number
-    communication: number
-    experience_relevance: number
-    hire_recommendation: string
-    feedback: string
-    evaluation_timestamp: string
-  }
-}
 
 type SortField = 'candidate_name' | 'interview_date' | 'overall_score' | 'technical_knowledge' | 'problem_solving' | 'communication' | 'experience_relevance' | 'hire_recommendation'
 type SortOrder = 'asc' | 'desc'
@@ -114,8 +80,6 @@ function JobDetailsContent() {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [sortField, setSortField] = useState<SortField>('interview_date')
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
-  const [interviewDetails, setInterviewDetails] = useState<InterviewDetailsResponse | null>(null)
-  const [loadingDetails, setLoadingDetails] = useState(false)
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
 
   useEffect(() => {
@@ -154,27 +118,7 @@ function JobDetailsContent() {
     }
   }
 
-  const loadInterviewDetails = async (sessionId: string) => {
-    try {
-      setLoadingDetails(true)
-      const response = await fetch(`/api/interviews/${sessionId}/details`, {
-        credentials: 'include'
-      })
-      
-      if (response.ok) {
-        const details = await response.json()
-        setInterviewDetails(details)
-      } else {
-        throw new Error('Failed to load interview details')
-      }
-    } catch (err) {
-      console.error('Load interview details error:', err)
-    } finally {
-      setLoadingDetails(false)
-    }
-  }
-
-  const toggleRow = async (sessionId: string) => {
+  const toggleRow = (sessionId: string) => {
     const newExpandedRows = new Set(expandedRows)
     
     if (expandedRows.has(sessionId)) {
@@ -183,7 +127,6 @@ function JobDetailsContent() {
     } else {
       newExpandedRows.add(sessionId)
       setExpandedRows(newExpandedRows)
-      await loadInterviewDetails(sessionId)
     }
   }
 
@@ -546,60 +489,55 @@ function JobDetailsContent() {
                       {expandedRows.has(interview.session_id) && (
                         <tr>
                           <td colSpan={8} className="px-6 py-4 bg-gray-50">
-                            {loadingDetails ? (
-                              <div className="flex items-center justify-center py-4">
-                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" />
-                                <span className="text-gray-600 ml-3">Loading interview details...</span>
-                              </div>
-                            ) : interviewDetails && interviewDetails.session_id === interview.session_id ? (
-                              <div className="space-y-6">
-                                {/* Detailed Scores */}
-                                <div>
-                                  <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
-                                    <BarChart3 className="w-4 h-4 mr-2" />
-                                    Detailed Evaluation
-                                  </h4>
-                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    <div className="flex items-center space-x-2">
-                                      <GraduationCap className="w-5 h-5 text-blue-600" />
-                                      <div>
-                                        <p className="text-xs text-gray-500">Technical Knowledge</p>
-                                        <p className="text-sm font-semibold text-gray-900">
-                                          {interviewDetails.evaluation.technical_knowledge}/25
-                                        </p>
-                                      </div>
+                            <div className="space-y-6">
+                              {/* Detailed Scores */}
+                              <div>
+                                <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
+                                  <BarChart3 className="w-4 h-4 mr-2" />
+                                  Detailed Evaluation
+                                </h4>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                  <div className="flex items-center space-x-2">
+                                    <GraduationCap className="w-5 h-5 text-blue-600" />
+                                    <div>
+                                      <p className="text-xs text-gray-500">Technical Knowledge</p>
+                                      <p className="text-sm font-semibold text-gray-900">
+                                        {interview.technical_knowledge || 0}/25
+                                      </p>
                                     </div>
-                                    <div className="flex items-center space-x-2">
-                                      <Lightbulb className="w-5 h-5 text-yellow-600" />
-                                      <div>
-                                        <p className="text-xs text-gray-500">Problem Solving</p>
-                                        <p className="text-sm font-semibold text-gray-900">
-                                          {interviewDetails.evaluation.problem_solving}/25
-                                        </p>
-                                      </div>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <Lightbulb className="w-5 h-5 text-yellow-600" />
+                                    <div>
+                                      <p className="text-xs text-gray-500">Problem Solving</p>
+                                      <p className="text-sm font-semibold text-gray-900">
+                                        {interview.problem_solving || 0}/25
+                                      </p>
                                     </div>
-                                    <div className="flex items-center space-x-2">
-                                      <MessageSquare className="w-5 h-5 text-green-600" />
-                                      <div>
-                                        <p className="text-xs text-gray-500">Communication</p>
-                                        <p className="text-sm font-semibold text-gray-900">
-                                          {interviewDetails.evaluation.communication}/25
-                                        </p>
-                                      </div>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <MessageSquare className="w-5 h-5 text-green-600" />
+                                    <div>
+                                      <p className="text-xs text-gray-500">Communication</p>
+                                      <p className="text-sm font-semibold text-gray-900">
+                                        {interview.communication || 0}/25
+                                      </p>
                                     </div>
-                                    <div className="flex items-center space-x-2">
-                                      <Briefcase className="w-5 h-5 text-purple-600" />
-                                      <div>
-                                        <p className="text-xs text-gray-500">Experience</p>
-                                        <p className="text-sm font-semibold text-gray-900">
-                                          {interviewDetails.evaluation.experience_relevance}/25
-                                        </p>
-                                      </div>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <Briefcase className="w-5 h-5 text-purple-600" />
+                                    <div>
+                                      <p className="text-xs text-gray-500">Experience</p>
+                                      <p className="text-sm font-semibold text-gray-900">
+                                        {interview.experience_relevance || 0}/25
+                                      </p>
                                     </div>
                                   </div>
                                 </div>
+                              </div>
 
-                                {/* Feedback */}
+                              {/* Feedback */}
+                              {interview.feedback && (
                                 <div>
                                   <h4 className="text-sm font-semibold text-gray-900 mb-2">Detailed Feedback</h4>
                                   <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
@@ -614,36 +552,39 @@ function JobDetailsContent() {
                                           p: ({children}) => <p className="mb-2 text-gray-700">{children}</p>
                                         }}
                                       >
-                                        {interviewDetails.evaluation.feedback}
+                                        {interview.feedback}
                                       </ReactMarkdown>
                                     </div>
                                   </div>
                                 </div>
+                              )}
 
-                                {/* Interview Metadata */}
-                                <div>
-                                  <h4 className="text-sm font-semibold text-gray-900 mb-2">Interview Details</h4>
-                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                    <div>
-                                      <p className="text-xs text-gray-500">Started</p>
-                                      <p className="text-gray-900">{formatDate(interviewDetails.interview.started_at)}</p>
-                                    </div>
-                                    <div>
-                                      <p className="text-xs text-gray-500">Duration</p>
-                                      <p className="text-gray-900">{Math.round(interviewDetails.interview.duration / 60)} minutes</p>
-                                    </div>
-                                    <div>
-                                      <p className="text-xs text-gray-500">Completion</p>
-                                      <p className="text-gray-900">{interviewDetails.interview.completion_reason}</p>
-                                    </div>
-                                    <div>
-                                      <p className="text-xs text-gray-500">Questions</p>
-                                      <p className="text-gray-900">{interviewDetails.conversation.filter(c => c.type === 'question').length}</p>
-                                    </div>
+                              {/* Interview Metadata */}
+                              <div>
+                                <h4 className="text-sm font-semibold text-gray-900 mb-2">Interview Details</h4>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                  <div>
+                                    <p className="text-xs text-gray-500">Started</p>
+                                    <p className="text-gray-900">{interview.interview_date ? formatDate(interview.interview_date) : 'N/A'}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-gray-500">Duration</p>
+                                    <p className="text-gray-900">
+                                      {interview.duration_minutes ? `${interview.duration_minutes} minutes` : 
+                                       interview.duration ? `${Math.round(interview.duration / 60)} minutes` : 'N/A'}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-gray-500">Completion</p>
+                                    <p className="text-gray-900">{interview.completion_reason || 'N/A'}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-gray-500">Questions</p>
+                                    <p className="text-gray-900">{interview.questions_asked || 0}</p>
                                   </div>
                                 </div>
                               </div>
-                            ) : null}
+                            </div>
                           </td>
                         </tr>
                       )}

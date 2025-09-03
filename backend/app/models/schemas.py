@@ -585,6 +585,9 @@ class AdminJobDetailsInterview(BaseModel):
     completion_reason: Optional[str] = None
     ended_at: Optional[str] = None
     duration: Optional[int] = None  # in seconds
+    duration_minutes: Optional[float] = None  # calculated duration in minutes
+    questions_asked: Optional[int] = None
+    questions_answered: Optional[int] = None
 
 
 class AdminJobDetailsStatistics(BaseModel):

@@ -79,19 +79,46 @@ class InterviewConductor:
             
             # Determine operation type: start new or continue existing
             if session_id:
+                # Explicit session_id provided - continue existing
                 return await self._continue_interview_session(
                     session_id=session_id,
                     user_input=user_input,
                     user_action=user_action,
                     llm_service=llm_service
                 )
+            elif job_id and user_email:
+                # No session_id but job_id + user_email provided - check for existing interview
+                with get_db_session() as db:
+                    existing_interview = db.query(Interview).filter(
+                        Interview.job_id == job_id,
+                        Interview.user_email == user_email,
+                        Interview.status.in_(['INPROGRESS', 'active'])  # Only active interviews
+                    ).order_by(Interview.created_at.desc()).first()
+                    
+                    if existing_interview and user_input:
+                        # Found existing interview and user provided input - continue it
+                        self.logger.info(f"Found existing interview {existing_interview.session_id} for job {job_id} - continuing")
+                        return await self._continue_interview_session(
+                            session_id=existing_interview.session_id,
+                            user_input=user_input,
+                            user_action=user_action,
+                            llm_service=llm_service
+                        )
+                    elif existing_interview:
+                        # Found existing interview but no user input - return current state
+                        self.logger.info(f"Found existing interview {existing_interview.session_id} for job {job_id} - returning current state")
+                        return await self._return_existing_session_with_history(existing_interview.session_id)
+                    else:
+                        # No existing interview - start new one
+                        self.logger.info(f"No existing interview found for job {job_id} - starting new")
+                        return await self._start_new_interview(
+                            job_id=job_id,
+                            user_email=user_email,
+                            application_id=application_id,
+                            llm_service=llm_service
+                        )
             else:
-                return await self._start_new_interview(
-                    job_id=job_id,
-                    user_email=user_email,
-                    application_id=application_id,
-                    llm_service=llm_service
-                )
+                raise Exception("Either session_id or (job_id + user_email) must be provided")
                 
         except Exception as e:
             self.logger.error(f"Interview operation failed: {e}")

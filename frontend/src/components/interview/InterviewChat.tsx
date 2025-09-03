@@ -35,7 +35,7 @@ export function InterviewChat({
   const [isEndingInterview, setIsEndingInterview] = useState(false)
   const [isLoadingInterview, setIsLoadingInterview] = useState(true) // New loading state
   const [timeRemaining, setTimeRemaining] = useState(0) // No default value
-  const [sessionId, setSessionId] = useState<string | null>(initialSessionId || null)
+  // Remove sessionId state - we'll use job.id directly
   const [sessionInfo, setSessionInfo] = useState<{
     questions_asked: number
     questions_answered: number
@@ -93,11 +93,7 @@ export function InterviewChat({
 
       console.log('Interview state loaded:', data)
       
-      // Extract session_id from response if not already set
-      if (data.session_id && !sessionId) {
-        setSessionId(data.session_id)
-        console.log('Session ID set from API response:', data.session_id)
-      }
+      // Session ID is no longer needed - we use job.id directly
       
       // Load conversation history
       const conversationHistory = data.conversation_history || []
@@ -206,14 +202,14 @@ export function InterviewChat({
       const abortController = new AbortController()
       abortControllerRef.current = abortController
 
-      const response = await fetch(`/api/interviews/${sessionId}/answer`, {
+      const response = await fetch(`/api/interviews/answer`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'text/event-stream'
         },
         credentials: 'include', // Use cookies for auth like other endpoints
-        body: JSON.stringify({ answer: answerToSubmit }),
+        body: JSON.stringify({ job_id: job.id, answer: answerToSubmit }),
         signal: abortController.signal
       })
 
@@ -329,7 +325,7 @@ export function InterviewChat({
     setIsEndingInterview(true)
     
     try {
-      const { error } = await interviewsApi.endInterview(sessionId, 'user_requested')
+      const { error } = await interviewsApi.endInterview(job.id, 'user_requested')
       
       if (error) {
         throw new Error(error)
@@ -360,7 +356,7 @@ export function InterviewChat({
     setIsEndingInterview(true)
     
     try {
-      await interviewsApi.endInterview(sessionId, 'security_violation')
+      await interviewsApi.endInterview(job.id, 'security_violation')
     } catch (error) {
       console.error('Failed to end interview due to security violation:', error)
     }

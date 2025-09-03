@@ -400,16 +400,16 @@ export const interviewsApi = {
   },
 
   // Submit answer (returns streaming response for SSE)
-  submitAnswer: async (sessionId: string, answer: string): Promise<Response> => {
+  submitAnswer: async (jobId: string, answer: string): Promise<Response> => {
     // For streaming responses, we need to use fetch directly but with cookies
-    const response = await fetch(`${API_BASE_URL}/interviews/${sessionId}/answer`, {
+    const response = await fetch(`${API_BASE_URL}/interviews/answer`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'text/event-stream'
       },
       credentials: 'include', // Use cookies for auth like other endpoints
-      body: JSON.stringify({ answer })
+      body: JSON.stringify({ job_id: jobId, answer })
     })
 
     if (!response.ok) {
@@ -421,9 +421,9 @@ export const interviewsApi = {
   },
 
   // End interview session
-  endInterview: async (sessionId: string, reason: string = 'user_requested'): Promise<{ data: any | null; error?: string }> => {
+  endInterview: async (jobId: string, reason: string = 'user_requested'): Promise<{ data: any | null; error?: string }> => {
     try {
-      const response = await apiClient.post<any>(`/interviews/${sessionId}/end`, { reason })
+      const response = await apiClient.post<any>('/interviews/end', { job_id: jobId, reason })
       return { data: response }
     } catch (error: any) {
       console.error('Failed to end interview:', error)

@@ -112,13 +112,13 @@ resource "null_resource" "iptables_setup" {
       echo "🎯 External access URL: https://$PUBLIC_IP/"
       echo "🧪 Test: curl -k https://$PUBLIC_IP/health"
     EOF
-    
+
     on_failure = fail
   }
 
   # Cleanup on destroy
   provisioner "local-exec" {
-    when = destroy
+    when    = destroy
     command = <<-EOF
       echo "🧹 Cleaning up iptables rules..."
       
@@ -185,7 +185,7 @@ resource "null_resource" "iptables_setup" {
         echo "✅ iptables tables flushed"
       fi
     EOF
-    
+
     on_failure = continue
   }
 
@@ -205,6 +205,6 @@ output "external_access" {
     https_url    = "https://${data.external.network_info.result.public_ip}/"
     health_check = "curl -k https://${data.external.network_info.result.public_ip}/health"
   }
-  
+
   depends_on = [null_resource.iptables_setup]
 }

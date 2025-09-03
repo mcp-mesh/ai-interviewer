@@ -2,11 +2,11 @@
 # Copy this file to terraform.tfvars and customize as needed
 
 # Minikube Configuration  
-minikube_memory = 28672  # 28 GB RAM (leaving ~4GB for host OS)
-minikube_cpus   = 8      # 8 CPU cores
+minikube_memory = 28672 # 28 GB RAM (leaving ~4GB for host OS)
+minikube_cpus   = 8     # 8 CPU cores
 
 # Kubernetes Configuration
-namespace = "ai-interviewer"
+namespace        = "ai-interviewer"
 metallb_ip_range = "192.168.49.100-192.168.49.200"
 
 # Environment (dev, staging, prod)
@@ -14,16 +14,16 @@ environment = "dev"
 
 # Feature Toggles
 enable_observability = true
-enable_debug = false
+enable_debug         = false
 
 # Docker Images (built locally)
 docker_images = {
-  backend           = "ai-interviewer/backend:latest"
-  frontend          = "ai-interviewer/nginx-gateway:latest"
-  pdf_extractor     = "ai-interviewer/pdf-extractor:latest"
-  interview_agent   = "ai-interviewer/interview-agent:latest"
-  llm_agent         = "ai-interviewer/llm-agent:latest"
-  openai_llm_agent  = "ai-interviewer/openai-llm-agent:latest"
+  backend          = "ai-interviewer/backend:latest"
+  frontend         = "ai-interviewer/nginx-gateway:latest"
+  pdf_extractor    = "ai-interviewer/pdf-extractor:latest"
+  interview_agent  = "ai-interviewer/interview-agent:latest"
+  llm_agent        = "ai-interviewer/llm-agent:latest"
+  openai_llm_agent = "ai-interviewer/openai-llm-agent:latest"
 }
 
 # OAuth Configuration and API Keys are read from environment variables

@@ -547,7 +547,10 @@ async def get_admin_job_details(
                     feedback=interview.get("feedback", ""),
                     completion_reason=interview.get("completion_reason"),
                     ended_at=interview.get("ended_at"),
-                    duration=interview.get("duration")
+                    duration=interview.get("duration"),
+                    duration_minutes=interview.get("duration_minutes"),
+                    questions_asked=interview.get("questions_asked"),
+                    questions_answered=interview.get("questions_answered")
                 )
                 interviews_data.append(interview_obj)
             

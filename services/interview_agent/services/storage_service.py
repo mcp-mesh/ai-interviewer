@@ -199,6 +199,16 @@ class StorageService:
                 if metadata_updates:
                     current_metadata = interview.session_metadata if interview.session_metadata else {}
                     interview.session_metadata = {**current_metadata, **metadata_updates}
+                    
+                    # If completion_reason is in metadata_updates, also update the model field
+                    if "completion_reason" in metadata_updates:
+                        interview.completion_reason = metadata_updates["completion_reason"]
+                        self.logger.info(f"Updated completion_reason to '{metadata_updates['completion_reason']}' for session {session_id}")
+                    
+                    # Handle legacy end_reason field (from end_interview_session)
+                    elif "end_reason" in metadata_updates:
+                        interview.completion_reason = metadata_updates["end_reason"]
+                        self.logger.info(f"Updated completion_reason to '{metadata_updates['end_reason']}' (from end_reason) for session {session_id}")
                 
                 db.commit()
                 self.logger.info(f"Updated interview session {session_id} status to {status}")
@@ -550,9 +560,13 @@ class StorageService:
         """
         try:
             from sqlalchemy.orm import joinedload
+            from ..database.models import InterviewQuestion
             
             with get_db_session() as db:
-                query = db.query(Interview).options(joinedload(Interview.evaluation)).filter(Interview.job_id == job_id)
+                query = db.query(Interview).options(
+                    joinedload(Interview.evaluation),
+                    joinedload(Interview.questions).joinedload(InterviewQuestion.response)
+                ).filter(Interview.job_id == job_id)
                 
                 if status:
                     query = query.filter(Interview.status == status)

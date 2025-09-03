@@ -181,12 +181,12 @@ resource "kubernetes_deployment" "pdf_extractor" {
             name  = "AGENT_NAME"
             value = "pdf-extractor"
           }
-          
+
           env {
             name  = "MCP_MESH_HTTP_PORT"
             value = "8090"
           }
-          
+
           env {
             name  = "LOG_LEVEL"
             value = var.enable_debug ? "DEBUG" : "INFO"
@@ -197,17 +197,17 @@ resource "kubernetes_deployment" "pdf_extractor" {
             name  = "MCP_MESH_ENABLED"
             value = "true"
           }
-          
+
           env {
             name  = "MCP_MESH_REGISTRY_URL"
             value = "http://ai-interviewer-registry:8000"
           }
-          
+
           env {
             name  = "MCP_MESH_LOG_LEVEL"
             value = "DEBUG"
           }
-          
+
           env {
             name  = "MCP_MESH_DEBUG_MODE"
             value = "true"
@@ -218,17 +218,17 @@ resource "kubernetes_deployment" "pdf_extractor" {
             name  = "MCP_MESH_DISTRIBUTED_TRACING_ENABLED"
             value = "true"
           }
-          
+
           env {
             name  = "MCP_MESH_TELEMETRY_ENABLED"
             value = "true"
           }
-          
+
           env {
             name  = "MCP_MESH_REDIS_TRACE_PUBLISHING"
             value = "true"
           }
-          
+
           env {
             name  = "REDIS_URL"
             value = "redis://ai-interviewer-redis:6379"
@@ -239,22 +239,22 @@ resource "kubernetes_deployment" "pdf_extractor" {
             name  = "PDF_MAX_FILE_SIZE_MB"
             value = "50"
           }
-          
+
           env {
             name  = "PDF_MAX_PAGES"
             value = "100"
           }
-          
+
           env {
             name  = "PDF_TIMEOUT_SECONDS"
             value = "300"
           }
-          
+
           env {
             name  = "PDF_MAX_IMAGE_COUNT"
             value = "20"
           }
-          
+
           env {
             name  = "PDF_MAX_IMAGE_SIZE_MB"
             value = "10"
@@ -265,12 +265,12 @@ resource "kubernetes_deployment" "pdf_extractor" {
             name  = "PDF_ALLOW_ENCRYPTED"
             value = "false"
           }
-          
+
           env {
             name  = "PDF_SANITIZE_METADATA"
             value = "true"
           }
-          
+
           env {
             name  = "PDF_VALIDATE_HEADERS"
             value = "true"
@@ -281,22 +281,22 @@ resource "kubernetes_deployment" "pdf_extractor" {
             name  = "PDF_PRESERVE_FORMATTING"
             value = "true"
           }
-          
+
           env {
             name  = "PDF_EXTRACT_IMAGES"
             value = "true"
           }
-          
+
           env {
             name  = "PDF_EXTRACT_TABLES"
             value = "true"
           }
-          
+
           env {
             name  = "PDF_IMAGE_FORMAT"
             value = "PNG"
           }
-          
+
           env {
             name  = "PDF_TABLE_FORMAT"
             value = "json"
@@ -307,17 +307,17 @@ resource "kubernetes_deployment" "pdf_extractor" {
             name  = "PDF_CACHE_ENABLED"
             value = "true"
           }
-          
+
           env {
             name  = "PDF_CACHE_TTL_SECONDS"
             value = "3600"
           }
-          
+
           env {
             name  = "PDF_TEMP_DIR"
             value = "/app/temp"
           }
-          
+
           env {
             name  = "PDF_OUTPUT_DIR"
             value = "/app/output"
@@ -334,7 +334,7 @@ resource "kubernetes_deployment" "pdf_extractor" {
             name  = "S3_ENDPOINT"
             value = "http://ai-interviewer-minio:9000"
           }
-          
+
           env {
             name = "S3_ACCESS_KEY"
             value_from {
@@ -344,7 +344,7 @@ resource "kubernetes_deployment" "pdf_extractor" {
               }
             }
           }
-          
+
           env {
             name = "S3_SECRET_KEY"
             value_from {
@@ -354,12 +354,12 @@ resource "kubernetes_deployment" "pdf_extractor" {
               }
             }
           }
-          
+
           env {
             name  = "S3_BUCKET_NAME"
             value = "ai-interviewer-uploads"
           }
-          
+
           env {
             name  = "S3_REGION"
             value = "us-east-1"
@@ -370,12 +370,12 @@ resource "kubernetes_deployment" "pdf_extractor" {
             name       = "pdf-temp"
             mount_path = "/app/temp"
           }
-          
+
           volume_mount {
             name       = "pdf-output"
             mount_path = "/app/output"
           }
-          
+
           volume_mount {
             name       = "pdf-logs"
             mount_path = "/app/logs"
@@ -455,12 +455,12 @@ resource "kubernetes_deployment" "interview_agent" {
             name  = "AGENT_NAME"
             value = "interview-agent"
           }
-          
+
           env {
             name  = "MCP_MESH_HTTP_PORT"
             value = "8090"
           }
-          
+
           env {
             name  = "LOG_LEVEL"
             value = var.enable_debug ? "DEBUG" : "INFO"
@@ -471,17 +471,17 @@ resource "kubernetes_deployment" "interview_agent" {
             name  = "MCP_MESH_ENABLED"
             value = "true"
           }
-          
+
           env {
             name  = "MCP_MESH_REGISTRY_URL"
             value = "http://ai-interviewer-registry:8000"
           }
-          
+
           env {
             name  = "MCP_MESH_LOG_LEVEL"
             value = "DEBUG"
           }
-          
+
           env {
             name  = "MCP_MESH_DEBUG_MODE"
             value = "true"
@@ -492,17 +492,17 @@ resource "kubernetes_deployment" "interview_agent" {
             name  = "MCP_MESH_DISTRIBUTED_TRACING_ENABLED"
             value = "true"
           }
-          
+
           env {
             name  = "MCP_MESH_TELEMETRY_ENABLED"
             value = "true"
           }
-          
+
           env {
             name  = "MCP_MESH_REDIS_TRACE_PUBLISHING"
             value = "true"
           }
-          
+
           env {
             name  = "REDIS_URL"
             value = "redis://ai-interviewer-redis:6379"
@@ -513,17 +513,17 @@ resource "kubernetes_deployment" "interview_agent" {
             name  = "REDIS_HOST"
             value = "ai-interviewer-redis"
           }
-          
+
           env {
             name  = "REDIS_PORT"
             value = "6379"
           }
-          
+
           env {
             name  = "REDIS_DB"
             value = "0"
           }
-          
+
           env {
             name  = "REDIS_PASSWORD"
             value = ""
@@ -551,14 +551,14 @@ resource "kubernetes_deployment" "interview_agent" {
   }
 }
 
-# Claude LLM Agent
+# LLM Agent (Claude)
 resource "kubernetes_deployment" "claude_llm_agent" {
   depends_on = [
     kubernetes_service.redis
   ]
 
   metadata {
-    name      = "ai-interviewer-claude-llm-agent"
+    name      = "ai-interviewer-llm-agent"
     namespace = var.namespace
   }
 
@@ -567,20 +567,20 @@ resource "kubernetes_deployment" "claude_llm_agent" {
 
     selector {
       match_labels = {
-        app = "ai-interviewer-claude-llm-agent"
+        app = "ai-interviewer-llm-agent"
       }
     }
 
     template {
       metadata {
         labels = {
-          app = "ai-interviewer-claude-llm-agent"
+          app = "ai-interviewer-llm-agent"
         }
       }
 
       spec {
         container {
-          name              = "claude-llm-agent"
+          name              = "llm-agent"
           image             = var.docker_images.claude_llm_agent
           image_pull_policy = "Never"
 
@@ -593,12 +593,12 @@ resource "kubernetes_deployment" "claude_llm_agent" {
             name  = "AGENT_NAME"
             value = "claude-llm-agent"
           }
-          
+
           env {
             name  = "MCP_MESH_HTTP_PORT"
             value = "8090"
           }
-          
+
           env {
             name  = "LOG_LEVEL"
             value = var.enable_debug ? "DEBUG" : "INFO"
@@ -609,17 +609,17 @@ resource "kubernetes_deployment" "claude_llm_agent" {
             name  = "MCP_MESH_ENABLED"
             value = "true"
           }
-          
+
           env {
             name  = "MCP_MESH_REGISTRY_URL"
             value = "http://ai-interviewer-registry:8000"
           }
-          
+
           env {
             name  = "MCP_MESH_LOG_LEVEL"
             value = "DEBUG"
           }
-          
+
           env {
             name  = "MCP_MESH_DEBUG_MODE"
             value = "true"
@@ -630,17 +630,17 @@ resource "kubernetes_deployment" "claude_llm_agent" {
             name  = "MCP_MESH_DISTRIBUTED_TRACING_ENABLED"
             value = "true"
           }
-          
+
           env {
             name  = "MCP_MESH_TELEMETRY_ENABLED"
             value = "true"
           }
-          
+
           env {
             name  = "MCP_MESH_REDIS_TRACE_PUBLISHING"
             value = "true"
           }
-          
+
           env {
             name  = "REDIS_URL"
             value = "redis://ai-interviewer-redis:6379"
@@ -656,17 +656,17 @@ resource "kubernetes_deployment" "claude_llm_agent" {
               }
             }
           }
-          
+
           env {
             name  = "CLAUDE_MODEL"
             value = "claude-3-5-sonnet-20241022"
           }
-          
+
           env {
             name  = "CLAUDE_MAX_TOKENS"
             value = "4000"
           }
-          
+
           env {
             name  = "CLAUDE_TEMPERATURE"
             value = "0.7"
@@ -677,7 +677,7 @@ resource "kubernetes_deployment" "claude_llm_agent" {
             name  = "RETRY_ATTEMPTS"
             value = "3"
           }
-          
+
           env {
             name  = "TIMEOUT_SECONDS"
             value = "120"
@@ -745,14 +745,14 @@ resource "kubernetes_deployment" "openai_llm_agent" {
           # Agent configuration
           env {
             name  = "AGENT_NAME"
-            value = "llm-openai-agent"
+            value = "openai-llm-agent"
           }
-          
+
           env {
             name  = "MCP_MESH_HTTP_PORT"
             value = "8090"
           }
-          
+
           env {
             name  = "LOG_LEVEL"
             value = var.enable_debug ? "DEBUG" : "INFO"
@@ -763,17 +763,17 @@ resource "kubernetes_deployment" "openai_llm_agent" {
             name  = "MCP_MESH_ENABLED"
             value = "true"
           }
-          
+
           env {
             name  = "MCP_MESH_REGISTRY_URL"
             value = "http://ai-interviewer-registry:8000"
           }
-          
+
           env {
             name  = "MCP_MESH_LOG_LEVEL"
             value = "DEBUG"
           }
-          
+
           env {
             name  = "MCP_MESH_DEBUG_MODE"
             value = "true"
@@ -784,17 +784,17 @@ resource "kubernetes_deployment" "openai_llm_agent" {
             name  = "MCP_MESH_DISTRIBUTED_TRACING_ENABLED"
             value = "true"
           }
-          
+
           env {
             name  = "MCP_MESH_TELEMETRY_ENABLED"
             value = "true"
           }
-          
+
           env {
             name  = "MCP_MESH_REDIS_TRACE_PUBLISHING"
             value = "true"
           }
-          
+
           env {
             name  = "REDIS_URL"
             value = "redis://ai-interviewer-redis:6379"
@@ -810,17 +810,17 @@ resource "kubernetes_deployment" "openai_llm_agent" {
               }
             }
           }
-          
+
           env {
             name  = "OPENAI_MODEL"
             value = "gpt-4o"
           }
-          
+
           env {
             name  = "OPENAI_MAX_TOKENS"
             value = "4000"
           }
-          
+
           env {
             name  = "OPENAI_TEMPERATURE"
             value = "0.7"
@@ -831,10 +831,535 @@ resource "kubernetes_deployment" "openai_llm_agent" {
             name  = "RETRY_ATTEMPTS"
             value = "3"
           }
-          
+
           env {
             name  = "TIMEOUT_SECONDS"
             value = "120"
+          }
+
+          # Legacy MCP Registry URL (for compatibility)
+          env {
+            name  = "MCP_REGISTRY_URL"
+            value = "http://ai-interviewer-registry:8000"
+          }
+
+          resources {
+            requests = {
+              memory = "256Mi"
+              cpu    = "250m"
+            }
+            limits = {
+              memory = "512Mi"
+              cpu    = "500m"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+# Application Agent
+resource "kubernetes_deployment" "application_agent" {
+  depends_on = [
+    kubernetes_service.redis,
+    kubernetes_service.postgres
+  ]
+
+  metadata {
+    name      = "ai-interviewer-application-agent"
+    namespace = var.namespace
+  }
+
+  spec {
+    replicas = 1
+
+    selector {
+      match_labels = {
+        app = "ai-interviewer-application-agent"
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          app = "ai-interviewer-application-agent"
+        }
+      }
+
+      spec {
+        container {
+          name              = "application-agent"
+          image             = var.docker_images.application_agent
+          image_pull_policy = "Never"
+
+          port {
+            container_port = 8090
+          }
+
+          # Agent configuration
+          env {
+            name  = "AGENT_NAME"
+            value = "application-agent"
+          }
+
+          env {
+            name  = "MCP_MESH_HTTP_PORT"
+            value = "8090"
+          }
+
+          env {
+            name  = "LOG_LEVEL"
+            value = var.enable_debug ? "DEBUG" : "INFO"
+          }
+
+          # MCP Mesh integration
+          env {
+            name  = "MCP_MESH_ENABLED"
+            value = "true"
+          }
+
+          env {
+            name  = "MCP_MESH_REGISTRY_URL"
+            value = "http://ai-interviewer-registry:8000"
+          }
+
+          env {
+            name  = "MCP_MESH_LOG_LEVEL"
+            value = "DEBUG"
+          }
+
+          env {
+            name  = "MCP_MESH_DEBUG_MODE"
+            value = "true"
+          }
+
+          # Enable distributed tracing for MCP agent
+          env {
+            name  = "MCP_MESH_DISTRIBUTED_TRACING_ENABLED"
+            value = "true"
+          }
+
+          env {
+            name  = "MCP_MESH_TELEMETRY_ENABLED"
+            value = "true"
+          }
+
+          env {
+            name  = "MCP_MESH_REDIS_TRACE_PUBLISHING"
+            value = "true"
+          }
+
+          env {
+            name  = "REDIS_URL"
+            value = "redis://ai-interviewer-redis:6379"
+          }
+
+          # Database configuration
+          env {
+            name  = "DATABASE_URL"
+            value = "postgresql://ai_user:ai_password@ai-interviewer-postgres:5432/ai_interviewer"
+          }
+
+          # Legacy MCP Registry URL (for compatibility)
+          env {
+            name  = "MCP_REGISTRY_URL"
+            value = "http://ai-interviewer-registry:8000"
+          }
+
+          resources {
+            requests = {
+              memory = "256Mi"
+              cpu    = "250m"
+            }
+            limits = {
+              memory = "512Mi"
+              cpu    = "500m"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+# File Agent
+resource "kubernetes_deployment" "file_agent" {
+  depends_on = [
+    kubernetes_service.redis,
+    kubernetes_service.minio
+  ]
+
+  metadata {
+    name      = "ai-interviewer-file-agent"
+    namespace = var.namespace
+  }
+
+  spec {
+    replicas = 1
+
+    selector {
+      match_labels = {
+        app = "ai-interviewer-file-agent"
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          app = "ai-interviewer-file-agent"
+        }
+      }
+
+      spec {
+        container {
+          name              = "file-agent"
+          image             = var.docker_images.file_agent
+          image_pull_policy = "Never"
+
+          port {
+            container_port = 8090
+          }
+
+          # Agent configuration
+          env {
+            name  = "AGENT_NAME"
+            value = "file-agent"
+          }
+
+          env {
+            name  = "MCP_MESH_HTTP_PORT"
+            value = "8090"
+          }
+
+          env {
+            name  = "LOG_LEVEL"
+            value = var.enable_debug ? "DEBUG" : "INFO"
+          }
+
+          # MCP Mesh integration
+          env {
+            name  = "MCP_MESH_ENABLED"
+            value = "true"
+          }
+
+          env {
+            name  = "MCP_MESH_REGISTRY_URL"
+            value = "http://ai-interviewer-registry:8000"
+          }
+
+          env {
+            name  = "MCP_MESH_LOG_LEVEL"
+            value = "DEBUG"
+          }
+
+          env {
+            name  = "MCP_MESH_DEBUG_MODE"
+            value = "true"
+          }
+
+          # Enable distributed tracing for MCP agent
+          env {
+            name  = "MCP_MESH_DISTRIBUTED_TRACING_ENABLED"
+            value = "true"
+          }
+
+          env {
+            name  = "MCP_MESH_TELEMETRY_ENABLED"
+            value = "true"
+          }
+
+          env {
+            name  = "MCP_MESH_REDIS_TRACE_PUBLISHING"
+            value = "true"
+          }
+
+          env {
+            name  = "REDIS_URL"
+            value = "redis://ai-interviewer-redis:6379"
+          }
+
+          # S3/MinIO configuration
+          env {
+            name  = "S3_ENDPOINT"
+            value = "http://ai-interviewer-minio:9000"
+          }
+
+          env {
+            name = "S3_ACCESS_KEY"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.database_credentials.metadata[0].name
+                key  = "MINIO_ACCESS_KEY"
+              }
+            }
+          }
+
+          env {
+            name = "S3_SECRET_KEY"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.database_credentials.metadata[0].name
+                key  = "MINIO_SECRET_KEY"
+              }
+            }
+          }
+
+          env {
+            name  = "S3_BUCKET_NAME"
+            value = "ai-interviewer-uploads"
+          }
+
+          env {
+            name  = "S3_REGION"
+            value = "us-east-1"
+          }
+
+          # Legacy MCP Registry URL (for compatibility)
+          env {
+            name  = "MCP_REGISTRY_URL"
+            value = "http://ai-interviewer-registry:8000"
+          }
+
+          resources {
+            requests = {
+              memory = "256Mi"
+              cpu    = "250m"
+            }
+            limits = {
+              memory = "512Mi"
+              cpu    = "500m"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+# Job Agent
+resource "kubernetes_deployment" "job_agent" {
+  depends_on = [
+    kubernetes_service.redis,
+    kubernetes_service.postgres
+  ]
+
+  metadata {
+    name      = "ai-interviewer-job-agent"
+    namespace = var.namespace
+  }
+
+  spec {
+    replicas = 1
+
+    selector {
+      match_labels = {
+        app = "ai-interviewer-job-agent"
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          app = "ai-interviewer-job-agent"
+        }
+      }
+
+      spec {
+        container {
+          name              = "job-agent"
+          image             = var.docker_images.job_agent
+          image_pull_policy = "Never"
+
+          port {
+            container_port = 8090
+          }
+
+          # Agent configuration
+          env {
+            name  = "AGENT_NAME"
+            value = "job-agent"
+          }
+
+          env {
+            name  = "MCP_MESH_HTTP_PORT"
+            value = "8090"
+          }
+
+          env {
+            name  = "LOG_LEVEL"
+            value = var.enable_debug ? "DEBUG" : "INFO"
+          }
+
+          # MCP Mesh integration
+          env {
+            name  = "MCP_MESH_ENABLED"
+            value = "true"
+          }
+
+          env {
+            name  = "MCP_MESH_REGISTRY_URL"
+            value = "http://ai-interviewer-registry:8000"
+          }
+
+          env {
+            name  = "MCP_MESH_LOG_LEVEL"
+            value = "DEBUG"
+          }
+
+          env {
+            name  = "MCP_MESH_DEBUG_MODE"
+            value = "true"
+          }
+
+          # Enable distributed tracing for MCP agent
+          env {
+            name  = "MCP_MESH_DISTRIBUTED_TRACING_ENABLED"
+            value = "true"
+          }
+
+          env {
+            name  = "MCP_MESH_TELEMETRY_ENABLED"
+            value = "true"
+          }
+
+          env {
+            name  = "MCP_MESH_REDIS_TRACE_PUBLISHING"
+            value = "true"
+          }
+
+          env {
+            name  = "REDIS_URL"
+            value = "redis://ai-interviewer-redis:6379"
+          }
+
+          # Database configuration
+          env {
+            name  = "DATABASE_URL"
+            value = "postgresql://ai_user:ai_password@ai-interviewer-postgres:5432/ai_interviewer"
+          }
+
+          # Legacy MCP Registry URL (for compatibility)
+          env {
+            name  = "MCP_REGISTRY_URL"
+            value = "http://ai-interviewer-registry:8000"
+          }
+
+          resources {
+            requests = {
+              memory = "256Mi"
+              cpu    = "250m"
+            }
+            limits = {
+              memory = "512Mi"
+              cpu    = "500m"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+# User Agent
+resource "kubernetes_deployment" "user_agent" {
+  depends_on = [
+    kubernetes_service.redis,
+    kubernetes_service.postgres
+  ]
+
+  metadata {
+    name      = "ai-interviewer-user-agent"
+    namespace = var.namespace
+  }
+
+  spec {
+    replicas = 1
+
+    selector {
+      match_labels = {
+        app = "ai-interviewer-user-agent"
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          app = "ai-interviewer-user-agent"
+        }
+      }
+
+      spec {
+        container {
+          name              = "user-agent"
+          image             = var.docker_images.user_agent
+          image_pull_policy = "Never"
+
+          port {
+            container_port = 8090
+          }
+
+          # Agent configuration
+          env {
+            name  = "AGENT_NAME"
+            value = "user-agent"
+          }
+
+          env {
+            name  = "MCP_MESH_HTTP_PORT"
+            value = "8090"
+          }
+
+          env {
+            name  = "LOG_LEVEL"
+            value = var.enable_debug ? "DEBUG" : "INFO"
+          }
+
+          # MCP Mesh integration
+          env {
+            name  = "MCP_MESH_ENABLED"
+            value = "true"
+          }
+
+          env {
+            name  = "MCP_MESH_REGISTRY_URL"
+            value = "http://ai-interviewer-registry:8000"
+          }
+
+          env {
+            name  = "MCP_MESH_LOG_LEVEL"
+            value = "DEBUG"
+          }
+
+          env {
+            name  = "MCP_MESH_DEBUG_MODE"
+            value = "true"
+          }
+
+          # Enable distributed tracing for MCP agent
+          env {
+            name  = "MCP_MESH_DISTRIBUTED_TRACING_ENABLED"
+            value = "true"
+          }
+
+          env {
+            name  = "MCP_MESH_TELEMETRY_ENABLED"
+            value = "true"
+          }
+
+          env {
+            name  = "MCP_MESH_REDIS_TRACE_PUBLISHING"
+            value = "true"
+          }
+
+          env {
+            name  = "REDIS_URL"
+            value = "redis://ai-interviewer-redis:6379"
+          }
+
+          # Database configuration
+          env {
+            name  = "DATABASE_URL"
+            value = "postgresql://ai_user:ai_password@ai-interviewer-postgres:5432/ai_interviewer"
           }
 
           # Legacy MCP Registry URL (for compatibility)

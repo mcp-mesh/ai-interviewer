@@ -597,7 +597,7 @@ async def get_user_applications(
                 # Return raw database status directly (no mapping)
                 user_app = {
                     "jobId": app.job_id,
-                    "qualified": app.status == "QUALIFIED",
+                    "qualified": app.qualification_recommendation == "INTERVIEW",
                     "status": app.status,
                     "appliedAt": app.created_at.isoformat() + "Z",
                     "completedAt": app.submitted_at.isoformat() + "Z" if app.submitted_at else None

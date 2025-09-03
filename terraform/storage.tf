@@ -27,7 +27,7 @@ resource "kubernetes_deployment" "minio" {
         container {
           name  = "minio"
           image = "minio/minio:RELEASE.2023-09-04T19-57-37Z"
-          
+
           command = ["minio", "server", "/data", "--console-address", ":9001"]
 
           env {
