@@ -28,6 +28,7 @@ override.tf.json
 
 # Terraform (added for terraform/ directory)
 terraform/.terraform/
+.terraform/
 terraform/.terraform.tfstate.lock.info
 terraform/terraform.tfstate
 terraform/terraform.tfstate.backup
