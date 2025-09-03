@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first (better caching)
-COPY --chown=mcp-mesh:mcp-mesh ai-interviewer/services/llm_agent/requirements.txt ./
+COPY --chown=mcp-mesh:mcp-mesh services/llm_agent/requirements.txt ./
 
 # Install agent-specific dependencies as root
 RUN pip install --no-cache-dir -r requirements.txt
@@ -28,7 +28,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 USER mcp-mesh
 
 # Copy agent source code (will be overridden by volume mount in dev mode)
-COPY --chown=mcp-mesh:mcp-mesh ai-interviewer/services/llm_agent/ ./llm_agent/
+COPY --chown=mcp-mesh:mcp-mesh services/llm_agent/ ./llm_agent/
 
 # Create directories for agent
 RUN mkdir -p logs

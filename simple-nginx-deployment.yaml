@@ -40,22 +40,6 @@ spec:
             secretKeyRef:
               name: ai-interviewer-oauth-keys
               key: GOOGLE_CLIENT_SECRET
-        - name: GITHUB_CLIENT_ID
-          valueFrom:
-            secretKeyRef:
-              name: ai-interviewer-oauth-keys
-              key: GITHUB_CLIENT_ID
-        - name: GITHUB_CLIENT_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: ai-interviewer-oauth-keys
-              key: GITHUB_CLIENT_SECRET
-        volumeMounts:
-        - name: nginx-config
-          mountPath: /usr/local/openresty/nginx/conf/nginx.conf
-          subPath: nginx-k8s.conf
-        - name: nginx-lua
-          mountPath: /etc/nginx/lua
         resources:
           requests:
             memory: "64Mi"
@@ -66,21 +50,35 @@ spec:
         livenessProbe:
           httpGet:
             path: /health
-            port: 443
-            scheme: HTTPS
+            port: 80
           initialDelaySeconds: 10
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /health
-            port: 443
-            scheme: HTTPS
+            port: 80
           initialDelaySeconds: 5
           periodSeconds: 5
-      volumes:
-      - name: nginx-config
-        configMap:
-          name: nginx-simple-config
-      - name: nginx-lua
-        configMap:
-          name: nginx-lua-scripts
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-interviewer-nginx-gateway
+  namespace: ai-interviewer
+  labels:
+    app.kubernetes.io/name: ai-interviewer-nginx-gateway
+    app.kubernetes.io/component: gateway
+spec:
+  selector:
+    app.kubernetes.io/name: ai-interviewer-nginx-gateway
+    app.kubernetes.io/component: gateway
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+    protocol: TCP
+  - name: https
+    port: 443
+    targetPort: 443
+    protocol: TCP
+  type: ClusterIP

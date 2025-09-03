@@ -51,6 +51,17 @@ spec:
           value: "true"
         - name: MCP_MESH_REDIS_TRACE_PUBLISHING
           value: "true"
+        # API Keys for LLM services
+        - name: CLAUDE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ai-interviewer-api-keys
+              key: CLAUDE_API_KEY
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ai-interviewer-api-keys
+              key: OPENAI_API_KEY
         resources:
           requests:
             memory: "256Mi"
