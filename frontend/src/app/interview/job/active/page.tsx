@@ -4,15 +4,11 @@ import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Navigation } from "@/components/navigation"
 import { InterviewChat } from "@/components/interview/InterviewChat"
-import { ToastContainer, useToast } from "@/components/common"
+import { ToastContainer, useToast, SuspenseWrapper } from "@/components/common"
 import { UserState, User, Job } from "@/lib/types"
 import { jobsApi } from "@/lib/api"
 
-interface ActiveInterviewPageProps {
-  params: Promise<{ jobId: string }>
-}
-
-export default function ActiveInterviewPage({ params }: ActiveInterviewPageProps) {
+function ActiveInterviewPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [jobId, setJobId] = useState<string>("")
@@ -46,14 +42,22 @@ export default function ActiveInterviewPage({ params }: ActiveInterviewPageProps
   // Session ID is no longer required - InterviewChat will handle it via jobId
 
   useEffect(() => {
-    const resolveParams = async () => {
-      const resolvedParams = await params
-      setJobId(resolvedParams.jobId)
-      
-      // Fetch job data
-      setLoading(true)
+    // Get jobId from query parameters
+    const jobIdParam = searchParams.get('jobId') || searchParams.get('id')
+    
+    if (!jobIdParam) {
+      setError('Job ID is required')
+      setLoading(false)
+      return
+    }
+    
+    setJobId(jobIdParam)
+    
+    // Fetch job data
+    setLoading(true)
+    const fetchJob = async () => {
       try {
-        const { data: jobData, error: jobError } = await jobsApi.getById(resolvedParams.jobId)
+        const { data: jobData, error: jobError } = await jobsApi.getById(jobIdParam)
         if (jobError) {
           setError(jobError)
         } else {
@@ -65,19 +69,20 @@ export default function ActiveInterviewPage({ params }: ActiveInterviewPageProps
         setLoading(false)
       }
     }
-    resolveParams()
-  }, [params])
+    
+    fetchJob()
+  }, [searchParams])
 
   const handleInterviewComplete = (reason: 'completed' | 'terminated' | 'time_up') => {
     // Redirect to completion page with reason
-    router.push(`/interview/${jobId}/complete?reason=${reason}`)
+    router.push(`/interview/job/complete?jobId=${jobId}&reason=${reason}`)
   }
 
   const handleInterviewError = (error: string) => {
     showToast.error(error)
     // Optionally redirect back to prepare page after error
     setTimeout(() => {
-      router.push(`/interview/${jobId}/prepare`)
+      router.push(`/interview/job/prepare?jobId=${jobId}`)
     }, 3000)
   }
 
@@ -108,7 +113,7 @@ export default function ActiveInterviewPage({ params }: ActiveInterviewPageProps
               <h1 className="text-2xl font-bold text-gray-800 mb-2">Interview Session Error</h1>
               <p className="text-gray-600 mb-6">{error || 'Invalid interview session'}</p>
               <button
-                onClick={() => router.push(`/interview/${jobId}/prepare`)}
+                onClick={() => router.push(`/interview/job/prepare?jobId=${jobId}`)}
                 className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors"
               >
                 Return to Preparation
@@ -131,5 +136,13 @@ export default function ActiveInterviewPage({ params }: ActiveInterviewPageProps
       />
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
+  )
+}
+
+export default function ActiveInterviewPage() {
+  return (
+    <SuspenseWrapper>
+      <ActiveInterviewPageContent />
+    </SuspenseWrapper>
   )
 }

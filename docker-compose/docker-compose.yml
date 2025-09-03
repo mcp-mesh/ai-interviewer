@@ -13,7 +13,7 @@ services:
       - ../nginx/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf:ro
       - ../nginx/lua:/etc/nginx/lua:ro
       - ../nginx/ssl:/etc/nginx/ssl:ro
-      - ../frontend/out:/usr/share/nginx/html:ro
+      - ../frontend/out:/usr/local/openresty/nginx/html:ro
     environment:
       - DEV_MODE=${DEV_MODE:-false}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
@@ -29,8 +29,7 @@ services:
         condition: service_healthy
       fastapi:
         condition: service_started
-      frontend:
-        condition: service_started
+      # frontend: removed - now serving static files directly
     networks:
       - ai-interviewer-network
     restart: unless-stopped
@@ -41,36 +40,36 @@ services:
       retries: 3
       start_period: 10s
 
-  # Frontend Next.js Application (Phase 2)
-  frontend:
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile
-    container_name: ai-interviewer-frontend
-    ports:
-      - "3000:3000"  # Development port (accessible externally)
-    volumes:
-      # Development mode - mount source for hot reload  
-      - ../frontend:/app
-      - /app/node_modules
-    environment:
-      - NODE_ENV=development
-      - NEXT_PUBLIC_API_BASE_URL=http://fastapi:8080
-      - PORT=3000
-      # Security configuration - controlled by DEV_MODE
-      # When DEV_MODE=true (development), security features are DISABLED
-      # When DEV_MODE=false (production), security features are ENABLED
-      # Note: This maps DEV_MODE to SECURITY_ENABLED with inverse logic
-      - NEXT_PUBLIC_DEV_MODE=${DEV_MODE:-false}
-    networks:
-      - ai-interviewer-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
+  # COMMENTED OUT: Frontend Next.js Application (Phase 2) - Now serving static files via nginx
+  # frontend:
+  #   build:
+  #     context: ../frontend
+  #     dockerfile: Dockerfile
+  #   container_name: ai-interviewer-frontend
+  #   ports:
+  #     - "3000:3000"  # Development port (accessible externally)
+  #   volumes:
+  #     # Development mode - mount source for hot reload  
+  #     - ../frontend:/app
+  #     - /app/node_modules
+  #   environment:
+  #     - NODE_ENV=development
+  #     - NEXT_PUBLIC_API_BASE_URL=http://fastapi:8080
+  #     - PORT=3000
+  #     # Security configuration - controlled by DEV_MODE
+  #     # When DEV_MODE=true (development), security features are DISABLED
+  #     # When DEV_MODE=false (production), security features are ENABLED
+  #     # Note: This maps DEV_MODE to SECURITY_ENABLED with inverse logic
+  #     - NEXT_PUBLIC_DEV_MODE=${DEV_MODE:-false}
+  #   networks:
+  #     - ai-interviewer-network
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 20s
 
   # FastAPI Backend Server with MCP Mesh Integration
   fastapi:

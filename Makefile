@@ -5,9 +5,9 @@
 ENV ?= prod
 
 # Docker Compose configurations
-COMPOSE_FILE := docker-compose.yml
+COMPOSE_FILE := docker-compose/docker-compose.yml
 ifeq ($(ENV),local)
-	COMPOSE_FILE := docker-compose.yml -f docker-compose.local.yml
+	COMPOSE_FILE := docker-compose/docker-compose.yml -f docker-compose/docker-compose.local.yml
 endif
 
 .PHONY: help
@@ -47,29 +47,29 @@ help:
 .PHONY: build
 build:
 	@echo "🔨 Building AI Interviewer with official MCP Mesh runtime..."
-	docker compose build
+	docker compose -f docker-compose/docker-compose.yml build
 
 .PHONY: build-local
 build-local:
 	@echo "🔨 Building AI Interviewer with local MCP Mesh source..."
-	docker compose -f docker-compose.yml -f docker-compose.local.yml build
+	docker compose -f docker-compose/docker-compose.yml -f docker-compose/docker-compose.local.yml build
 
 .PHONY: dev
 dev:
 	@echo "🚀 Starting AI Interviewer (DEV MODE: Released MCP Mesh + Local AI code)..."
 	@echo "💡 Volume mounts enabled - code changes are instant!"
-	docker compose up -d
+	docker compose -f docker-compose/docker-compose.yml up -d
 
 .PHONY: local
 local:
 	@echo "🚀 Starting AI Interviewer (LOCAL MODE: Local MCP Mesh + Local AI code)..."
 	@echo "💡 Volume mounts enabled - code changes are instant!"
-	docker compose -f docker-compose.yml -f docker-compose.local.yml up -d
+	docker compose -f docker-compose/docker-compose.yml -f docker-compose/docker-compose.local.yml up -d
 
 .PHONY: down
 down:
 	@echo "⏹️ Stopping AI Interviewer..."
-	docker compose -f docker-compose.yml -f docker-compose.local.yml down
+	docker compose -f docker-compose/docker-compose.yml -f docker-compose/docker-compose.local.yml down
 
 .PHONY: logs
 logs:
@@ -104,7 +104,7 @@ restart-local: down
 .PHONY: clean
 clean:
 	@echo "🧹 Cleaning up AI Interviewer containers and volumes..."
-	docker compose -f docker-compose.yml -f docker-compose.local.yml down -v --remove-orphans
+	docker compose -f docker-compose/docker-compose.yml -f docker-compose/docker-compose.local.yml down -v --remove-orphans
 	docker system prune -f
 	@echo "✅ Cleanup complete"
 
@@ -131,3 +131,10 @@ status:
 redis-traces:
 	@echo "📈 Latest Redis trace entries:"
 	docker exec ai-interviewer-redis redis-cli xread count 10 streams "mesh:trace" 0-0
+
+# Kubernetes build targets (called by Terraform)
+.PHONY: build-all
+build-all:
+	@echo "🏗️ Building all K8s images..."
+	cd k8s && $(MAKE) k8s-build-all
+	@echo "✅ All images built for Kubernetes deployment"

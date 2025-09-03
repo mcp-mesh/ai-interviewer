@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { OAuthButton } from '@/components/common/OAuthButton'
+import { SuspenseWrapper } from '@/components/common'
 import { Bot, Target, Mail, BarChart3, Zap } from 'lucide-react'
 
 const benefits = [
@@ -39,7 +40,7 @@ const benefits = [
   }
 ]
 
-export default function LoginPage() {
+function LoginPageContent() {
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect') || '/dashboard'
   const [loading, setLoading] = useState(true)
@@ -171,5 +172,13 @@ export default function LoginPage() {
         </div>
       </main>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <SuspenseWrapper>
+      <LoginPageContent />
+    </SuspenseWrapper>
   )
 }

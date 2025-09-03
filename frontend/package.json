@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
+    "export": "next build",
+    "export:dev": "NEXT_PUBLIC_API_URL=http://localhost:8080 next build",
     "start": "next start",
     "lint": "eslint"
   },

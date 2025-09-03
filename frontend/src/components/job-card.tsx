@@ -29,9 +29,9 @@ export function JobCard({
     return (
       <div className={cn("bg-[#f8fafc] border border-[#e5e7eb] rounded-lg p-6", className)}>
         <div className="flex justify-between items-start mb-2">
-          <h4 className="font-semibold text-red-600 hover:text-red-700 cursor-pointer underline">
+          <a href={`/jobs/job/?id=${job.id}`} className="font-semibold text-red-600 hover:text-red-700 cursor-pointer underline">
             {job.title}
-          </h4>
+          </a>
           {showMatchScore && job.matchScore && (
             <div className={cn(
               "px-2 py-1 rounded text-xs font-semibold text-white",
@@ -57,9 +57,9 @@ export function JobCard({
         <CardContent className="p-0">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-red-600 hover:text-red-700 cursor-pointer transition-colors truncate underline">
+              <a href={`/jobs/job/?id=${job.id}`} className="font-semibold text-red-600 hover:text-red-700 cursor-pointer transition-colors truncate underline">
                 {job.title}
-              </h3>
+              </a>
               <div className="flex items-center gap-4 text-sm text-text-secondary mt-1">
                 <span className="flex items-center gap-1">
                   <MapPin className="w-4 h-4" />
@@ -95,7 +95,7 @@ export function JobCard({
                 </div>
                 <span className="text-sm font-medium text-text-secondary">{job.company}</span>
               </div>
-              <h3 className="text-xl font-bold text-red-600 hover:text-red-700 cursor-pointer transition-colors mb-2 underline">{job.title}</h3>
+              <a href={`/jobs/job/?id=${job.id}`} className="text-xl font-bold text-red-600 hover:text-red-700 cursor-pointer transition-colors mb-2 underline">{job.title}</a>
               <div className="flex items-center gap-4 text-sm text-text-secondary">
                 <span className="flex items-center gap-1">
                   <MapPin className="w-4 h-4" />
@@ -170,9 +170,9 @@ export function JobCard({
                 <span className="text-white font-bold">{job.company[0]}</span>
               </div>
               <div>
-                <h3 className="text-lg font-bold text-red-600 hover:text-red-700 cursor-pointer transition-colors underline">
+                <a href={`/jobs/job/?id=${job.id}`} className="text-lg font-bold text-red-600 hover:text-red-700 cursor-pointer transition-colors underline">
                   {job.title}
-                </h3>
+                </a>
                 <span className={cn("text-sm font-medium", textSecondary)}>{job.company}</span>
               </div>
             </div>

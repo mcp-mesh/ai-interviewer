@@ -43,6 +43,7 @@ export interface User {
     ai_provider?: string
     ai_model?: string
   }
+  detailedAnalysisCompleted?: boolean
   createdAt: string
   updatedAt: string
   created_at?: string // For compatibility with mock-data

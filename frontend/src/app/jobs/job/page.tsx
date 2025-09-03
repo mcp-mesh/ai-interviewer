@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { Navigation } from '@/components/navigation'
 import { Button } from '@/components/ui/button'
 import { Markdown } from '@/components/ui/markdown'
 import { Job, User } from '@/lib/types'
 import { jobsApi } from '@/lib/api'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Calendar, MapPin, Clock } from 'lucide-react'
 import type { UserApplication } from '@/lib/types'
 
@@ -49,24 +49,15 @@ const jobSeekersViewed = [
   }
 ]
 
-interface JobDetailProps {
-  params: Promise<{
-    id: string
-  }>
-}
-
-export default function JobDetailPage({ params }: JobDetailProps) {
+function JobDetailContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const jobId = searchParams.get('id')
   const [user, setUser] = useState<User | null>(null)
   const [job, setJob] = useState<Job | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error] = useState<string | null>(null) // TODO: setError may be needed for error handling
-  const [resolvedParams, setResolvedParams] = useState<{ id: string } | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [applying, setApplying] = useState(false)
-  
-  useEffect(() => {
-    params.then(setResolvedParams)
-  }, [params])
   
   useEffect(() => {
     // Get user from localStorage
@@ -79,16 +70,13 @@ export default function JobDetailPage({ params }: JobDetailProps) {
 
   useEffect(() => {
     const loadJobData = async () => {
-      if (!resolvedParams?.id) return
-      
-      // Clean the job ID by removing any query parameters that Next.js might add
-      const cleanJobId = resolvedParams.id.split('?')[0]
+      if (!jobId) return
       
       setLoading(true)
-      // setError(null) // TODO: May need error state management
+      setError(null)
       
       try {
-        const jobResponse = await jobsApi.getById(cleanJobId)
+        const jobResponse = await jobsApi.getById(jobId)
         if (jobResponse.data) {
           setJob(jobResponse.data)
         } else {
@@ -104,7 +92,7 @@ export default function JobDetailPage({ params }: JobDetailProps) {
     }
     
     loadJobData()
-  }, [resolvedParams])
+  }, [jobId])
 
   // Calculate user state early for use in all render paths
   const isGuest = !user
@@ -470,7 +458,7 @@ export default function JobDetailPage({ params }: JobDetailProps) {
               <div className="space-y-4">
                 {similarJobs.map((similarJob) => (
                   <div key={similarJob.id} className="pb-4 border-b border-gray-200 last:border-b-0 last:pb-0">
-                    <Link href={`/jobs/${similarJob.id}`}>
+                    <Link href={`/jobs/job/?id=${similarJob.id}`}>
                       <h5 className="text-red-600 hover:text-red-700 underline text-sm font-medium mb-2 cursor-pointer">
                         {similarJob.title}
                       </h5>
@@ -496,7 +484,7 @@ export default function JobDetailPage({ params }: JobDetailProps) {
               <div className="space-y-4">
                 {jobSeekersViewed.map((viewedJob) => (
                   <div key={viewedJob.id} className="pb-4 border-b border-gray-200 last:border-b-0 last:pb-0">
-                    <Link href={`/jobs/${viewedJob.id}`}>
+                    <Link href={`/jobs/job/?id=${viewedJob.id}`}>
                       <h5 className="text-red-600 hover:text-red-700 underline text-sm font-medium mb-2 cursor-pointer">
                         {viewedJob.title}
                       </h5>
@@ -524,5 +512,20 @@ export default function JobDetailPage({ params }: JobDetailProps) {
         </div>
       </main>
     </div>
+  )
+}
+
+export default function JobDetailPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-lg p-6 flex items-center space-x-3">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600" />
+          <span className="text-gray-700">Loading job details...</span>
+        </div>
+      </div>
+    }>
+      <JobDetailContent />
+    </Suspense>
   )
 }
