@@ -8,51 +8,43 @@ import { jobsApi } from '@/lib/api'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { PartyPopper, Monitor, Lock, Mail, Clock, Bot } from 'lucide-react'
+import { SuspenseWrapper } from '@/components/common'
 
-// Remove hardcoded job titles - we'll fetch real job data
-
-interface ApplicationResultProps {
-  params: Promise<{
-    jobId: string
-  }>
-}
-
-export default function ApplicationResultPage({ params }: ApplicationResultProps) {
+function ApplicationResultContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [user, setUser] = useState<User | null>(null)
   const [job, setJob] = useState<Job | null>(null)
   const [loading, setLoading] = useState(true)
-  const [resolvedParams, setResolvedParams] = useState<{ jobId: string } | null>(null)
-  
+  // Get jobId from query parameters
   useEffect(() => {
-    params.then(setResolvedParams)
-  }, [params])
-
-  // Fetch job data when params are resolved
-  useEffect(() => {
-    if (resolvedParams) {
-      fetchJobData()
-    }
-  }, [resolvedParams])
-
-  const fetchJobData = async () => {
-    if (!resolvedParams) return
+    const jobIdParam = searchParams.get('jobId') || searchParams.get('id')
     
-    try {
-      setLoading(true)
-      const { data, error } = await jobsApi.getById(resolvedParams.jobId)
-      if (error) {
-        console.error('Failed to fetch job:', error)
-      } else {
-        setJob(data)
-      }
-    } catch (err) {
-      console.error('Error fetching job:', err)
-    } finally {
+    if (!jobIdParam) {
+      console.error('Job ID is required')
       setLoading(false)
+      return
     }
-  }
+    
+    // Fetch job data
+    const fetchJobData = async () => {
+      try {
+        setLoading(true)
+        const { data, error } = await jobsApi.getById(jobIdParam)
+        if (error) {
+          console.error('Failed to fetch job:', error)
+        } else {
+          setJob(data)
+        }
+      } catch (err) {
+        console.error('Error fetching job:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    fetchJobData()
+  }, [searchParams])
 
   const resultType = searchParams.get('result') || 'eligible' // 'eligible', 'interview', or 'under-review'
   const isEligible = resultType === 'eligible' || resultType === 'interview'
@@ -277,5 +269,13 @@ export default function ApplicationResultPage({ params }: ApplicationResultProps
         )}
       </main>
     </div>
+  )
+}
+
+export default function ApplicationResultPage() {
+  return (
+    <SuspenseWrapper>
+      <ApplicationResultContent />
+    </SuspenseWrapper>
   )
 }

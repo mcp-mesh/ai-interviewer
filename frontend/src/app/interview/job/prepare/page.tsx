@@ -88,7 +88,7 @@ export default function InterviewPreparePage({ params }: PreparePageProps) {
     
     if (!application) {
       showToast.error('Application not found for this job. Please apply first.')
-      router.push(`/jobs/${jobId}`)
+      router.push(`/jobs/job/?id=${jobId}`)
       return
     }
 

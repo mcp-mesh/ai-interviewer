@@ -179,7 +179,7 @@ export function useApplicationForm({
       setCurrentStep(currentStep - 1)
     } else if (resolvedParams) {
       // Go back to job detail
-      router.push(`/jobs/${resolvedParams.jobId}`)
+      router.push(`/jobs/job/?id=${resolvedParams.jobId}`)
     }
   }
 

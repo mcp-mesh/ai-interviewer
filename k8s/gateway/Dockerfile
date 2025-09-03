@@ -6,7 +6,7 @@ FROM openresty/openresty:1.21.4.1-alpine
 # Install basic tools for debugging
 RUN apk add --no-cache curl
 
-# Copy built Next.js UI from frontend/out to nginx html directory
+# Copy built Next.js UI from frontend/out to OpenResty html directory
 COPY frontend/out /usr/local/openresty/nginx/html
 
 # Copy full Nginx configuration with OAuth and Lua scripts (adapted for K8s)
@@ -26,7 +26,7 @@ RUN mkdir -p /usr/local/openresty/nginx/logs \
     && mkdir -p /tmp/nginx/uwsgi_temp \
     && mkdir -p /tmp/nginx/scgi_temp
 
-# Set proper permissions for all directories and SSL files
+# Set proper permissions for all directories and SSL files (OpenResty paths)  
 RUN chown -R nobody:nobody /usr/local/openresty/nginx/html \
     && chown -R nobody:nobody /usr/local/openresty/nginx/logs \
     && chown -R nobody:nobody /tmp/nginx \

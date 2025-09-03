@@ -426,7 +426,7 @@ export default function MatchedJobsPage() {
               ) : filteredJobs.length > 0 ? (
                 filteredJobs.map((job) => (
                   <div key={job.id} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200">
-                    <Link href={`/jobs/${job.id}`}>
+                    <Link href={`/jobs/job/?id=${job.id}`}>
                       <h3 className="text-lg font-semibold text-red-600 hover:text-red-700 cursor-pointer underline mb-3">
                         {job.title}
                       </h3>

@@ -49,6 +49,9 @@ interface InterviewData {
   completion_reason: string
   ended_at: string
   duration: number
+  duration_minutes?: number
+  questions_asked?: number
+  questions_answered?: number
 }
 
 interface JobStatistics {

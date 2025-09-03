@@ -6,12 +6,9 @@ import { Navigation } from "@/components/navigation"
 import { Button } from "@/components/ui/button"
 import { CheckCircle2, XCircle, Clock, AlertTriangle } from "lucide-react"
 import { UserState, User } from "@/lib/types"
+import { SuspenseWrapper } from "@/components/common"
 
-interface CompleteInterviewPageProps {
-  params: Promise<{ jobId: string }>
-}
-
-export default function CompleteInterviewPage({ params }: CompleteInterviewPageProps) {
+function CompleteInterviewPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [jobId, setJobId] = useState<string>("")
@@ -36,19 +33,16 @@ export default function CompleteInterviewPage({ params }: CompleteInterviewPageP
     }
   }, [])
 
-  // Get completion reason from URL params
+  // Get jobId and completion reason from URL params
   useEffect(() => {
+    const jobIdParam = searchParams.get('jobId') || searchParams.get('id')
     const completionReason = searchParams.get('reason') || 'completed'
+    
+    if (jobIdParam) {
+      setJobId(jobIdParam)
+    }
     setReason(completionReason)
   }, [searchParams])
-
-  useEffect(() => {
-    const resolveParams = async () => {
-      const resolvedParams = await params
-      setJobId(resolvedParams.jobId)
-    }
-    resolveParams()
-  }, [params])
 
   const getCompletionDetails = () => {
     switch (reason) {
@@ -171,5 +165,13 @@ export default function CompleteInterviewPage({ params }: CompleteInterviewPageP
         </div>
       </main>
     </div>
+  )
+}
+
+export default function CompleteInterviewPage() {
+  return (
+    <SuspenseWrapper>
+      <CompleteInterviewPageContent />
+    </SuspenseWrapper>
   )
 }

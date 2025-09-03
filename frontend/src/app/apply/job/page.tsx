@@ -149,7 +149,7 @@ export default function ApplicationPage({ params }: ApplicationPageProps) {
         {/* Back Link */}
         <div className="mb-8">
           <Link 
-            href={resolvedParams ? `/jobs/${resolvedParams.jobId}` : '#'}
+            href={resolvedParams ? `/jobs/job/?id=${resolvedParams.jobId}` : '#'}
             className="text-blue-600 hover:text-blue-700 flex items-center text-base"
           >
             <span className="mr-2">←</span> Back to Job Posting

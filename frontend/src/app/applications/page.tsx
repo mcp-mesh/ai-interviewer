@@ -145,7 +145,7 @@ export default function ApplicationsPage() {
         <CardContent className="p-6">
           <div className="flex justify-between items-start">
             <div className="flex-1">
-              <Link href={`/jobs/${job.id}`}>
+              <Link href={`/jobs/job/?id=${job.id}`}>
                 <h3 className="text-lg font-semibold text-red-600 hover:text-red-700 cursor-pointer underline mb-2">
                   {job.title}
                 </h3>
