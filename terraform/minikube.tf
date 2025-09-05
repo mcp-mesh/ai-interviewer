@@ -59,6 +59,18 @@ resource "null_resource" "build_images" {
       echo "🏗️ Building OpenAI LLM agent..."
       docker build -f services/openai_llm_agent/Dockerfile -t ai-interviewer/openai-llm-agent:latest .
       
+      echo "🏗️ Building application agent..."
+      docker build -f services/application_agent/Dockerfile -t ai-interviewer/application-agent:latest .
+      
+      echo "🏗️ Building file agent..."
+      docker build -f services/file_agent/Dockerfile -t ai-interviewer/file-agent:latest .
+      
+      echo "🏗️ Building job agent..."
+      docker build -f services/job_agent/Dockerfile -t ai-interviewer/job-agent:latest .
+      
+      echo "🏗️ Building user agent..."
+      docker build -f services/user_agent/Dockerfile -t ai-interviewer/user-agent:latest .
+      
       echo "🏗️ Building frontend first..."
       cd frontend && npm ci && npm run build && cd ..
       

@@ -211,6 +211,27 @@ resource "kubernetes_deployment" "backend" {
             }
           }
 
+          # reCAPTCHA Keys from secrets
+          env {
+            name = "RECAPTCHA_SITE_KEY"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.recaptcha_keys.metadata[0].name
+                key  = "RECAPTCHA_SITE_KEY"
+              }
+            }
+          }
+
+          env {
+            name = "RECAPTCHA_SECRET_KEY"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.recaptcha_keys.metadata[0].name
+                key  = "RECAPTCHA_SECRET_KEY"
+              }
+            }
+          }
+
           resources {
             requests = {
               memory = "256Mi"

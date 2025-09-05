@@ -1,6 +1,26 @@
+# PostgreSQL Persistent Volume Claim
+resource "kubernetes_persistent_volume_claim" "postgres_data" {
+  depends_on = [kubernetes_namespace.ai_interviewer]
+  
+  metadata {
+    name      = "postgres-data"
+    namespace = var.namespace
+  }
+  
+  spec {
+    access_modes = ["ReadWriteOnce"]
+    resources {
+      requests = {
+        storage = "5Gi"
+      }
+    }
+    storage_class_name = "standard"
+  }
+}
+
 # PostgreSQL Database
 resource "kubernetes_deployment" "postgres" {
-  depends_on = [kubernetes_namespace.ai_interviewer]
+  depends_on = [kubernetes_namespace.ai_interviewer, kubernetes_persistent_volume_claim.postgres_data]
 
   metadata {
     name      = "ai-interviewer-postgres"
@@ -66,7 +86,9 @@ resource "kubernetes_deployment" "postgres" {
 
         volume {
           name = "postgres-data"
-          empty_dir {}
+          persistent_volume_claim {
+            claim_name = "postgres-data"
+          }
         }
       }
     }

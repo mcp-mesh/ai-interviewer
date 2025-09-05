@@ -18,6 +18,12 @@ locals {
     OPENAI_API_KEY    = var.openai_api_key != "" ? var.openai_api_key : "dummy-openai-key"
   }
 
+  # reCAPTCHA keys from Terraform variables (which read from TF_VAR_* environment variables)
+  recaptcha_keys = {
+    RECAPTCHA_SITE_KEY   = var.RECAPTCHA_SITE_KEY != "" ? var.RECAPTCHA_SITE_KEY : "dummy-recaptcha-site-key"
+    RECAPTCHA_SECRET_KEY = var.RECAPTCHA_SECRET_KEY != "" ? var.RECAPTCHA_SECRET_KEY : "dummy-recaptcha-secret-key"
+  }
+
   # Database credentials with defaults
   database_secrets = {
     POSTGRES_USER     = "ai_user"
@@ -29,7 +35,7 @@ locals {
   }
 
   # All secrets combined
-  all_secrets = merge(local.oauth_secrets, local.api_keys, local.database_secrets)
+  all_secrets = merge(local.oauth_secrets, local.api_keys, local.recaptcha_keys, local.database_secrets)
 }
 
 # OAuth Configuration Secret (from environment)
@@ -61,6 +67,22 @@ resource "kubernetes_secret" "api_keys" {
 
   data = {
     for key, value in local.api_keys : key => value
+  }
+}
+
+# reCAPTCHA Keys Secret (from environment)
+resource "kubernetes_secret" "recaptcha_keys" {
+  depends_on = [kubernetes_namespace.ai_interviewer]
+
+  metadata {
+    name      = "recaptcha-keys"
+    namespace = var.namespace
+  }
+
+  type = "Opaque"
+
+  data = {
+    for key, value in local.recaptcha_keys : key => value
   }
 }
 

@@ -529,12 +529,6 @@ resource "kubernetes_deployment" "interview_agent" {
             value = ""
           }
 
-          # Database configuration
-          env {
-            name  = "DATABASE_URL"
-            value = "postgresql://ai_user:ai_password@ai-interviewer-postgres:5432/ai_interviewer"
-          }
-
           # Legacy MCP Registry URL (for compatibility)
           env {
             name  = "MCP_REGISTRY_URL"
@@ -958,27 +952,6 @@ resource "kubernetes_deployment" "application_agent" {
           env {
             name  = "REDIS_URL"
             value = "redis://ai-interviewer-redis:6379"
-          }
-
-          # Redis configuration for application agent caching
-          env {
-            name  = "REDIS_HOST"
-            value = "ai-interviewer-redis"
-          }
-
-          env {
-            name  = "REDIS_PORT"
-            value = "6379"
-          }
-
-          env {
-            name  = "REDIS_DB"
-            value = "0"
-          }
-
-          env {
-            name  = "REDIS_PASSWORD"
-            value = ""
           }
 
           # Database configuration

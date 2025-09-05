@@ -575,7 +575,7 @@ resource "kubernetes_config_map" "grafana_dashboard" {
                 uid  = "tempo"
               }
               limit     = 20
-              query     = "{}"
+              query     = "{rootName != \"GET /health\"}"
               queryType = "traceql"
               refId     = "A"
               tableType = "traces"
@@ -701,7 +701,7 @@ resource "kubernetes_config_map" "grafana_dashboard" {
                 type = "tempo"
                 uid  = "tempo"
               }
-              query     = "{}"
+              query     = "{rootName != \"GET /health\"}"
               refId     = "A"
               queryType = "traceql"
               limit     = 20
@@ -791,7 +791,7 @@ resource "kubernetes_config_map" "grafana_dashboard" {
                 type = "tempo"
                 uid  = "tempo"
               }
-              query = "{}"
+              query = "{rootName != \"GET /health\"}"
               refId = "A"
             }
           ]

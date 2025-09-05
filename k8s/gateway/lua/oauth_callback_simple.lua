@@ -363,7 +363,13 @@ red:close()
 ngx.log(ngx.INFO, "OAuth login successful for email: ", session.user_email or "unknown")
 
 -- Set secure session cookie and redirect
+ngx.log(ngx.ERR, "Host header for cookie: ", ngx.var.host or "unknown")
+ngx.log(ngx.ERR, "Server name for cookie: ", ngx.var.server_name or "unknown")
+
+-- Don't set Domain attribute - let it default to the request host
+-- This makes the cookie work for whatever domain/IP the user is accessing from
 local cookie_attrs = "HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=86400"
 ngx.header["Set-Cookie"] = "session_id=" .. session_id .. "; " .. cookie_attrs
 ngx.log(ngx.ERR, "Setting cookie with session_id: ", session_id)
-return ngx.redirect("/")
+ngx.log(ngx.ERR, "Cookie attributes: ", cookie_attrs)
+return ngx.redirect("/dashboard")

@@ -104,6 +104,20 @@ variable "openai_api_key" {
   sensitive   = true
 }
 
+variable "RECAPTCHA_SITE_KEY" {
+  description = "Google reCAPTCHA Site Key (set via TF_VAR_RECAPTCHA_SITE_KEY)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "RECAPTCHA_SECRET_KEY" {
+  description = "Google reCAPTCHA Secret Key (set via TF_VAR_RECAPTCHA_SECRET_KEY)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "metallb_ip_range" {
   description = "IP range for MetalLB"
   type        = string
