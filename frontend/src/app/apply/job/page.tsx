@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Navigation } from '@/components/navigation'
 import { Button } from '@/components/ui/button'
 import { ToastContainer, useToast } from '@/components/common'
@@ -9,7 +9,7 @@ import Link from 'next/link'
 import { Bot } from 'lucide-react'
 
 // Import our extracted components and types
-import { ApplicationPageProps, steps } from './types'
+import { steps } from './types'
 import { ProgressIndicator } from './components/ProgressIndicator'
 import { ApplicationNavigation } from './components/ApplicationNavigation'
 
@@ -25,18 +25,23 @@ import { ReviewStep } from './components/ApplicationSteps/ReviewStep'
 import { useApplicationData } from './hooks/useApplicationData'
 import { useApplicationForm } from './hooks/useApplicationForm'
 
-export default function ApplicationPage({ params }: ApplicationPageProps) {
+function ApplicationPageContent() {
+  const searchParams = useSearchParams()
+  const jobId = searchParams.get('id')
   const [resolvedParams, setResolvedParams] = useState<{ jobId: string } | null>(null)
   const { toasts, showToast, removeToast } = useToast()
   const router = useRouter()
   
   useEffect(() => {
-    params.then(setResolvedParams)
-  }, [params])
+    if (jobId) {
+      setResolvedParams({ jobId })
+    }
+  }, [jobId])
 
   // Use our custom hooks for all the complex logic
   const {
     user,
+    loading,
     currentStep,
     setCurrentStep,
     formData,
@@ -66,6 +71,19 @@ export default function ApplicationPage({ params }: ApplicationPageProps) {
   const userState = isGuest ? "guest" : (user.hasResume ? "has-resume" : "no-resume")
   const hasResume = user?.hasResume || false
 
+  if (loading) {
+    return (
+      <div className="page-light min-h-screen">
+        <Navigation userState="guest" user={null} theme="light" />
+        <main className="container max-w-[1400px] mx-auto px-6 pt-20">
+          <div className="text-center py-20">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Loading...</h1>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
   if (!user) {
     return (
       <div className="page-light min-h-screen">
@@ -76,7 +94,7 @@ export default function ApplicationPage({ params }: ApplicationPageProps) {
             <p className="text-gray-600 mb-6">You need to be logged in to apply for this position.</p>
             <Button 
               variant="primary" 
-              onClick={() => resolvedParams && router.push(`/login?redirect=/apply/${resolvedParams.jobId}`)}
+              onClick={() => resolvedParams && router.push(`/login?redirect=/apply/job/?id=${resolvedParams.jobId}`)}
             >
               Log In to Apply
             </Button>
@@ -200,5 +218,13 @@ export default function ApplicationPage({ params }: ApplicationPageProps) {
       
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
+  )
+}
+
+export default function ApplicationPage() {
+  return (
+    <Suspense fallback={<div>Loading application...</div>}>
+      <ApplicationPageContent />
+    </Suspense>
   )
 }

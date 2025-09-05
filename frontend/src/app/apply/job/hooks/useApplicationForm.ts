@@ -231,7 +231,7 @@ export function useApplicationForm({
         const currentApplication = updatedUser?.applications?.find(app => app.jobId === resolvedParams.jobId)
         const isQualifiedForInterview = currentApplication?.qualified === true && currentApplication?.status === 'QUALIFIED'
         const redirectUrl = responseData.redirect_url as string || 
-          `/apply/${resolvedParams.jobId}/result?result=${isQualifiedForInterview ? 'interview' : 'under-review'}`
+          `/apply/job/result/?id=${resolvedParams.jobId}&result=${isQualifiedForInterview ? 'interview' : 'under-review'}`
         
         console.log('Interview qualification result:', { 
           applicationStatus: currentApplication?.status,

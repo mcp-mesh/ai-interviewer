@@ -14,6 +14,7 @@ export default function UploadPage() {
   const router = useRouter()
   const { executeRecaptcha } = useGoogleReCaptcha()
   const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null)
   const [recaptchaLoading, setRecaptchaLoading] = useState(false)
@@ -30,6 +31,7 @@ export default function UploadPage() {
       // Redirect to login if no user found
       router.push('/login?redirect=/upload')
     }
+    setLoading(false)
   }, [router])
 
   const executeReCaptcha = async () => {
@@ -171,6 +173,18 @@ export default function UploadPage() {
     if (!recaptchaToken) missing.push('complete security verification')
     if (!termsAccepted) missing.push('accept terms')
     return missing
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Card>
+          <CardContent className="text-center py-8">
+            <p className="mb-4">Loading...</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   if (!user) {

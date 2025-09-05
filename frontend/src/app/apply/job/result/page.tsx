@@ -13,14 +13,13 @@ import { SuspenseWrapper } from '@/components/common'
 function ApplicationResultContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const jobId = searchParams.get('jobId') || searchParams.get('id')
   const [user, setUser] = useState<User | null>(null)
   const [job, setJob] = useState<Job | null>(null)
   const [loading, setLoading] = useState(true)
   // Get jobId from query parameters
   useEffect(() => {
-    const jobIdParam = searchParams.get('jobId') || searchParams.get('id')
-    
-    if (!jobIdParam) {
+    if (!jobId) {
       console.error('Job ID is required')
       setLoading(false)
       return
@@ -30,7 +29,7 @@ function ApplicationResultContent() {
     const fetchJobData = async () => {
       try {
         setLoading(true)
-        const { data, error } = await jobsApi.getById(jobIdParam)
+        const { data, error } = await jobsApi.getById(jobId)
         if (error) {
           console.error('Failed to fetch job:', error)
         } else {
@@ -44,7 +43,7 @@ function ApplicationResultContent() {
     }
     
     fetchJobData()
-  }, [searchParams])
+  }, [jobId])
 
   const resultType = searchParams.get('result') || 'eligible' // 'eligible', 'interview', or 'under-review'
   const isEligible = resultType === 'eligible' || resultType === 'interview'
@@ -55,12 +54,13 @@ function ApplicationResultContent() {
     if (userData) {
       setUser(JSON.parse(userData))
     } else {
-      // Redirect to login if not authenticated
-      if (resolvedParams) {
-        router.push(`/login?redirect=/apply/${resolvedParams.jobId}/result`)
+      // Redirect to login if not authenticated  
+      const jobIdParam = searchParams.get('jobId') || searchParams.get('id')
+      if (jobIdParam) {
+        router.push(`/login?redirect=/apply/job/result/?id=${jobIdParam}`)
       }
     }
-  }, [resolvedParams, router])
+  }, [jobId, router])
 
   const handleScheduleForLater = () => {
     // Navigate to dashboard
@@ -69,15 +69,15 @@ function ApplicationResultContent() {
 
   const handleStartInterview = () => {
     // Navigate to interview preparation page
-    if (resolvedParams) {
-      router.push(`/interview/${resolvedParams.jobId}/prepare`)
+    if (jobId) {
+      router.push(`/interview/job/prepare/?id=${jobId}`)
     }
   }
 
   const isGuest = !user
   const userState = isGuest ? "guest" : (user?.hasResume ? "has-resume" : "no-resume")
 
-  if (!user || !resolvedParams || loading || !job) {
+  if (!user || !jobId || loading || !job) {
     return (
       <div className="page-light min-h-screen">
         <Navigation userState="guest" user={null} theme="light" />
