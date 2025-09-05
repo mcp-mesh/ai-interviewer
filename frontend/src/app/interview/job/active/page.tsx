@@ -75,14 +75,14 @@ function ActiveInterviewPageContent() {
 
   const handleInterviewComplete = (reason: 'completed' | 'terminated' | 'time_up') => {
     // Redirect to completion page with reason
-    router.push(`/interview/job/complete?jobId=${jobId}&reason=${reason}`)
+    router.push(`/interview/job/complete?id=${jobId}&reason=${reason}`)
   }
 
   const handleInterviewError = (error: string) => {
     showToast.error(error)
     // Optionally redirect back to prepare page after error
     setTimeout(() => {
-      router.push(`/interview/job/prepare?jobId=${jobId}`)
+      router.push(`/interview/job/prepare?id=${jobId}`)
     }, 3000)
   }
 
@@ -113,7 +113,7 @@ function ActiveInterviewPageContent() {
               <h1 className="text-2xl font-bold text-gray-800 mb-2">Interview Session Error</h1>
               <p className="text-gray-600 mb-6">{error || 'Invalid interview session'}</p>
               <button
-                onClick={() => router.push(`/interview/job/prepare?jobId=${jobId}`)}
+                onClick={() => router.push(`/interview/job/prepare?id=${jobId}`)}
                 className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors"
               >
                 Return to Preparation

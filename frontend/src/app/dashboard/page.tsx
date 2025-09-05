@@ -12,8 +12,8 @@ import { FileText, Target, Zap, Bot, BarChart3, User as UserIcon } from 'lucide-
 export default function DashboardPage() {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
   // const [featuredJobs, setFeaturedJobs] = useState<Job[]>([])
-  // const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     // Get user data from API using session-based authentication
@@ -28,6 +28,7 @@ export default function DashboardPage() {
           localStorage.setItem('user', JSON.stringify(result.data))
           // Fetch dashboard data after getting user
           fetchDashboardData()
+          setLoading(false)
         } else {
           // No user data found, redirect to login
           window.location.href = '/login?redirect=/dashboard'
@@ -110,15 +111,16 @@ export default function DashboardPage() {
     router.push('/upload')
   }
 
-  if (!user) {
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card>
-          <CardContent className="text-center py-8">
-            <p className="mb-4">Please log in to view your dashboard</p>
-            <Button onClick={() => router.push('/login')} variant="primary">Go to Login</Button>
-          </CardContent>
-        </Card>
+      <div className="page-light min-h-screen">
+        <Navigation userState="guest" user={null} theme="light" />
+        <main className="container max-w-[900px] mx-auto px-6 pt-20">
+          <div className="py-12 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading your dashboard...</p>
+          </div>
+        </main>
       </div>
     )
   }

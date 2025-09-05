@@ -80,13 +80,13 @@ export default function ApplicationsPage() {
       localStorage.setItem('user', JSON.stringify(updatedUser))
       
       // Redirect to interview page
-      router.push(`/interview/${application.jobId}/prepare`)
+      router.push(`/interview/job/prepare/?id=${application.jobId}`)
     }
   }
 
   const handleContinueInterview = (application: ApplicationWithJob) => {
     // Redirect to interview page to continue
-    router.push(`/interview/${application.jobId}/prepare`)
+    router.push(`/interview/job/prepare/?id=${application.jobId}`)
   }
 
   const handleContinueApplication = async (application: ApplicationWithJob) => {
@@ -112,17 +112,17 @@ export default function ApplicationsPage() {
         
         console.log('Continuing application:', { applicationId, currentStep, hasPrefillData: !!prefillData })
         
-        // Now redirect to application flow
-        router.push(`/apply/${application.jobId}`)
+        // Now redirect to application flow (Phase 2 query parameter routing)
+        router.push(`/apply/job/?id=${application.jobId}`)
       } else {
         console.error('Failed to continue application:', result.error)
-        // Fallback - redirect without API data
-        router.push(`/apply/${application.jobId}`)
+        // Fallback - redirect without API data (Phase 2 query parameter routing)
+        router.push(`/apply/job/?id=${application.jobId}`)
       }
     } catch (error) {
       console.error('Error continuing application:', error)
-      // Fallback - redirect without API data  
-      router.push(`/apply/${application.jobId}`)
+      // Fallback - redirect without API data (Phase 2 query parameter routing)
+      router.push(`/apply/job/?id=${application.jobId}`)
     } finally {
       setContinuingApp(null) // Clear loading state
     }
@@ -174,19 +174,6 @@ export default function ApplicationsPage() {
     )
   }
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card>
-          <CardContent className="text-center py-8">
-            <p className="mb-4">Please log in to view your applications</p>
-            <Button onClick={() => router.push('/login')} variant="primary">Go to Login</Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
   if (loading) {
     return (
       <div className="page-light min-h-screen">
@@ -196,6 +183,19 @@ export default function ApplicationsPage() {
             <p>Loading your applications...</p>
           </div>
         </main>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Card>
+          <CardContent className="text-center py-8">
+            <p className="mb-4">Please log in to view your applications</p>
+            <Button onClick={() => router.push('/login')} variant="primary">Go to Login</Button>
+          </CardContent>
+        </Card>
       </div>
     )
   }

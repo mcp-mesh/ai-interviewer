@@ -13,6 +13,7 @@ interface ApplicationDataState {
 export function useApplicationData(resolvedParams: { jobId: string } | null) {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
   const [currentStep, setCurrentStep] = useState(1)
   const [formData, setFormData] = useState<ApplicationData>(initialFormData)
   const [applicationData, setApplicationData] = useState<ApplicationDataState | null>(null)
@@ -112,12 +113,14 @@ export function useApplicationData(resolvedParams: { jobId: string } | null) {
       }
     } else if (resolvedParams) {
       // Redirect to login if not authenticated
-      router.push(`/login?redirect=/apply/${resolvedParams.jobId}`)
+      router.push(`/login?redirect=/apply/job/?id=${resolvedParams.jobId}`)
     }
+    setLoading(false)
   }, [resolvedParams, router, applicationData])
 
   return {
     user,
+    loading,
     currentStep,
     setCurrentStep,
     formData,

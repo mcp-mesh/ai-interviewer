@@ -138,7 +138,7 @@ function JobDetailContent() {
   // Helper functions for different actions
   const handleStartInterview = () => {
     if (currentApplication) {
-      router.push(`/interview/${currentApplication.jobId}/prepare`)
+      router.push(`/interview/job/prepare/?id=${currentApplication.jobId}`)
     }
   }
 
@@ -172,7 +172,7 @@ function JobDetailContent() {
           // Don't block the flow if profile refresh fails
         }
         
-        router.push(`/apply/${job.id}`)
+        router.push(`/apply/job/?id=${job.id}`)
       }
     } catch (error) {
       console.error('Error continuing application:', error)
@@ -183,7 +183,7 @@ function JobDetailContent() {
 
   const handleContinueInterview = () => {
     if (currentApplication) {
-      router.push(`/interview/${currentApplication.jobId}/prepare`)
+      router.push(`/interview/job/prepare/?id=${currentApplication.jobId}`)
     }
   }
 
@@ -192,7 +192,7 @@ function JobDetailContent() {
     
     if (isGuest) {
       // Show login modal or redirect to login
-      router.push(`/login?redirect=/apply/${job.id}`)
+      router.push(`/login?redirect=/apply/job/?id=${job.id}`)
       return
     }
 
@@ -238,7 +238,7 @@ function JobDetailContent() {
         }
         
         console.log('Application started:', { applicationId, currentStep, hasPrefillData: !!prefillData })
-        router.push(`/apply/${job.id}`)
+        router.push(`/apply/job/?id=${job.id}`)
       } else {
         // Handle API error response
         console.error('Failed to start application:', result.error)

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import Link from "next/link"
 import { Navigation } from "@/components/navigation"
 import { Button } from "@/components/ui/button"
@@ -9,15 +9,13 @@ import { ToastContainer, useToast } from "@/components/common"
 import { AlertTriangle, Calendar, Clock, Ban, Scale, Wrench, Lightbulb, CheckCircle2, Settings } from "lucide-react"
 import { UserState, User, Job } from "@/lib/types"
 import { jobsApi, interviewsApi } from "@/lib/api"
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
-interface PreparePageProps {
-  params: Promise<{ jobId: string }>
-}
-
-export default function InterviewPreparePage({ params }: PreparePageProps) {
+function InterviewPreparePageContent() {
   const router = useRouter()
-  const [jobId, setJobId] = useState<string>("")
+  const searchParams = useSearchParams()
+  const jobId = searchParams.get('id')
+  const [resolvedJobId, setResolvedJobId] = useState<string>("")
   const [job, setJob] = useState<Job | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -44,27 +42,29 @@ export default function InterviewPreparePage({ params }: PreparePageProps) {
   }, [])
 
   useEffect(() => {
-    const resolveParams = async () => {
-      const resolvedParams = await params
-      setJobId(resolvedParams.jobId)
+    if (jobId) {
+      setResolvedJobId(jobId)
       
       // Fetch job data
-      setLoading(true)
-      try {
-        const { data: jobData, error: jobError } = await jobsApi.getById(resolvedParams.jobId)
-        if (jobError) {
-          setError(jobError)
-        } else {
-          setJob(jobData)
+      const fetchJobData = async () => {
+        setLoading(true)
+        try {
+          const { data: jobData, error: jobError } = await jobsApi.getById(jobId)
+          if (jobError) {
+            setError(jobError)
+          } else {
+            setJob(jobData)
+          }
+        } catch {
+          setError('Failed to fetch job information')
+        } finally {
+          setLoading(false)
         }
-      } catch {
-        setError('Failed to fetch job information')
-      } finally {
-        setLoading(false)
       }
+      
+      fetchJobData()
     }
-    resolveParams()
-  }, [params])
+  }, [jobId])
 
   const handleStartInterview = async () => {
     if (isStartingInterview) return
@@ -106,7 +106,7 @@ export default function InterviewPreparePage({ params }: PreparePageProps) {
     // Just redirect to active page and let it handle the interview state
     try {
       showToast.success('Loading your interview...')
-      router.push(`/interview/${jobId}/active`)
+      router.push(`/interview/job/active/?id=${jobId}`)
     } catch (error: any) {
       console.error('Failed to navigate to interview:', error)
       showToast.error('Failed to start interview. Please try again.')
@@ -377,5 +377,13 @@ ${job.salaryRange ? `\n## Compensation\n$${job.salaryRange.min.toLocaleString()}
       
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
+  )
+}
+
+export default function InterviewPreparePage() {
+  return (
+    <Suspense fallback={<div>Loading interview preparation...</div>}>
+      <InterviewPreparePageContent />
+    </Suspense>
   )
 }
